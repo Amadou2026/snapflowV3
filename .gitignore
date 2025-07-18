@@ -1,0 +1,33 @@
+# .gitignore
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+
+# Django
+*.sqlite3
+*.db
+media/
+*.pot
+*.pyc
+*.pyo
+
+# Environnement virtuel
+venv/
+env/
+ENV/
+
+# VSCode / PyCharm
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
