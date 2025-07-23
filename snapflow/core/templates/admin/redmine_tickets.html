@@ -1,91 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+  <link rel="stylesheet" type="text/css" href="{% static 'css/tickets.css' %}">
+{% endblock %}
 
 {% block content %}
-<style>
-  /* Table styles */
-  table.adminlist {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1em;
-  }
-
-  table.adminlist th,
-  table.adminlist td {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    text-align: left;
-    vertical-align: middle;
-  }
-
-  table.adminlist thead {
-    background-color: #f4f6f9;
-  }
-
-  table.adminlist tbody tr:hover {
-    background-color: #f1f5f9;
-  }
-
-  /* Link styling */
-  a.ticket-link {
-    display: inline-block;
-    padding: 6px 10px;
-    background-color: #007bff;
-    color: white;
-    border-radius: 4px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: background-color 0.2s ease;
-  }
-
-  a.ticket-link:hover {
-    background-color: #0056b3;
-    text-decoration: none;
-  }
-
-  /* Responsive */
-  @media (max-width: 600px) {
-
-    table.adminlist,
-    table.adminlist thead,
-    table.adminlist tbody,
-    table.adminlist th,
-    table.adminlist td,
-    table.adminlist tr {
-      display: block;
-    }
-
-    table.adminlist thead tr {
-      display: none;
-    }
-
-    table.adminlist tbody tr {
-      margin-bottom: 1em;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 10px;
-    }
-
-    table.adminlist tbody td {
-      border: none;
-      padding: 6px 0;
-      position: relative;
-      padding-left: 50%;
-      white-space: normal;
-      text-align: left;
-    }
-
-    table.adminlist tbody td::before {
-      position: absolute;
-      top: 6px;
-      left: 12px;
-      width: 45%;
-      white-space: nowrap;
-      font-weight: bold;
-      content: attr(data-label);
-      text-align: left;
-    }
-  }
-</style>
 
 <h1></h1>
 
@@ -99,7 +19,6 @@
       <th>Statut</th>
       <th>Priorité</th>
       <th>Lien</th>
-      <!-- <th>ID Projet (Custom)</th> ✅ ajout ici -->
     </tr>
   </thead>
   <tbody>
@@ -113,8 +32,6 @@
       <td data-label="Lien">
         <a href="{{ ticket.url }}" target="_blank" class="ticket-link" rel="noopener noreferrer">Voir le ticket</a>
       </td>
-      <!-- <td>{{ ticket.champ_id_projet|default:"-" }}</td> ✅ ajout ici -->
-      <!-- <td colspan="6"><pre>{{ ticket|pprint }}</pre></td> -->
     </tr>
     {% endfor %}
   </tbody>

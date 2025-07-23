@@ -1,6 +1,6 @@
 /* Changer le logo */
 #header .logo {
-    background: url("/static/images/logo_snapflow.png") no-repeat left center;
+    background: url("/static/images/snapflow_B.png") no-repeat left center;
     background-size: contain;
     color: transparent;
     text-indent: -9999px;
@@ -9,7 +9,7 @@
 
 /* Changer la couleur de fond de l'en-tête */
 #header {
-    background-color: #cbdbeb;
+    background-color: #ffffff;
 }
 
 /* Personnaliser les titres */

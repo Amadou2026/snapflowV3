@@ -12,7 +12,7 @@ from django.http import HttpResponse
 import logging
 from core.utils.redmine import get_last_redmine_tickets
 
-admin.site.site_header = "Snapflow Monitoring"
+admin.site.site_header = "Snapflow Software Monitoring"
 admin.site.site_title = "Snapflow Admin"
 admin.site.index_title = "Tableau de bord"
 
@@ -190,6 +190,7 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
             'fields': ('emails_notification',),
         }),
     )
+    filter_horizontal = ('scripts',)
 
     def afficher_scripts_lies(self, obj):
         scripts = obj.scripts.all()
@@ -271,8 +272,7 @@ class EmailNotificationAdmin(admin.ModelAdmin):
 
 
 
-# core/admin.py (ajoute à la fin)
-# core/admin.py
+
 from django.urls import path
 from django.template.response import TemplateResponse
 from django.conf import settings
@@ -354,3 +354,37 @@ class TicketRedmineAdminView:
 
 
 TicketRedmineAdminView(admin.site)
+
+from django.contrib import admin
+from django.urls import reverse
+from django.shortcuts import redirect
+from .models import Dashboard  # 👈 important
+
+
+from django.template.response import TemplateResponse
+
+class DashboardAdmin(admin.ModelAdmin):
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        context = dict(
+            self.admin_site.each_context(request),  # <-- Ajoute le contexte admin ici
+            title="Dashboard",
+            **extra_context
+        )
+        return TemplateResponse(request, "admin/dashboard.html", context)
+
+    def has_module_permission(self, request):
+        return True
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+admin.site.register(Dashboard, DashboardAdmin)
+

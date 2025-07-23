@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Snapflow - Tableau de bord{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">
+    <img src="{% static 'images/snapflow_B.png' %}" alt="Snapflow Logo"
+         style="height:40px; vertical-align: middle; margin-right: 10px;">
+    Snapflow Monitoring
+  </a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}
+  {{ block.super }}
+{% endblock %}
+
+{% block sidebar %}
+  {{ block.super }}
+{% endblock %}
+
+{% block content %}
+  <h1>Bienvenue dans le tableau de bord personnalisé</h1>
+  <p>Ajoute ici ton contenu personnalisé (graphiques, tableaux, KPIs…)</p>
+{% endblock %}

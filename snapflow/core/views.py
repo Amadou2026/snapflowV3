@@ -3,6 +3,10 @@ from rest_framework.permissions import IsAuthenticated
 from .models import *
 from .serializers import *
 
+from django.db.models.functions import TruncDate
+from django.db.models import Count, Q
+from django.shortcuts import render
+
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
@@ -115,3 +119,83 @@ class RapportPDFView(APIView):
         p.save()
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename=f"rapport_{execution.id}.pdf")
+    
+def dashboard_view(request):
+    # Graphe 1 - Tests par jour
+    tests_par_jour = (
+        ExecutionTest.objects
+        .annotate(date=TruncDate('started_at'))
+        .values('date')
+        .annotate(total=Count('id'))
+        .order_by('date')
+    )
+    labels = [str(entry["date"]) for entry in tests_par_jour]
+    values = [entry["total"] for entry in tests_par_jour]
+
+    # Graphe 2 - Succès vs Échec par jour
+    success_fail = (
+        ExecutionTest.objects
+        .annotate(date=TruncDate('started_at'))
+        .values('date', 'statut')
+        .annotate(total=Count('id'))
+        .order_by('date')
+    )
+    sf_result = {}
+    for row in success_fail:
+        date = str(row['date'])
+        statut = row['statut'] or "inconnu"
+        count = row['total']
+        if date not in sf_result:
+            sf_result[date] = {"succès": 0, "échec": 0}
+        sf_result[date][statut] = count
+
+    sf_labels = list(sf_result.keys())
+    sf_success = [sf_result[d].get("succès", 0) for d in sf_labels]
+    sf_fail = [sf_result[d].get("échec", 0) for d in sf_labels]
+
+    # Graphe 3 - Répartition par projet
+    projets = (
+        ExecutionTest.objects
+        .values('configuration__projet__nom')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    projet_labels = [row['configuration__projet__nom'] for row in projets]
+    projet_counts = [row['total'] for row in projets]
+
+    # KPI taux de réussite
+    total = ExecutionTest.objects.count()
+    success = ExecutionTest.objects.filter(statut="succès").count()
+    taux_reussite = round((success / total * 100), 2) if total > 0 else 0
+
+    # Graphe 4 - Taux d'erreur par script
+    erreurs_data = (
+        ExecutionTest.objects
+        .values('configuration__scripts__nom')
+        .annotate(
+            total=Count('id'),
+            erreurs=Count('id', filter=Q(statut='error'))
+        )
+        .order_by('-erreurs')
+    )
+    erreurs_labels = []
+    erreurs_counts = []
+    for d in erreurs_data:
+        erreurs_labels.append(d['configuration__scripts__nom'] or 'Sans script')
+        erreurs_counts.append(d['erreurs'])
+
+    # Total test
+    total_tests = ExecutionTest.objects.count()
+    return render(request, 'admin/dashboard.html', {
+        "labels": labels,
+        "values": values,
+        "sf_labels": sf_labels,
+        "sf_success": sf_success,
+        "sf_fail": sf_fail,        
+        "projet_labels": projet_labels,
+        "projet_counts": projet_counts,
+        "taux_reussite": taux_reussite,
+        "erreurs_labels": erreurs_labels,
+        "erreurs_counts": erreurs_counts,
+        "total_tests": total_tests,
+    })

@@ -1,13 +1,13 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
-{% block title %}Snapflow Monitoring{% endblock %}
+{% block title %}Snapflow Software Monitoring{% endblock %}
 
 {% block branding %}
 <h1 id="site-name">
   <a href="{% url 'admin:index' %}">
-    <img src="{% static 'images/logo_snapflow.png' %}" alt="Snapflow Logo" style="height:40px; vertical-align: middle; margin-right: 10px;">
-    Snapflow Monitoring
+    <img src="{% static 'images/snapflow_B.png' %}" alt="Snapflow Logo" style="height:40px; vertical-align: middle; margin-right: 10px;">
+    Snapflow Software Monitoring
   </a>
 </h1>
 {% endblock %}
@@ -17,10 +17,5 @@
 {% block sidebar %}
   {{ block.super }}
 
-  <!-- <div class="module">
-    <h3>Redmine</h3>
-    <ul class="nav nav-pills nav-stacked">
-      <li><a href="{% url 'admin:tickets-redmine' %}">Tickets Redmine</a></li>
-    </ul>
-  </div> -->
+  
 {% endblock %}
