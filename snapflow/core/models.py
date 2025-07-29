@@ -10,7 +10,7 @@ class CustomUser(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
-    objects = CustomUserManager()  # ici on ajoute le manager
+    objects = CustomUserManager()  
 
     def __str__(self):
         return self.email
@@ -51,9 +51,11 @@ class Projet(models.Model):
     logo = models.ImageField(upload_to="logos/")
     contrat = models.TextField()
     charge_de_compte = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    id_redmine_charge_de_compte = models.IntegerField(null=True, blank=True)  
 
     def __str__(self):
         return self.nom
+
 
 class EmailNotification(models.Model):
     email = models.EmailField(unique=True)
@@ -110,6 +112,7 @@ class TicketRedmine:
         self.projet_nom = projet_nom
         
 
+# Fake data
 from django.db import models
 
 class Dashboard(models.Model):
@@ -118,5 +121,14 @@ class Dashboard(models.Model):
         verbose_name = "Dashboard"
         managed = False  # Pas de table créée
    
-    
+# core/models.py
+
+from django.db import models
+
+class VueGlobale(models.Model):
+    class Meta:
+        verbose_name = "Vue Globale"
+        verbose_name_plural = "Vue Globale"
+        managed = False  # Pas de table en base de données
+
     

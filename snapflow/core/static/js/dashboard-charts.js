@@ -17,6 +17,21 @@ const colors = {
   teal: '#14b8a6'
 };
 
+// Fonction pour récupérer le projet sélectionné dans le <select>
+function getSelectedProjetId() {
+  const select = document.getElementById('projet');
+  if (!select) {
+    console.log("Select projet non trouvé");
+    return null;
+  }
+  const val = select.value;
+  console.log("Valeur sélectionnée dans projet:", val);
+  return val !== "" ? val : null;
+}
+
+
+
+
 // Fonction dédiée pour initialiser le graphique tests par jour
 function initTestsChart(labels, values) {
   const ctx = document.getElementById('testsChart').getContext('2d');
@@ -133,109 +148,27 @@ function initProjetChart(labels, counts) {
   });
 }
 
-// Chargement des données et initialisation des graphiques + KPI
-document.addEventListener('DOMContentLoaded', () => {
-  // Fetch tests par jour
-  fetch('/api/stats/tests-par-jour/')
-    .then(response => response.json())
-    .then(testsParJourData => {
-      const labels = testsParJourData.map(entry => entry.date);
-      const values = testsParJourData.map(entry => entry.total);
-
-      // Initialiser le graphique tests par jour
-      initTestsChart(labels, values);
-
-      // Mettre à jour le total des tests dans la KPI si existant
-      const totalTestsElem = document.getElementById('total-tests');
-      if (totalTestsElem) {
-        const totalTests = values.reduce((acc, val) => acc + val, 0);
-        totalTestsElem.textContent = totalTests.toLocaleString();
-      }
-    })
-    .catch(error => {
-      console.error('Erreur récupération tests par jour:', error);
-    });
-
-  // Fetch taux de réussite
-  fetch('/api/stats/taux-reussite/')
-    .then(response => response.json())
-    .then(data => {
-      const taux = data.taux_reussite;
-      const kpiDiv = document.getElementById("kpi-taux-reussite");
-      const detailDiv = document.getElementById("kpi-detail-tests");
-      const statusIndicator = document.getElementById("status-indicator");
-
-      if (kpiDiv && statusIndicator) {
-        kpiDiv.innerText = `${taux}%`;
-
-        if (detailDiv) {
-          detailDiv.innerText = `${data.succès} succès / ${data.total} tests`;
-        }
-
-        if (taux >= 90) {
-          statusIndicator.innerText = "● Excellent";
-          statusIndicator.className = "status-indicator excellent";
-        } else if (taux >= 70) {
-          statusIndicator.innerText = "● Bon";
-          statusIndicator.className = "status-indicator good";
-        } else {
-          statusIndicator.innerText = "● À améliorer";
-          statusIndicator.className = "status-indicator poor";
-        }
-      }
-    })
-    .catch(error => {
-      console.error("Erreur lors du chargement du taux de réussite :", error);
-    });
-
-  // Fetch répartition par projet
-  fetch('/api/stats/repartition-projet/')
-    .then(response => response.json())
-    .then(data => {
-      initProjetChart(data.projet_labels, data.projet_counts);
-    })
-    .catch(error => {
-      console.error('Erreur récupération répartition par projet:', error);
-    });
-});
-
-// SUccess Echecs
 // Fonction pour initialiser le graphique Succès vs Échec par jour
 function initSFChart(labels, successData, failData) {
   const ctx = document.getElementById('sfChart').getContext('2d');
+  
 
   new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: labels,
       datasets: [
         {
           label: 'Succès',
           data: successData,
-          borderColor: colors.success,
-          backgroundColor: colors.success + '20',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: colors.success,
-          pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          backgroundColor: colors.success,
+          borderWidth: 1
         },
         {
           label: 'Échecs',
           data: failData,
-          borderColor: colors.error,
-          backgroundColor: colors.error + '20',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: colors.error,
-          pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          backgroundColor: colors.error,
+          borderWidth: 1
         }
       ]
     },
@@ -248,7 +181,7 @@ function initSFChart(labels, successData, failData) {
           align: 'end',
           labels: {
             usePointStyle: true,
-            pointStyle: 'circle',
+            pointStyle: 'rect',
             padding: 20,
             font: { weight: '500' }
           }
@@ -265,13 +198,15 @@ function initSFChart(labels, successData, failData) {
         }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: '#f1f5f9' },
+        x: {
+          stacked: false,
+          grid: { display: false },
           ticks: { color: '#64748b' }
         },
-        x: {
-          grid: { display: false },
+        y: {
+          stacked: false,
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' },
           ticks: { color: '#64748b' }
         }
       },
@@ -283,19 +218,9 @@ function initSFChart(labels, successData, failData) {
     }
   });
 }
-// Fetch Succès vs Échec par jour
-fetch('/api/stats/success-vs-failed-par-jour/')
-  .then(response => response.json())
-  .then(data => {
-    const labels = data.map(item => item.date);
-    const successData = data.map(item => item.succès || 0);
-    const failData = data.map(item => item.échec || 0);
 
-    initSFChart(labels, successData, failData);
-  })
-  .catch(error => console.error('Erreur récupération succès vs échec:', error));
 
-// Fetch Succès vs Échec par jour
+// Fonction pour initialiser le graphique erreurs par script
 function initErreursScriptChart(labels, erreursCounts) {
   const ctx = document.getElementById('erreursScriptChart').getContext('2d');
 
@@ -306,7 +231,7 @@ function initErreursScriptChart(labels, erreursCounts) {
       datasets: [{
         label: "Nombre d'erreurs",
         data: erreursCounts,
-        backgroundColor: colors.error + 'cc', // couleur rouge transparent
+        backgroundColor: colors.error + 'cc',
         borderColor: colors.error,
         borderWidth: 1,
         borderRadius: 4,
@@ -343,13 +268,96 @@ function initErreursScriptChart(labels, erreursCounts) {
     }
   });
 }
-fetch('/api/stats/taux-erreur-par-script/')
-  .then(response => response.json())
-  .then(data => {
-    const labels = data.map(item => item.script);
-    const erreursCounts = data.map(item => item.erreurs);
 
-    initErreursScriptChart(labels, erreursCounts);
-  })
-  .catch(error => console.error('Erreur récupération taux d\'erreur par script:', error));
+// Chargement des données et initialisation des graphiques + KPI
+document.addEventListener('DOMContentLoaded', () => {
+  // Récupère le projet_id depuis l'URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const projetId = urlParams.get('projet_id');
+  console.log("Projet sélectionné après DOM ready:", projetId);
 
+  const queryParam = projetId ? `?projet_id=${projetId}` : '';
+
+  // Fetch tests par jour
+  console.log(queryParam);
+  fetch(`/api/stats/tests-par-jour${queryParam}`)
+    .then(response => response.json())
+    .then(testsParJourData => {
+      const labels = testsParJourData.map(entry => entry.date);
+      const values = testsParJourData.map(entry => entry.total);
+
+      initTestsChart(labels, values);
+
+      const totalTestsElem = document.getElementById('total-tests');
+      if (totalTestsElem) {
+        const totalTests = values.reduce((acc, val) => acc + val, 0);
+        totalTestsElem.textContent = totalTests.toLocaleString();
+      }
+    })
+    .catch(error => {
+      console.error('Erreur récupération tests par jour:', error);
+    });
+
+  // Fetch taux de réussite
+  fetch(`/api/stats/taux-reussite${queryParam}`)
+    .then(response => response.json())
+    .then(data => {
+      const taux = data.taux_reussite;
+      const kpiDiv = document.getElementById("kpi-taux-reussite");
+      const detailDiv = document.getElementById("kpi-detail-tests");
+      const statusIndicator = document.getElementById("status-indicator");
+
+      if (kpiDiv && statusIndicator) {
+        kpiDiv.innerText = `${taux}%`;
+
+        if (detailDiv) {
+          detailDiv.innerText = `${data.succès} succès / ${data.total} tests`;
+        }
+
+        if (taux >= 90) {
+          statusIndicator.innerText = "● Excellent";
+          statusIndicator.className = "status-indicator excellent";
+        } else if (taux >= 70) {
+          statusIndicator.innerText = "● Bon";
+          statusIndicator.className = "status-indicator good";
+        } else {
+          statusIndicator.innerText = "● À améliorer";
+          statusIndicator.className = "status-indicator poor";
+        }
+      }
+    })
+    .catch(error => {
+      console.error("Erreur lors du chargement du taux de réussite :", error);
+    });
+
+  // Fetch répartition par projet
+  fetch(`/api/stats/repartition-projet${queryParam}`)
+    .then(response => response.json())
+    .then(data => {
+      initProjetChart(data.projet_labels, data.projet_counts);
+    })
+    .catch(error => {
+      console.error('Erreur récupération répartition par projet:', error);
+    });
+
+  // Fetch Succès vs Échec par jour
+  fetch(`/api/stats/success-vs-failed-par-jour${queryParam}`)
+    .then(response => response.json())
+    .then(data => {
+      const labels = data.map(item => item.date);
+      const successData = data.map(item => item.succès || 0);
+      const failData = data.map(item => item.échec || 0);
+      initSFChart(labels, successData, failData);
+    })
+    .catch(error => console.error('Erreur récupération succès vs échec:', error));
+
+  // Fetch taux d'erreur par script
+  fetch(`/api/stats/taux-erreur-par-script${queryParam}`)
+    .then(response => response.json())
+    .then(data => {
+      const labels = data.map(item => item.script);
+      const erreursCounts = data.map(item => item.erreurs);
+      initErreursScriptChart(labels, erreursCounts);
+    })
+    .catch(error => console.error('Erreur récupération taux d\'erreur par script:', error));
+});

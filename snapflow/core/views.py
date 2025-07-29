@@ -6,6 +6,7 @@ from .serializers import *
 from django.db.models.functions import TruncDate
 from django.db.models import Count, Q
 from django.shortcuts import render
+from core.models import Projet, ExecutionTest 
 
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -60,6 +61,12 @@ class ProjetViewSet(viewsets.ModelViewSet):
     queryset = Projet.objects.all()
     serializer_class = ProjetSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Projet.objects.all()
+        return Projet.objects.filter(charge_de_compte=user)
 
 
 class ConfigurationTestViewSet(viewsets.ModelViewSet):
@@ -120,10 +127,54 @@ class RapportPDFView(APIView):
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename=f"rapport_{execution.id}.pdf")
     
+from django.shortcuts import render
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
+from core.models import Projet, ExecutionTest
+
+
+from django.shortcuts import render
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
+from core.models import Projet, ExecutionTest
+
 def dashboard_view(request):
-    # Graphe 1 - Tests par jour
+    # Récupérer tous les projets
+    projets = Projet.objects.all()
+
+    # Filtrer les projets accessibles à l'utilisateur
+    if request.user.is_superuser:
+        projets_utilisateur = projets
+    else:
+        projets_utilisateur = projets.filter(charge_de_compte=request.user)
+
+    # Récupérer l’ID du projet sélectionné dans les paramètres GET
+
+    projet_id = request.GET.get('projet_id')
+
+    selected_projet_id = projet_id if projet_id else ""
+    projet_selectionne = None
+
+    # Vérifier si l'ID est valide et récupérer le projet sélectionné
+    if projet_id:
+        try:
+            projet_id_int = int(projet_id)
+            if request.user.is_superuser:
+                projet_selectionne = Projet.objects.get(id=projet_id_int)
+            else:
+                projet_selectionne = Projet.objects.get(id=projet_id_int, charge_de_compte=request.user)
+        except (Projet.DoesNotExist, ValueError):
+            projet_selectionne = None
+
+    # Récupérer les exécutions de test
+    if projet_selectionne:
+        execution_tests = ExecutionTest.objects.filter(configuration__projet=projet_selectionne)
+    else:
+        execution_tests = ExecutionTest.objects.all()
+
+    # Graphe 1 : Tests par jour
     tests_par_jour = (
-        ExecutionTest.objects
+        execution_tests
         .annotate(date=TruncDate('started_at'))
         .values('date')
         .annotate(total=Count('id'))
@@ -132,9 +183,9 @@ def dashboard_view(request):
     labels = [str(entry["date"]) for entry in tests_par_jour]
     values = [entry["total"] for entry in tests_par_jour]
 
-    # Graphe 2 - Succès vs Échec par jour
+    # Graphe 2 : Succès vs Échec par jour
     success_fail = (
-        ExecutionTest.objects
+        execution_tests
         .annotate(date=TruncDate('started_at'))
         .values('date', 'statut')
         .annotate(total=Count('id'))
@@ -143,59 +194,79 @@ def dashboard_view(request):
     sf_result = {}
     for row in success_fail:
         date = str(row['date'])
-        statut = row['statut'] or "inconnu"
+        statut = (row['statut'] or "").lower()
         count = row['total']
+
         if date not in sf_result:
             sf_result[date] = {"succès": 0, "échec": 0}
-        sf_result[date][statut] = count
+
+        if statut in ["done", "succès", "success"]:
+            sf_result[date]["succès"] += count
+        elif statut in ["error", "échec", "fail", "failure"]:
+            sf_result[date]["échec"] += count
 
     sf_labels = list(sf_result.keys())
-    sf_success = [sf_result[d].get("succès", 0) for d in sf_labels]
-    sf_fail = [sf_result[d].get("échec", 0) for d in sf_labels]
+    sf_success = [sf_result[d]["succès"] for d in sf_labels]
+    sf_fail = [sf_result[d]["échec"] for d in sf_labels]
 
-    # Graphe 3 - Répartition par projet
-    projets = (
-        ExecutionTest.objects
+    # Graphe 3 : Répartition par projet
+    projets_data = (
+        execution_tests
         .values('configuration__projet__nom')
         .annotate(total=Count('id'))
         .order_by('-total')
     )
-    projet_labels = [row['configuration__projet__nom'] for row in projets]
-    projet_counts = [row['total'] for row in projets]
+    projet_labels = [row['configuration__projet__nom'] for row in projets_data]
+    projet_counts = [row['total'] for row in projets_data]
 
-    # KPI taux de réussite
-    total = ExecutionTest.objects.count()
-    success = ExecutionTest.objects.filter(statut="succès").count()
-    taux_reussite = round((success / total * 100), 2) if total > 0 else 0
+    # KPI : taux de réussite global
+    total_tests = execution_tests.count()
+    total_success = execution_tests.filter(statut__in=["done", "succès", "success"]).count()
+    taux_reussite = round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
 
-    # Graphe 4 - Taux d'erreur par script
+    # Graphe 4 : Taux d'erreur par script
     erreurs_data = (
-        ExecutionTest.objects
+        execution_tests
         .values('configuration__scripts__nom')
         .annotate(
             total=Count('id'),
-            erreurs=Count('id', filter=Q(statut='error'))
+            erreurs=Count('id', filter=Q(statut__in=["error", "échec", "fail", "failure"]))
         )
         .order_by('-erreurs')
     )
-    erreurs_labels = []
-    erreurs_counts = []
-    for d in erreurs_data:
-        erreurs_labels.append(d['configuration__scripts__nom'] or 'Sans script')
-        erreurs_counts.append(d['erreurs'])
-
-    # Total test
-    total_tests = ExecutionTest.objects.count()
+    erreurs_labels = [d['configuration__scripts__nom'] or 'Sans script' for d in erreurs_data]
+    erreurs_counts = [d['erreurs'] for d in erreurs_data]
+    print(f"selected_projet_id: {selected_projet_id} (type: {type(selected_projet_id)})")
     return render(request, 'admin/dashboard.html', {
         "labels": labels,
         "values": values,
         "sf_labels": sf_labels,
         "sf_success": sf_success,
-        "sf_fail": sf_fail,        
+        "sf_fail": sf_fail,
         "projet_labels": projet_labels,
         "projet_counts": projet_counts,
         "taux_reussite": taux_reussite,
         "erreurs_labels": erreurs_labels,
         "erreurs_counts": erreurs_counts,
         "total_tests": total_tests,
+        "projets": projets_utilisateur,
+        "selected_projet_id": selected_projet_id,
     })
+
+
+
+# 
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+from .models import ExecutionTest
+
+@staff_member_required
+def vue_globale(request):
+    total_tests = ExecutionTest.objects.count()
+    non_fonctionnels = ExecutionTest.objects.exclude(statut='done').count()
+    context = {
+        'total_tests': total_tests,
+        'non_fonctionnels': non_fonctionnels,  # ici on utilise le même nom que dans le template
+    }
+    return render(request, 'admin/vue-globale.html', context)
+

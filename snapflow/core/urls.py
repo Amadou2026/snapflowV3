@@ -41,4 +41,6 @@ urlpatterns = [
         name="repartition-projet",
     ),
     path("admin/dashboard/", dashboard_view, name="dashboard"),
+    path('admin/vue-globale/', vue_globale, name='vue_globale'),
+
 ]

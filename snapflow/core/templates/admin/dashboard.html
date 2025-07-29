@@ -1,125 +1,111 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
-{% block title %}Dashboard - Monitoring{% endblock %}
-
 {% block extrahead %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard.css' %}">
-{% endblock %}
-
-{% block sidebar %}
-  {{ block.super }}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
-  <!-- Header Section -->
   <div class="dashboard-header">
-    <h1 class="dashboard-title">
-      <span>📊</span>
-      Monitoring des Tests
-    </h1>
-    <p class="dashboard-subtitle">Vue d'ensemble des performances et statistiques en temps réel</p>
-  </div>
+    <h1 class="dashboard-title">📊 Monitoring des Tests</h1>
 
-  <!-- KPI Section -->
+    <form method="get" id="projet-form">
+      <label for="projet">Choisir un projet :</label>
+      <select name="projet_id" id="projet" onchange="document.getElementById('projet-form').submit();">
+        <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Choisir un projet --</option>
+
+
+        {% for projet in projets %}
+        {% if projet.id|stringformat:"s" == selected_projet_id %}
+        <option value="{{ projet.id }}" selected>{{ projet.nom }}</option>
+        {% else %}
+        <option value="{{ projet.id }}">{{ projet.nom }}</option>
+        {% endif %}
+        {% endfor %}
+
+      </select>
+    </form>
+
+  </div>
+  <!-- KPIs -->
   <div class="kpi-section">
-    <!-- KPI : Taux de réussite -->
     <div class="kpi-card">
       <div class="kpi-header">
-        <div class="kpi-icon success">
-          <span>🎯</span>
-        </div>
+        <div class="kpi-icon success"><span>🎯</span></div>
         <span id="status-indicator" class="status-indicator">● Chargement...</span>
       </div>
       <div id="kpi-taux-reussite" class="kpi-value">0%</div>
       <div class="kpi-label">Taux de réussite global</div>
     </div>
 
-    <!-- KPI : Total des tests -->
     <div class="kpi-card">
       <div class="kpi-header">
-        <div class="kpi-icon primary">
-          <span>📈</span>
-        </div>
+        <div class="kpi-icon primary"><span>📈</span></div>
       </div>
       <div id="total-tests" class="kpi-value">{{ total_tests }}</div>
       <div class="kpi-label">Total des tests</div>
     </div>
   </div>
 
-  <!-- Charts Section -->
+  <!-- Charts -->
   <div class="charts-grid">
-    <!-- Main Charts Column -->
-    <div style="display: flex; flex-direction: column; gap: 2rem;">
-      <!-- Tests Timeline Chart -->
+    <div class="main-charts">
       <div class="chart-card">
-        <div class="chart-header">
-          <div class="chart-icon">📊</div>
+        <div class="chart-header"><span class="chart-icon">📊</span>
           <h3 class="chart-title">Évolution des tests par jour</h3>
         </div>
-        <div class="chart-container large">
-          <canvas id="testsChart"></canvas>
-        </div>
+        <div class="chart-container"><canvas id="testsChart"></canvas></div>
       </div>
 
-      <!-- Success vs Failure Chart -->
       <div class="chart-card">
-        <div class="chart-header">
-          <div class="chart-icon">⚖️</div>
+        <div class="chart-header"><span class="chart-icon">⚖️</span>
           <h3 class="chart-title">Succès vs Échecs par jour</h3>
         </div>
-        <div class="chart-container large">
-          <canvas id="sfChart"></canvas>
+        <div class="chart-container"><canvas id="sfChart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header"><span class="chart-icon">❌</span>
+          <h3 class="chart-title">Taux d'erreur par script</h3>
         </div>
+        <div class="chart-container"><canvas id="erreursScriptChart"></canvas></div>
       </div>
     </div>
 
-    <!-- Sidebar Chart -->
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-icon">🎯</div>
-        <h3 class="chart-title">Répartition par projet</h3>
-      </div>
-      <div class="chart-container pie">
-        <canvas id="projetChart"></canvas>
-      </div>
-    </div>
-
-    <!-- Graphe 4 - Taux d'erreur par script -->
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-icon">❌</div>
-        <h3 class="chart-title">Taux d'erreur par script</h3>
-      </div>
-      <div class="chart-container large">
-        <canvas id="erreursScriptChart"></canvas>
+    <div class="sidebar-charts">
+      <div class="chart-card">
+        <div class="chart-header"><span class="chart-icon">🧩</span>
+          <h3 class="chart-title">Répartition par projet</h3>
+        </div>
+        <div class="chart-container pie"><canvas id="projetChart"></canvas></div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- JS -->
 <script>
-  // Passer les données Django au JS dans une variable globale
   window.dashboardData = {
-    labels: {{ labels|safe }},
-    values: {{ values|safe }},
-    sf_labels: {{ sf_labels|safe }},
-    sf_success: {{ sf_success|safe }},
-    sf_fail: {{ sf_fail|safe }},
-    projet_labels: {{ projet_labels|safe }},
-    projet_counts: {{ projet_counts|safe }},
-    erreurs_labels: {{ erreurs_labels|safe }},
-    erreurs_counts: {{ erreurs_counts|safe }}
+    labels: {{ labels | safe }},
+  values: { { values | safe } },
+  sf_labels: { { sf_labels | safe } },
+  sf_success: { { sf_success | safe } },
+  sf_fail: { { sf_fail | safe } },
+  projet_labels: { { projet_labels | safe } },
+  projet_counts: { { projet_counts | safe } },
+  erreurs_labels: { { erreurs_labels | safe } },
+  erreurs_counts: { { erreurs_counts | safe } }
   };
 </script>
 
 <script src="{% static 'js/dashboard-charts.js' %}"></script>
 <script>
-  // Initialiser les graphiques avec les données
   document.addEventListener('DOMContentLoaded', () => {
     initCharts(window.dashboardData);
+
   });
 </script>
 {% endblock %}

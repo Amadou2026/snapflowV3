@@ -7,7 +7,19 @@
 
 {% block content %}
 
-<h1></h1>
+
+
+<form method="get" id="projet-form">
+  <label for="projet">Filtrer par projet :</label>
+  <select name="projet_id" id="projet" onchange="document.getElementById('projet-form').submit();">
+    <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Tous les projets --</option>
+    {% for projet in projets %}
+      <option value="{{ projet.id }}" {% if projet.id|stringformat:"s" == selected_projet_id|stringformat:"s" %}selected{% endif %}>
+        {{ projet.nom }}
+      </option>
+    {% endfor %}
+  </select>
+</form>
 
 {% if tickets %}
 <table class="adminlist">
@@ -36,7 +48,6 @@
     {% endfor %}
   </tbody>
 </table>
-
 {% else %}
 <p>Aucun ticket Redmine trouvé.</p>
 {% endif %}

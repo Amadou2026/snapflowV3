@@ -1,0 +1,26 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1 class="dashboard-title">Vue Globale des Tests</h1>
+
+    <div class="kpi-section">
+        <div class="kpi-card">
+            <div class="kpi-icon primary">📊</div>
+            <div class="kpi-value">{{ total_tests }}</div>
+            <div class="kpi-label">Total des tests exécutés</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon error">❌</div>
+            <div class="kpi-value">{{ non_fonctionnels }}</div>
+            <div class="kpi-label">Tests non fonctionnels</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

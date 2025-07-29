@@ -1,0 +1,40 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+{% endblock %}
+
+{% block content_title %}
+  <div class="custom-header">
+    <h1>⚙️ Configuration des tests</h1>
+    <p>Gérez vos configurations de tests automatiques par projet.</p>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="custom-admin-wrapper">
+
+    <form method="get" id="projet-filter-form" class="custom-filter-form">
+      <label for="projet" class="custom-label">Filtrer par projet :</label>
+      <select name="projet" id="projet" onchange="this.form.submit()">
+        <option value="">Tous les projets</option>
+        {% for p in projets %}
+          <option value="{{ p.id }}" {% if p.id|stringformat:"s" == request.GET.projet %}selected{% endif %}>
+            {{ p.nom }}
+          </option>
+        {% endfor %}
+      </select>
+
+      {# Préserver les autres filtres GET #}
+      {% for key, value in request.GET.items %}
+        {% if key != 'projet' %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+      {% endfor %}
+    </form>
+
+    {{ block.super }}
+  </div>
+{% endblock %}

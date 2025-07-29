@@ -15,26 +15,32 @@ def creer_ticket_redmine(projet_id, sujet, description):
         "Content-Type": "application/json",
         "X-Redmine-API-Key": settings.REDMINE_API_KEY,
     }
+
     print(f"Recherche projet avec id_redmine={projet_id}")
     projet = Projet.objects.get(id_redmine=projet_id)
+
     if projet.id_redmine is None:
         raise ValueError("Ce projet n'a pas d'ID Redmine défini.")
 
-    data = {
-        "issue": {
-            "project_id": projet_id,
-            "subject": sujet,
-            "description": description[:4000],
-            "priority_id": 4,
-            "tracker_id": 2,
-            
-            
-        }
+    # Construction des données à envoyer
+    issue_data = {
+        "project_id": projet_id,
+        "subject": sujet,
+        "description": description[:4000],
+        "priority_id": 4,
+        "tracker_id": 2,
     }
+
+    # Ajout de l'affectation si disponible
+    if projet.id_redmine_charge_de_compte:
+        issue_data["assigned_to_id"] = projet.id_redmine_charge_de_compte
+
+    data = {
+        "issue": issue_data
+    }
+
     print("Données envoyées à Redmine :", data)
-    print(
-        f"project_id envoyé à Redmine : {projet_id} (type: {type(projet_id)})"
-    )
+    print(f"project_id envoyé à Redmine : {projet_id} (type: {type(projet_id)})")
 
     try:
         response = requests.post(url, json=data, headers=headers)
@@ -44,6 +50,7 @@ def creer_ticket_redmine(projet_id, sujet, description):
         print(f"❌ Échec création ticket Redmine : {e}")
         print("➡️ Réponse Redmine :", response.text)
         raise
+
 
 
 def notifier_utilisateurs(execution):

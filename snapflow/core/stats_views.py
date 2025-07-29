@@ -7,20 +7,29 @@ from .models import *
 
 @api_view(['GET'])
 def tests_par_jour(request):
+    projet_id = request.GET.get('projet_id')
+    qs = ExecutionTest.objects.all()
+    if projet_id:
+        qs = qs.filter(configuration__projet__id=projet_id)
+
     data = (
-        ExecutionTest.objects
-        .annotate(date=TruncDate('started_at'))
+        qs.annotate(date=TruncDate('started_at'))
         .values('date')
         .annotate(total=Count('id'))
         .order_by('date')
     )
     return Response(list(data))
 
+
 @api_view(['GET'])
 def success_vs_failed_par_jour(request):
+    projet_id = request.GET.get('projet_id')
+    qs = ExecutionTest.objects.all()
+    if projet_id:
+        qs = qs.filter(configuration__projet__id=projet_id)
+
     data = (
-        ExecutionTest.objects
-        .annotate(date=TruncDate('started_at'))
+        qs.annotate(date=TruncDate('started_at'))
         .values('date', 'statut')
         .annotate(total=Count('id'))
         .order_by('date')
@@ -39,10 +48,8 @@ def success_vs_failed_par_jour(request):
         elif statut.lower() in ["error", "échec", "fail", "failure"]:
             result[date_str]["échec"] = count
         else:
-            # si statut inconnu, on peut l'ignorer ou gérer séparément
             pass
 
-    # Format réponse : liste triée par date
     response = [
         {"date": date, "succès": counts["succès"], "échec": counts["échec"]}
         for date, counts in sorted(result.items())
@@ -50,8 +57,10 @@ def success_vs_failed_par_jour(request):
 
     return Response(response)
 
+
 @api_view(['GET'])
 def tests_par_projet(request):
+    # Pas besoin de filtre projet ici, on liste tous
     data = (
         ExecutionTest.objects
         .values('configuration__projet__nom')
@@ -66,13 +75,15 @@ def tests_par_projet(request):
     return Response(result)
 
 
-
-
 @api_view(['GET'])
 def taux_erreur_par_script(request):
+    projet_id = request.GET.get('projet_id')
+    qs = ExecutionTest.objects.all()
+    if projet_id:
+        qs = qs.filter(configuration__projet__id=projet_id)
+
     data = (
-        ExecutionTest.objects
-        .values('configuration__scripts__nom')
+        qs.values('configuration__scripts__nom')
         .annotate(
             total=Count('id'),
             erreurs=Count('id', filter=Q(statut="error"))
@@ -95,23 +106,34 @@ def taux_erreur_par_script(request):
 
 @api_view(['GET'])
 def taux_reussite(request):
-    total = ExecutionTest.objects.count()
-    success = ExecutionTest.objects.filter(statut="done").count()  # 'done' = test réussi
+    projet_id = request.GET.get('projet_id')
+    qs = ExecutionTest.objects.all()
+    if projet_id:
+        qs = qs.filter(configuration__projet__id=projet_id)
+
+    total = qs.count()
+    success = qs.filter(statut__in=["done", "succès", "success"]).count()  # succès possibles multiples
+    echec = qs.filter(statut__in=["error", "échec", "fail", "failure"]).count()
 
     taux = (success / total * 100) if total > 0 else 0
-    echec = ExecutionTest.objects.filter(statut="error").count()
+
     return Response({
-    "total": total,
-    "succès": success,
-    "échec": echec,
-    "taux_reussite": round(taux, 2)
+        "total": total,
+        "succès": success,
+        "échec": echec,
+        "taux_reussite": round(taux, 2)
     })
-    
+
+
 @api_view(['GET'])
 def repartition_par_projet(request):
+    projet_id = request.GET.get('projet_id')
+    qs = ExecutionTest.objects.all()
+    if projet_id:
+        qs = qs.filter(configuration__projet__id=projet_id)
+
     projets = (
-        ExecutionTest.objects
-        .values('configuration__projet__nom')
+        qs.values('configuration__projet__nom')
         .annotate(total=Count('id'))
         .order_by('-total')
     )
