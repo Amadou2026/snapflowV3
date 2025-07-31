@@ -2,39 +2,166 @@
 {% load static %}
 
 {% block extrahead %}
-    {{ block.super }}
-    <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
 {% endblock %}
 
 {% block content_title %}
-    <div class="custom-header">
-        <h1>📋 Exécutions des tests</h1>
-        <p>Visualisez, filtrez et exportez vos résultats de test facilement.</p>
-    </div>
+<div class="custom-header">
+    <h1>📋 Exécutions des tests</h1>
+    <p>Visualisez, filtrez et exportez vos résultats de test facilement.</p>
+</div>
 {% endblock %}
 
 {% block content %}
-    <div class="custom-admin-wrapper">
+<div class="custom-admin-wrapper container">
+    <div class="row">
+        <!-- ✅ FORMULAIRE FILTRE PAR PROJET -->
+        <div class="col-md-6">
+            <form method="get" class="custom-filter-bar p-3 border rounded bg-white" id="project-form">
+                <label for="projet" class="custom-label">Filtrer par projet :</label>
+                <select name="projet" id="projet" class="form-select mt-2" onchange="document.getElementById('project-form').submit()">
+                    <option value="">Tous les projets</option>
+                    {% for p in projets %}
+                        <option value="{{ p.id }}" {% if p.id|stringformat:"s" == request.GET.projet %}selected{% endif %}>
+                            {{ p.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
 
-        <form method="get" id="projet-filter-form" class="custom-filter-bar">
-            <label for="projet" class="custom-label">Filtrer par projet :</label>
-            <select name="projet" id="projet" onchange="this.form.submit()">
-                <option value="">Tous les projets</option>
-                {% for p in projets %}
-                    <option value="{{ p.id }}" {% if p.id|stringformat:"s" == request.GET.projet %}selected{% endif %}>
-                        {{ p.nom }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            {# Réinjecte les autres filtres (statut, dates, etc.) pour ne pas les perdre #}
-            {% for key, value in request.GET.items %}
-                {% if key != 'projet' %}
-                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                <!-- Réinjecter les filtres de date -->
+                {% if request.GET.started_at__gte %}
+                    <input type="hidden" name="started_at__gte" value="{{ request.GET.started_at__gte }}">
                 {% endif %}
-            {% endfor %}
-        </form>
+                {% if request.GET.started_at__lt %}
+                    <input type="hidden" name="started_at__lt" value="{{ request.GET.started_at__lt }}">
+                {% endif %}
+            </form>
+        </div>
 
-        {{ block.super }}
+        <!-- ✅ FORMULAIRE FILTRE PAR DATE -->
+        <div class="col-md-6">
+            <form method="get" class="custom-filter-bar p-3 border rounded bg-white" id="date-form">
+                <label for="started_at_filter" class="custom-label">Filtrer par date :</label>
+                <select id="started_at_filter" class="form-select mt-2" onchange="applyDateFilter(this.value)">
+                    <option value="">Toutes les dates</option>
+                    <option value="today">Aujourd'hui</option>
+                    <option value="last_7_days">7 derniers jours</option>
+                    <option value="this_month">Ce mois-ci</option>
+                    <option value="this_year">Cette année</option>
+                </select>
+
+                {% if request.GET.projet %}
+                    <input type="hidden" name="projet" value="{{ request.GET.projet }}">
+                {% endif %}
+
+                <div id="date-hidden-fields"></div>
+            </form>
+        </div>
     </div>
+
+    <script>
+        function applyDateFilter(range) {
+            const form = document.getElementById('date-form');
+            const dateContainer = document.getElementById('date-hidden-fields');
+            dateContainer.innerHTML = ''; // reset
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            let start = null;
+            let end = null;
+
+            if (range === 'today') {
+                start = new Date(today);
+                end = new Date(today);
+                end.setDate(end.getDate() + 1);
+            } else if (range === 'last_7_days') {
+                start = new Date(today);
+                start.setDate(start.getDate() - 7);
+                end = new Date(today);
+                end.setDate(end.getDate() + 1);
+            } else if (range === 'this_month') {
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            } else if (range === 'this_year') {
+                start = new Date(today.getFullYear(), 0, 1);
+                end = new Date(today.getFullYear() + 1, 0, 1);
+            }
+
+            function isoNoTZ(date) {
+                return date.toISOString().split('.')[0];
+            }
+
+            if (start && end) {
+                const gte = document.createElement('input');
+                gte.type = 'hidden';
+                gte.name = 'started_at__gte';
+                gte.value = isoNoTZ(start);
+                dateContainer.appendChild(gte);
+
+                const lt = document.createElement('input');
+                lt.type = 'hidden';
+                lt.name = 'started_at__lt';
+                lt.value = isoNoTZ(end);
+                dateContainer.appendChild(lt);
+            }
+
+            form.submit();
+        }
+
+        window.addEventListener('DOMContentLoaded', function () {
+            const gteStr = "{{ request.GET.started_at__gte|default:'' }}";
+            const ltStr = "{{ request.GET.started_at__lt|default:'' }}";
+
+            if (!gteStr || !ltStr) return;
+
+            function cleanDateString(s) {
+                return s.replace(/([+-]\d{2}:?\d{2}|Z)$/, '');
+            }
+
+            const gte = new Date(cleanDateString(gteStr));
+            const lt = new Date(cleanDateString(ltStr));
+
+            if (isNaN(gte) || isNaN(lt)) return;
+
+            const select = document.getElementById("started_at_filter");
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            function sameDate(d1, d2) {
+                return d1.getTime() === d2.getTime();
+            }
+
+            if (sameDate(gte, today) && sameDate(lt, tomorrow)) {
+                select.value = "today";
+                return;
+            }
+
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            if (sameDate(gte, sevenDaysAgo) && sameDate(lt, tomorrow)) {
+                select.value = "last_7_days";
+                return;
+            }
+
+            const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const firstOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            if (sameDate(gte, firstOfMonth) && sameDate(lt, firstOfNextMonth)) {
+                select.value = "this_month";
+                return;
+            }
+
+            const firstOfYear = new Date(today.getFullYear(), 0, 1);
+            const firstOfNextYear = new Date(today.getFullYear() + 1, 0, 1);
+            if (sameDate(gte, firstOfYear) && sameDate(lt, firstOfNextYear)) {
+                select.value = "this_year";
+            }
+        });
+    </script>
+
+    {{ block.super }}
+</div>
 {% endblock %}

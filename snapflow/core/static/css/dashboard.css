@@ -172,8 +172,10 @@ html[data-theme="dark"] .kpi-label {
 .charts-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 2rem;
-  align-items: flex-start;
+  gap: 1rem;
+}
+.chart-card.withfull {
+  grid-column: 1 / -1; /* prend toute la largeur de la grille */
 }
 
 .sidebar-charts {
@@ -272,4 +274,7 @@ html[data-theme="dark"] .chart-title {
 /* À améliorer */
 .status-indicator.poor {
   color: #e74c3c; /* rouge */
+}
+.margin-top-large {
+  margin-top: 2rem;
 }

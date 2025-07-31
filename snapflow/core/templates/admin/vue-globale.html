@@ -1,26 +1,89 @@
-{% extends 'admin/base_site.html' %}
-{% load static %}
+{% extends "admin/base_site.html" %}
+{% load static custom_filters %}
 
 {% block extrahead %}
 <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+<link rel="stylesheet" href="{% static 'css/vue_globale.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="{% static 'js/dashboard-charts.js' %}"></script>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
-    <h1 class="dashboard-title">Vue Globale des Tests</h1>
+    <h3>Vue Globale des Tests</h3>
 
     <div class="kpi-section">
-        <div class="kpi-card">
+        <div class="kpi-card" title="Nombre total de tests exécutés">
             <div class="kpi-icon primary">📊</div>
             <div class="kpi-value">{{ total_tests }}</div>
             <div class="kpi-label">Total des tests exécutés</div>
         </div>
 
-        <div class="kpi-card">
+        <div class="kpi-card" title="Nombre de tests non fonctionnels">
             <div class="kpi-icon error">❌</div>
-            <div class="kpi-value">{{ non_fonctionnels }}</div>
-            <div class="kpi-label">Tests non fonctionnels</div>
+            <div class="kpi-value">
+                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link"
+                    title="Voir les tests non fonctionnels">
+                    {{ non_fonctionnels }}
+                </a>
+            </div>
+            <div class="kpi-label">Tests non concluants</div>
         </div>
     </div>
+
+    <hr>
+
+    <h3 class="espace_top">Projets affectés à l'utilisateur </h3>
+    <table class="admin-table" role="grid" aria-label="Liste des projets et statistiques des tests">
+        <thead>
+            <tr>
+                <th scope="col">Projet</th>
+                <th scope="col">Tests exécutés</th>
+                <th scope="col">Concluants ✅</th>
+                <th scope="col">Non concluants ❌</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for projet in projets_utilisateur %}
+            {% with execution_tests_by_projet|get_item:projet.id as stats %}
+            <tr>
+                <td>{{ projet.nom }}</td>
+                <td>{{ stats.total|default:0 }}</td>
+                <td>
+                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=done">
+                        {{ stats.success|default:0 }}
+                    </a>
+                </td>
+                <td>
+                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=error">
+                        {{ stats.fail|default:0 }}
+                    </a>
+                </td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align:center; font-style: italic;">Aucun projet affecté.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="chart-card withfull espace_top" aria-label="Graphique du taux d'erreur par script">
+        <hr>
+        <h3 class="chart-title">Taux d'erreur par script</h3>
+
+       
+
+        <div class="chart-container">
+            <canvas id="erreursScriptChart" role="img"
+                aria-label="Graphique en barres du nombre d'erreurs par script"></canvas>
+        </div>
+    </div>
+
 </div>
+
+
+
 {% endblock %}

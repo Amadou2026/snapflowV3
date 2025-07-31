@@ -40,7 +40,9 @@ urlpatterns = [
         stats_views.repartition_par_projet,
         name="repartition-projet",
     ),
+    path("stats/repartition-projet-erreurs/", stats_views.repartition_par_projet_erreurs, name="repartition-projet-erreurs"),
+
     path("admin/dashboard/", dashboard_view, name="dashboard"),
-    path('admin/vue-globale/', vue_globale, name='vue_globale'),
+    
 
 ]

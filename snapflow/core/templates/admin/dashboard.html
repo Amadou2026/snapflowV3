@@ -3,6 +3,8 @@
 
 {% block extrahead %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
 {% endblock %}
@@ -13,25 +15,30 @@
     <h1 class="dashboard-title">📊 Monitoring des Tests</h1>
 
     <form method="get" id="projet-form">
-      <label for="projet">Choisir un projet :</label>
+      <label for="projet">Tous les projets :</label>
       <select name="projet_id" id="projet" onchange="document.getElementById('projet-form').submit();">
-        <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Choisir un projet --</option>
-
-
+        <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Tous les projets --</option>
         {% for projet in projets %}
-        {% if projet.id|stringformat:"s" == selected_projet_id %}
-        <option value="{{ projet.id }}" selected>{{ projet.nom }}</option>
-        {% else %}
-        <option value="{{ projet.id }}">{{ projet.nom }}</option>
-        {% endif %}
+          {% if projet.id|stringformat:"s" == selected_projet_id %}
+            <option value="{{ projet.id }}" selected>{{ projet.nom }}</option>
+          {% else %}
+            <option value="{{ projet.id }}">{{ projet.nom }}</option>
+          {% endif %}
         {% endfor %}
-
       </select>
     </form>
-
   </div>
+
   <!-- KPIs -->
-  <div class="kpi-section">
+  <div class="kpi-section three-cols">
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div class="kpi-icon primary"><span>📈</span></div>
+      </div>
+      <div id="total-tests" class="kpi-value">{{ total_tests }}</div>
+      <div class="kpi-label">Total des tests</div>
+    </div>
+
     <div class="kpi-card">
       <div class="kpi-header">
         <div class="kpi-icon success"><span>🎯</span></div>
@@ -42,62 +49,49 @@
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-header">
-        <div class="kpi-icon primary"><span>📈</span></div>
+      <div class="chart-header">
+        <span class="chart-icon">🧩</span>
+        <h3 class="chart-title">Répartition par projet</h3>
       </div>
-      <div id="total-tests" class="kpi-value">{{ total_tests }}</div>
-      <div class="kpi-label">Total des tests</div>
-    </div>
-  </div>
-
-  <!-- Charts -->
-  <div class="charts-grid">
-    <div class="main-charts">
-      <div class="chart-card">
-        <div class="chart-header"><span class="chart-icon">📊</span>
-          <h3 class="chart-title">Évolution des tests par jour</h3>
-        </div>
-        <div class="chart-container"><canvas id="testsChart"></canvas></div>
-      </div>
-
-      <div class="chart-card">
-        <div class="chart-header"><span class="chart-icon">⚖️</span>
-          <h3 class="chart-title">Succès vs Échecs par jour</h3>
-        </div>
-        <div class="chart-container"><canvas id="sfChart"></canvas></div>
-      </div>
-
-      <div class="chart-card">
-        <div class="chart-header"><span class="chart-icon">❌</span>
-          <h3 class="chart-title">Taux d'erreur par script</h3>
-        </div>
-        <div class="chart-container"><canvas id="erreursScriptChart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="sidebar-charts">
-      <div class="chart-card">
-        <div class="chart-header"><span class="chart-icon">🧩</span>
-          <h3 class="chart-title">Répartition par projet</h3>
-        </div>
-        <div class="chart-container pie"><canvas id="projetChart"></canvas></div>
+      <div class="chart-container pie" style="height: 200px;">
+        <canvas id="projetChart"></canvas>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- Évolution des tests par jour -->
+  <div class="chart-card withfull">
+    <div class="chart-header">
+      <span class="chart-icon">⚖️</span>
+      <h3 class="chart-title">Évolution des tests par jour</h3>
+    </div>
+    <div class="chart-container"><canvas id="sfChart"></canvas></div>
+  </div>
+
+  <!-- Projet avec le plus et le moins d'erreurs -->
+  <div class="chart-card margin-top-large">
+    <div class="chart-header">
+      <span class="chart-icon">⚠️</span>
+      <h3 class="chart-title">Projet avec le plus et le moins d'erreurs</h3>
+    </div>
+    <div class="chart-container" style="height: 200px;">
+      <canvas id="projetErreurChart"></canvas>
+    </div>
+  </div>
+</div>  {# fermeture unique dashboard-container #}
 
 <!-- JS -->
 <script>
   window.dashboardData = {
     labels: {{ labels | safe }},
-  values: { { values | safe } },
-  sf_labels: { { sf_labels | safe } },
-  sf_success: { { sf_success | safe } },
-  sf_fail: { { sf_fail | safe } },
-  projet_labels: { { projet_labels | safe } },
-  projet_counts: { { projet_counts | safe } },
-  erreurs_labels: { { erreurs_labels | safe } },
-  erreurs_counts: { { erreurs_counts | safe } }
+    values: {{ values | safe }},
+    sf_labels: {{ sf_labels | safe }},
+    sf_success: {{ sf_success | safe }},
+    sf_fail: {{ sf_fail | safe }},
+    projet_labels: {{ projet_labels | safe }},
+    projet_counts: {{ projet_counts | safe }},
+    erreurs_labels: {{ erreurs_labels | safe }},
+    erreurs_counts: {{ erreurs_counts | safe }}
   };
 </script>
 
@@ -105,7 +99,7 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     initCharts(window.dashboardData);
-
   });
 </script>
 {% endblock %}
+

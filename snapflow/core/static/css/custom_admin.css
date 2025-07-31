@@ -263,3 +263,12 @@ html.dark-mode div#user-tools,
 html[data-theme="dark"] div#user-tools {
     color: #dbeafe;
 }
+.custom-filter-bar {
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.custom-label {
+  font-weight: 600;
+}

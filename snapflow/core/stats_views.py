@@ -1,24 +1,40 @@
 # core/stats_views.py
+from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from .models import *
+from core.models import ExecutionTest  # adapte le nom selon ton app
+
+
+from collections import defaultdict
 
 @api_view(['GET'])
 def tests_par_jour(request):
     projet_id = request.GET.get('projet_id')
     qs = ExecutionTest.objects.all()
+
     if projet_id:
         qs = qs.filter(configuration__projet__id=projet_id)
 
     data = (
         qs.annotate(date=TruncDate('started_at'))
-        .values('date')
-        .annotate(total=Count('id'))
-        .order_by('date')
+          .values('date', 'configuration__projet__nom')
+          .annotate(total=Count('id'))
+          .order_by('date')
     )
-    return Response(list(data))
+
+    results = defaultdict(list)
+
+    for item in data:
+        projet_nom = item['configuration__projet__nom'] or 'Projet inconnu'
+        results[projet_nom].append({
+            'date': item['date'],
+            'total': item['total']
+        })
+
+    return Response(results)
 
 
 @api_view(['GET'])
@@ -144,3 +160,37 @@ def repartition_par_projet(request):
         "projet_labels": projet_labels,
         "projet_counts": projet_counts
     })
+
+from django.db.models import Count, Q
+
+def repartition_par_projet_erreurs(request):
+    projets = Projet.objects.annotate(
+        nombre_erreurs=Count(
+            'configurationtest__executiontest',
+            filter=Q(configurationtest__executiontest__statut__in=['error', 'échec', 'fail']),
+            distinct=True
+        )
+    ).order_by('-nombre_erreurs')
+
+    projets = list(projets)
+
+    if not projets:
+        return JsonResponse({"max": None, "min": None})
+
+    projet_max = projets[0]
+    projet_min = projets[-1]
+
+    return JsonResponse({
+        "max": {
+            "nom": projet_max.nom,
+            "valeur": projet_max.nombre_erreurs
+        },
+        "min": {
+            "nom": projet_min.nom,
+            "valeur": projet_min.nombre_erreurs
+        }
+    })
+
+
+
+
