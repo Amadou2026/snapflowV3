@@ -33,14 +33,26 @@ class SousAxe(models.Model):
         return f"{self.nom} ({self.axe.nom})"
 
 
+
+
 class Script(models.Model):
+    PRIORITY_CHOICES = [
+        (1, 'Basse'),
+        (2, 'Normale'),
+        (3, 'Haute'),
+        (4, 'Urgente'),
+        (5, 'Immédiate'),
+    ]
+
     nom = models.CharField(max_length=255)
     fichier = models.FileField(upload_to="scripts/")
-    axe = models.ForeignKey(Axe, on_delete=models.SET_NULL, null=True)
-    sous_axe = models.ForeignKey(SousAxe, on_delete=models.SET_NULL, null=True)
+    axe = models.ForeignKey('Axe', on_delete=models.SET_NULL, null=True)
+    sous_axe = models.ForeignKey('SousAxe', on_delete=models.SET_NULL, null=True)
+    priorite = models.PositiveSmallIntegerField(choices=PRIORITY_CHOICES, default=2)
 
     def __str__(self):
         return f"{self.axe.nom}/{self.sous_axe.nom}/{self.nom}"
+
 
 
 class Projet(models.Model):
@@ -131,4 +143,19 @@ class VueGlobale(models.Model):
         verbose_name_plural = "Vue Globale"
         managed = False  # Pas de table en base de données
 
-    
+# core/models.py
+
+from django.db import models
+
+class Configuration(models.Model):
+    redmine_url = models.URLField("URL Redmine", blank=True, null=True)
+    redmine_api_key = models.CharField("Clé API Redmine", max_length=255, blank=True, null=True)
+    email_host_user = models.EmailField("Email Host User", blank=True, null=True)
+    email_host_password = models.CharField("Mot de passe Email", max_length=255, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Paramètre global"
+        verbose_name_plural = "Paramètres globaux"
+
+    def __str__(self):
+        return "Paramètres globaux"

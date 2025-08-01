@@ -40,9 +40,20 @@ urlpatterns = [
         stats_views.repartition_par_projet,
         name="repartition-projet",
     ),
-    path("stats/repartition-projet-erreurs/", stats_views.repartition_par_projet_erreurs, name="repartition-projet-erreurs"),
-
+    path(
+        "stats/repartition-projet-erreurs/",
+        stats_views.repartition_par_projet_erreurs,
+        name="repartition-projet-erreurs",
+    ),
     path("admin/dashboard/", dashboard_view, name="dashboard"),
-    
+    path(
+        "stats/debug-filters/", stats_views.debug_filters, name="debug-filters"
+    ),  # ✅ Ajout
+    path(
+        "stats/nombre-test-non-execute/",
+        stats_views.nombre_test_non_execute,
+        name="nombre-test-non-execute",
+    ),
+        path('stats/scripts-tests/', ScriptsTestsStatsView.as_view(), name='scripts-tests-stats'),
 
 ]

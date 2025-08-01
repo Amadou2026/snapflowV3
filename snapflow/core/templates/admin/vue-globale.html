@@ -6,25 +6,41 @@
 <link rel="stylesheet" href="{% static 'css/vue_globale.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-<script src="{% static 'js/dashboard-charts.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
+    <div class="container">
+        <form method="get" id="periode-form" style="margin-bottom: 1em;">
+            <label for="periode">Filtrer par période : </label>
+            <select name="periode" id="periode" onchange="this.form.submit()">
+                <option value="jour" {% if periode == 'jour' %}selected{% endif %}>Jour</option>
+                <option value="semaine" {% if periode == 'semaine' %}selected{% endif %}>Semaine</option>
+                <option value="mois" {% if periode == 'mois' %}selected{% endif %}>Mois</option>
+                <option value="annee" {% if periode == 'annee' %}selected{% endif %}>Année</option>
+            </select>
+        </form>
+    </div>
+
     <h3>Vue Globale des Tests</h3>
 
     <div class="kpi-section">
         <div class="kpi-card" title="Nombre total de tests exécutés">
             <div class="kpi-icon primary">📊</div>
-            <div class="kpi-value">{{ total_tests }}</div>
+            <div class="kpi-value">
+                <a href="{% url 'admin:core_executiontest_changelist' %}" class="kpi-link" title="Voir tous les tests exécutés">
+                    {{ total_tests }}
+                </a>
+            </div>
             <div class="kpi-label">Total des tests exécutés</div>
         </div>
 
         <div class="kpi-card" title="Nombre de tests non fonctionnels">
             <div class="kpi-icon error">❌</div>
             <div class="kpi-value">
-                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link"
-                    title="Voir les tests non fonctionnels">
+                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link" title="Voir les tests non fonctionnels">
                     {{ non_fonctionnels }}
                 </a>
             </div>
@@ -49,7 +65,11 @@
             {% with execution_tests_by_projet|get_item:projet.id as stats %}
             <tr>
                 <td>{{ projet.nom }}</td>
-                <td>{{ stats.total|default:0 }}</td>
+                <td>
+                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}" class="kpi-link" title="Voir tous les tests du projet {{ projet.nom }}">
+                        {{ stats.total|default:0 }}
+                    </a>
+                </td>
                 <td>
                     <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=done">
                         {{ stats.success|default:0 }}
@@ -73,17 +93,24 @@
     <div class="chart-card withfull espace_top" aria-label="Graphique du taux d'erreur par script">
         <hr>
         <h3 class="chart-title">Taux d'erreur par script</h3>
-
-       
-
         <div class="chart-container">
-            <canvas id="erreursScriptChart" role="img"
-                aria-label="Graphique en barres du nombre d'erreurs par script"></canvas>
+            <canvas id="erreursScriptChart" role="img" aria-label="Graphique en barres du nombre d'erreurs par script"></canvas>
         </div>
     </div>
 
+    <br>
+
+    <div class="chart-card withfull">
+        <div class="chart-header">
+            <span class="chart-icon">⚖️</span>
+            <h3 class="chart-title">Tests non exécutés et tests échoués</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="testsNonExecuteChart" role="img" aria-label="Graphique en barres des tests non exécutés et non concluants"></canvas>
+        </div>
+    </div>
+
+ <script src="{% static 'js/dashboard-charts.js' %}"></script>
+ <script src="{% static 'js/vue-globale-chart.js' %}"></script>
 </div>
-
-
-
 {% endblock %}

@@ -14,23 +14,26 @@ from decouple import config
 from pathlib import Path
 
 
+
+
+
 import logging
 
 
 logger = logging.getLogger(__name__)
 # Redmine
-try:
-    # Chargement des variables d'environnement
-    REDMINE_URL = config("REDMINE_URL")
-    REDMINE_API_KEY = config("REDMINE_API_KEY")
+# try:
+#     # Chargement des variables d'environnement
+#     REDMINE_URL = config("REDMINE_URL")
+#     REDMINE_API_KEY = config("REDMINE_API_KEY")
 
-    # Log informatif
-    logger.info(f"✅ Redmine configuré : URL = {REDMINE_URL}")
-    logger.debug("✅ Clé API Redmine chargée avec succès (non affichée pour des raisons de sécurité)")
-except Exception as e:
-    logger.error(f"❌ Erreur lors du chargement de la configuration Redmine : {e}")
-    REDMINE_URL = None
-    REDMINE_API_KEY = None
+#     # Log informatif
+#     logger.info(f"✅ Redmine configuré : URL = {REDMINE_URL}")
+#     logger.debug("✅ Clé API Redmine chargée avec succès (non affichée pour des raisons de sécurité)")
+# except Exception as e:
+#     logger.error(f"❌ Erreur lors du chargement de la configuration Redmine : {e}")
+#     REDMINE_URL = None
+#     REDMINE_API_KEY = None
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,9 +45,13 @@ CORS_ALLOW_ALL_ORIGINS = True
 AUTH_USER_MODEL = 'users.CustomUser'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',  # Si tu utilises la session Django
+        'rest_framework.authentication.TokenAuthentication',    # Si tu utilises token
+        # ou autre méthode d'authentification que tu utilises
     ],
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # Par défaut, restreint aux users connectés
+    ],
 }
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -166,12 +173,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # À confirmer avec ton IT
-EMAIL_PORT = 587  # Ou 465 si SSL
-EMAIL_USE_TLS = True  # Ou EMAIL_USE_SSL = True selon le port
-EMAIL_HOST_USER = config("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL_HOST = 'smtp.gmail.com'  # À confirmer avec ton IT
+# EMAIL_PORT = 587  # Ou 465 si SSL
+# EMAIL_USE_TLS = True  # Ou EMAIL_USE_SSL = True selon le port
+# EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+# EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+
+
 
 # DEBUG = True
 

@@ -277,11 +277,35 @@ function initSFChart(labels, successData, failData) {
   });
 }
 
+  // init par defaut
+  function initCharts() {
+    // Initialisation par défaut si aucune autre fonction n'est encore appelée
+    console.log("initCharts() appelée – aucun graphique spécifique défini.");
+
+    // Exemple : désactive les erreurs silencieuses
+    try {
+      // Appelle les fonctions individuelles de graphiques si elles existent
+      if (typeof initTestsParJourChart === 'function') initTestsParJourChart();
+      if (typeof initRepartitionProjetChart === 'function') initRepartitionProjetChart();
+      if (typeof initErreursParScriptChart === 'function') initErreursParScriptChart();
+      if (typeof fetchScriptsTestsStats === 'function') fetchScriptsTestsStats();
+    } catch (err) {
+      console.error("Erreur dans initCharts():", err);
+    }
+  }
+
+//  FIn
 
 
 //Nouveau 
 function initTestsChartMultiProjet(labels, datasets) {
-  const ctx = document.getElementById('testsChart').getContext('2d');
+  const canvas = document.getElementById('testsParJourChart');
+  if (!canvas) {
+    console.error("Canvas 'testsParJourChart' introuvable dans le DOM.");
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
 
   new Chart(ctx, {
     type: 'bar',
@@ -291,140 +315,13 @@ function initTestsChartMultiProjet(labels, datasets) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
       plugins: {
-        datalabels: {
-          color: '#5b5c5eff', // Couleur du texte
-          anchor: 'end',
-          align: 'start',
-          offset: -4,
-          font: {
-            weight: 'bold'
-          },
-          formatter: (value, context) => {
-            if (value === 0) return '';
-            return `${context.dataset.label}\n${value}`;
-          }
-        },
         legend: {
-          display: true,
-          position: 'bottom',
-          labels: { color: '#334155' }
+          position: 'top'
         },
         tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#f1f5f9',
-          bodyColor: '#f1f5f9',
-          borderColor: '#334155',
-          borderWidth: 1,
-          cornerRadius: 8,
-          displayColors: true,
           callbacks: {
-            title: (context) => 'Date : ' + context[0].label,
-            label: (context) =>
-              `${context.dataset.label} : ${context.parsed.y} tests`
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: '#f1f5f9' },
-          ticks: { color: '#64748b' }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { color: '#64748b' }
-        }
-      }
-    },
-    plugins: [ChartDataLabels] // Active le plugin ici
-  });
-}
-
-// init chart
-function initCharts() {
-  const ctx = document.getElementById("erreursScriptChart");
-  if (!ctx) return;
-
-  const data = {
-    labels: ["Script A", "Script B", "Script C"],
-    datasets: [{
-      label: "Erreurs",
-      data: [5, 3, 8],
-      backgroundColor: "#dc2626"
-    }]
-  };
-
-  const config = {
-    type: "bar",
-    data: data,
-    options: {
-      responsive: true,
-      plugins: {
-        datalabels: {
-          anchor: 'end',
-          align: 'top',
-          color: '#333',
-          font: {
-            weight: 'bold'
-          }
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  };
-
-  new Chart(ctx, config);
-}
-
-
-
-
-
-// Fonction pour initialiser le graphique erreurs par script
-function initErreursScriptChart(labels, erreursCounts) {
-  const ctx = document.getElementById('erreursScriptChart').getContext('2d');
-
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Nombre d'erreurs",
-        data: erreursCounts,
-        backgroundColor: colors.error + 'cc',
-        borderColor: colors.error,
-        borderWidth: 1,
-        borderRadius: 4,
-        maxBarThickness: 40
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#f1f5f9',
-          bodyColor: '#f1f5f9',
-          borderColor: '#334155',
-          borderWidth: 1,
-          cornerRadius: 8,
-          callbacks: {
-            label: context => `${context.parsed.y} erreurs`
-          }
-        },
-        datalabels: {
-          color: '#ffffffff',        // Couleur rouge
-          anchor: 'end',           // Ancre au dessus de la barre
-          align: 'start',          // Aligné au dessus (start = juste au-dessus)
-          font: {
-            weight: 'bold',
-            size: 12
-          },
-          formatter: function (value) {
-            return value;          // Affiche la valeur brute (nombre d'erreurs)
+            label: context => `${context.dataset.label}: ${context.parsed.y}`
           }
         }
       },
@@ -439,12 +336,77 @@ function initErreursScriptChart(labels, erreursCounts) {
           grid: { display: false }
         }
       }
+    }
+  });
+}
+
+// Debut erreur par script Tests non exécutés et non concluants
+
+function initErreursScriptChart(labels, erreursCounts) {
+  const ctx = document.getElementById('erreursScriptChart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Nombre d'erreurs",
+        data: erreursCounts,
+        backgroundColor: 'rgba(239, 68, 68, 0.7)', // rouge avec opacité
+        borderColor: '#ef4444',
+        borderWidth: 1,
+        borderRadius: 6,
+        barThickness: 24,
+        maxBarThickness: 32,
+      }]
     },
-    plugins: [ChartDataLabels]  // Active le plugin datalabels
+    options: {
+      indexAxis: 'y', // REND LE GRAPH HORIZONTAL
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#f1f5f9',
+          bodyColor: '#f1f5f9',
+          borderColor: '#334155',
+          borderWidth: 1,
+          cornerRadius: 8,
+          callbacks: {
+            label: context => `${context.parsed.x} erreurs`
+          }
+        },
+        datalabels: {
+          color: '#f8fafc',
+          anchor: 'end',
+          align: 'right',
+          font: {
+            weight: 'bold',
+            size: 12
+          },
+          formatter: value => value
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color: '#64748b', stepSize: 1 },
+          grid: { color: '#e2e8f0' }
+        },
+        y: {
+          ticks: { color: '#475569' },
+          grid: { display: false }
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
   });
 }
 
 
+
+// Fin erreur par script
 
 // Chargement des données et initialisation des graphiques + KPI
 document.addEventListener('DOMContentLoaded', () => {
@@ -506,72 +468,116 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Erreur récupération tests par jour:', error);
     });
 
-// Fonction pour afficher le projet avec max et min erreurs en barres horizontales
-function initProjetErreurChart(data) {
-  const ctx = document.getElementById('projetErreurChart').getContext('2d');
+  // === Graphique erreurs par script ===
+  const canvasErreurs = document.getElementById('erreursScriptChart');
+  if (canvasErreurs) {
+    fetch(`/api/stats/taux-erreur-par-script${queryParam}`)
+      .then(response => response.json())
+      .then(data => {
+        const labels = data.map(item => item.script);
+        const erreursCounts = data.map(item => item.erreurs);
 
-  const labels = [data.min.nom, data.max.nom];
-  const valeurs = [data.min.valeur, data.max.valeur];
+        if (labels.length === 0) {
+          console.warn("Aucune donnée pour le graphique erreurs par script.");
+          return;
+        }
 
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Nombre d\'erreurs',
-        data: valeurs,
-        backgroundColor: ['#3b82f6', '#ef4444'],  // Bleu pour min, rouge pour max
-        borderWidth: 1
-      }]
-    },
-    options: {
-      indexAxis: 'y', // barre horizontale
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
+        initErreursScriptChart(labels, erreursCounts);
+      })
+      .catch(error => {
+        console.error("Erreur récupération taux d'erreur par script:", error);
+      });
+  } else {
+    console.warn("Canvas 'erreursScriptChart' introuvable dans le DOM.");
+  }
+  // fin
+  // Debut
+  // Début : variable globale pour conserver l'instance
+  let projetErreurChartInstance = null;
+
+  function initProjetErreurChart(data) {
+    const ctx = document.getElementById('projetErreurChart').getContext('2d');
+
+    if (projetErreurChartInstance) {
+      projetErreurChartInstance.destroy();
+    }
+
+    // Si min et max identiques (un seul projet avec erreurs)
+    let labels, valeurs, backgroundColors;
+
+    if (!data.min || !data.max) {
+      // Pas de données
+      labels = [];
+      valeurs = [];
+      backgroundColors = [];
+    } else if (data.min.id === data.max.id) {
+      labels = [data.max.nom];
+      valeurs = [data.max.valeur];
+      backgroundColors = ['#3b82f6']; // Bleu
+    } else {
+      labels = [data.min.nom, data.max.nom];
+      valeurs = [data.min.valeur, data.max.valeur];
+      backgroundColors = ['#3b82f6', '#ef4444']; // Bleu et rouge
+    }
+
+    projetErreurChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Nombre d'erreurs",
+          data: valeurs,
+          backgroundColor: backgroundColors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: true },
+          datalabels: {
+            anchor: 'end',
+            align: 'right',
+            color: '#000',
+            font: { weight: 'bold', size: 14 },
+            formatter: value => value
+          }
         },
-        tooltip: {
-          enabled: true
-        },
-        datalabels: {
-          anchor: 'end',
-          align: 'right',
-          color: '#000',
-          font: {
-            weight: 'bold',
-            size: 14
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { precision: 0, color: '#374151' }
           },
-          formatter: (value) => value
+          y: {
+            ticks: { color: '#374151' }
+          }
         }
       },
-      scales: {
-        x: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0,
-            color: '#374151'
-          }
-        },
-        y: {
-          ticks: {
-            color: '#374151'
-          }
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
+      plugins: [ChartDataLabels]
+    });
+  }
 
-  // Exemple d'appel après fetch
-  fetch('/api/stats/repartition-projet-erreurs/')
-    .then(res => res.json())
-    .then(data => {
-      initProjetErreurChart(data);
-    })
-    .catch(err => console.error('Erreur fetch projet erreurs:', err));
+  const periodeSelect = document.getElementById('periodeSelect');
+
+  function chargerProjetErreurChart() {
+    const periode = periodeSelect.value;
+
+    fetch(`/api/stats/repartition-projet-erreurs/?periode=${periode}`)
+      .then(res => res.json())
+      .then(data => {
+        initProjetErreurChart(data);
+      })
+      .catch(err => console.error('Erreur fetch projet erreurs:', err));
+  }
+
+  periodeSelect.addEventListener('change', chargerProjetErreurChart);
+
+  chargerProjetErreurChart();
+
+  // Fin  
 
   // Fetch taux de réussite
   fetch(`/api/stats/taux-reussite${queryParam}`)
@@ -590,13 +596,13 @@ function initProjetErreurChart(data) {
         }
 
         if (taux >= 90) {
-          statusIndicator.innerText = "● Excellent";
+          statusIndicator.innerText = " ";
           statusIndicator.className = "status-indicator excellent";
         } else if (taux >= 70) {
-          statusIndicator.innerText = "● Bon";
+          statusIndicator.innerText = " ";
           statusIndicator.className = "status-indicator good";
         } else {
-          statusIndicator.innerText = "● À améliorer";
+          statusIndicator.innerText = " ";
           statusIndicator.className = "status-indicator poor";
         }
       }
@@ -635,4 +641,8 @@ function initProjetErreurChart(data) {
       initErreursScriptChart(labels, erreursCounts);
     })
     .catch(error => console.error('Erreur récupération taux d\'erreur par script:', error));
+
+  
 });
+
+

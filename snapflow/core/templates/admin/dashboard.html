@@ -4,6 +4,7 @@
 {% block extrahead %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="{% static 'js/dashboard-charts.js' %}"></script>
 
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
@@ -14,23 +15,39 @@
   <div class="dashboard-header">
     <h1 class="dashboard-title">📊 Monitoring des Tests</h1>
 
-    <form method="get" id="projet-form">
+    <form method="get" id="dashboard-form">
       <label for="projet">Tous les projets :</label>
-      <select name="projet_id" id="projet" onchange="document.getElementById('projet-form').submit();">
+      <select name="projet_id" id="projet" onchange="this.form.submit();">
         <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Tous les projets --</option>
         {% for projet in projets %}
-          {% if projet.id|stringformat:"s" == selected_projet_id %}
-            <option value="{{ projet.id }}" selected>{{ projet.nom }}</option>
-          {% else %}
-            <option value="{{ projet.id }}">{{ projet.nom }}</option>
-          {% endif %}
+        <option value="{{ projet.id }}" {% if projet.id|stringformat:"s" == selected_projet_id %}selected{% endif %}>
+          {{ projet.nom }}
+        </option>
         {% endfor %}
+      </select>
+
+      <label for="periode" style="margin-left: 20px;">Période :</label>
+      <select name="periode" id="periode" onchange="this.form.submit();">
+        <option value="mois" {% if selected_periode == "mois" or not selected_periode %}selected{% endif %}>Ce mois (défaut)</option>
+        <option value="jour" {% if selected_periode == "jour" %}selected{% endif %}>Aujourd'hui</option>
+        <option value="semaine" {% if selected_periode == "semaine" %}selected{% endif %}>Cette semaine</option>
+        <option value="annee" {% if selected_periode == "annee" %}selected{% endif %}>Cette année</option>
       </select>
     </form>
   </div>
 
   <!-- KPIs -->
   <div class="kpi-section three-cols">
+    <div class="kpi-card">
+      <div class="chart-header">
+        <span class="chart-icon">🧩</span>
+        <h3 class="chart-title">Répartition par projet</h3>
+      </div>
+      <div class="chart-container pie" style="height: 200px;">
+        <canvas id="projetChart"></canvas>
+      </div>
+    </div>
+
     <div class="kpi-card">
       <div class="kpi-header">
         <div class="kpi-icon primary"><span>📈</span></div>
@@ -42,19 +59,25 @@
     <div class="kpi-card">
       <div class="kpi-header">
         <div class="kpi-icon success"><span>🎯</span></div>
-        <span id="status-indicator" class="status-indicator">● Chargement...</span>
+        <span id="status-indicator" class="status-indicator"></span>
       </div>
       <div id="kpi-taux-reussite" class="kpi-value">0%</div>
       <div class="kpi-label">Taux de réussite global</div>
     </div>
 
+    <!-- Nouveau bloc KPI -->
     <div class="kpi-card">
-      <div class="chart-header">
-        <span class="chart-icon">🧩</span>
-        <h3 class="chart-title">Répartition par projet</h3>
+      <div class="kpi-header">
+        <div class="kpi-icon warning"><span>⚠️</span></div>
       </div>
-      <div class="chart-container pie" style="height: 200px;">
-        <canvas id="projetChart"></canvas>
+      <div class="kpi-value">
+        <div><strong id="scripts-non-executes-value">--</strong> (<span id="percent-scripts-non-executes">--</span>%)</div>
+        <div>Scripts non exécutés</div>
+      </div>
+      <hr style="margin: 10px 0; border-color: #fbbf24;">
+      <div class="kpi-value" style="margin-top: 10px;">
+        <div><strong id="tests-en-echec-value">--</strong> (<span id="percent-tests-echec">--</span>%)</div>
+        <div>Tests en échec</div>
       </div>
     </div>
   </div>
@@ -65,41 +88,78 @@
       <span class="chart-icon">⚖️</span>
       <h3 class="chart-title">Évolution des tests par jour</h3>
     </div>
-    <div class="chart-container"><canvas id="sfChart"></canvas></div>
+    <div class="chart-container">
+      <canvas id="sfChart"></canvas>
+    </div>
   </div>
 
-  <!-- Projet avec le plus et le moins d'erreurs -->
+  <!-- Projet avec erreurs -->
   <div class="chart-card margin-top-large">
     <div class="chart-header">
       <span class="chart-icon">⚠️</span>
       <h3 class="chart-title">Projet avec le plus et le moins d'erreurs</h3>
     </div>
-    <div class="chart-container" style="height: 200px;">
-      <canvas id="projetErreurChart"></canvas>
+
+    <div class="filters-container" style="margin: 1rem 0; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
+      <div class="filters-row" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <div class="filter-group">
+          <label for="periodeSelect" style="display: block; font-weight: 500; margin-bottom: 0.25rem;">Filtrer par :</label>
+          <select id="periodeSelect" style="padding: 0.1rem; border: 1px solid #d1d5db; border-radius: 4px; background-color: white;">
+            <option value="jour">Dernier jour</option>
+            <option value="semaine">Dernière semaine</option>
+            <option value="mois" selected>Dernier mois</option>
+            <option value="annee">Dernière année</option>
+          </select>
+        </div>
+      </div>
+      <div id="periodeIndicator" style="margin-top: 0.5rem; font-size: 0.875rem; color: #6b7280;"></div>
+    </div>
+
+    <div class="chart-container" style="height: 200px; position: relative;">
+      <canvas id="projetErreurChart" width="600" height="300"></canvas>
+      <div id="chartLoader" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+        <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; margin: 0 auto;"></div>
+        <p style="margin-top: 1rem; color: #6b7280;">Chargement...</p>
+      </div>
     </div>
   </div>
-</div>  {# fermeture unique dashboard-container #}
+</div> <!-- .dashboard-container -->
 
-<!-- JS -->
+<!-- JS Data -->
 <script>
   window.dashboardData = {
-    labels: {{ labels | safe }},
-    values: {{ values | safe }},
-    sf_labels: {{ sf_labels | safe }},
-    sf_success: {{ sf_success | safe }},
-    sf_fail: {{ sf_fail | safe }},
-    projet_labels: {{ projet_labels | safe }},
-    projet_counts: {{ projet_counts | safe }},
-    erreurs_labels: {{ erreurs_labels | safe }},
-    erreurs_counts: {{ erreurs_counts | safe }}
+    labels: {{ labels|safe }},
+    values: {{ values|safe }},
+    sf_labels: {{ sf_labels|safe }},
+    sf_success: {{ sf_success|safe }},
+    sf_fail: {{ sf_fail|safe }},
+    projet_labels: {{ projet_labels|safe }},
+    projet_counts: {{ projet_counts|safe }},
+    erreurs_labels: {{ erreurs_labels|safe }},
+    erreurs_counts: {{ erreurs_counts|safe }}
   };
 </script>
 
-<script src="{% static 'js/dashboard-charts.js' %}"></script>
+<!-- Script pour initialiser les graphiques + injecter les KPI scripts/tests -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    console.log("Document chargé");
     initCharts(window.dashboardData);
+
+    fetch('/api/stats/scripts-tests/')
+      .then(response => response.json())
+      .then(data => {
+        console.log("Données récupérées :", data);
+
+        document.getElementById('scripts-non-executes-value').textContent = data.scripts_non_executes;
+        document.getElementById('percent-scripts-non-executes').textContent = data.percent_scripts_non_executes;
+
+        document.getElementById('tests-en-echec-value').textContent = data.tests_en_echec;
+        document.getElementById('percent-tests-echec').textContent = data.percent_tests_echec;
+      })
+      .catch(error => {
+        console.error("Erreur lors du fetch des KPIs scripts/tests :", error);
+      });
   });
 </script>
 {% endblock %}
-

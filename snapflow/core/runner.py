@@ -8,12 +8,24 @@ from django.core.mail import send_mail
 import requests
 from .models import *
 
+def get_global_config():
+    try:
+        return Configuration.objects.first()  # récupère la première instance
+    except Configuration.DoesNotExist:
+        return None
 
-def creer_ticket_redmine(projet_id, sujet, description):
-    url = f"{settings.REDMINE_URL}/issues.json"
+from .models import Configuration  # ou le chemin vers ton modèle Configuration
+
+def creer_ticket_redmine(projet_id, sujet, description, priority_id=2):
+    # Récupérer la configuration globale (la première instance)
+    config = Configuration.objects.first()
+    if not config or not config.redmine_url or not config.redmine_api_key:
+        raise ValueError("Configuration Redmine non définie dans la base de données.")
+
+    url = f"{config.redmine_url.rstrip('/')}/issues.json"
     headers = {
         "Content-Type": "application/json",
-        "X-Redmine-API-Key": settings.REDMINE_API_KEY,
+        "X-Redmine-API-Key": config.redmine_api_key,
     }
 
     print(f"Recherche projet avec id_redmine={projet_id}")
@@ -22,22 +34,21 @@ def creer_ticket_redmine(projet_id, sujet, description):
     if projet.id_redmine is None:
         raise ValueError("Ce projet n'a pas d'ID Redmine défini.")
 
-    # Construction des données à envoyer
+        # Valeur par défaut
+
+    
     issue_data = {
         "project_id": projet_id,
         "subject": sujet,
         "description": description[:4000],
-        "priority_id": 4,
+        "priority_id": priority_id,
         "tracker_id": 2,
     }
 
-    # Ajout de l'affectation si disponible
     if projet.id_redmine_charge_de_compte:
         issue_data["assigned_to_id"] = projet.id_redmine_charge_de_compte
 
-    data = {
-        "issue": issue_data
-    }
+    data = {"issue": issue_data}
 
     print("Données envoyées à Redmine :", data)
     print(f"project_id envoyé à Redmine : {projet_id} (type: {type(projet_id)})")
@@ -52,25 +63,42 @@ def creer_ticket_redmine(projet_id, sujet, description):
         raise
 
 
+from django.core.mail import EmailMessage, get_connection
 
 def notifier_utilisateurs(execution):
+    config = get_global_config()
+    if not config:
+        print("❌ Pas de configuration globale trouvée")
+        return
+
     configuration = execution.configuration
     destinataires = [e.email for e in configuration.emails_notification.all()]
-    if destinataires:
-        try:
-            send_mail(
-                subject=f"Test terminé : {configuration.nom}",
-                message=(
-                    f"Le test '{configuration.nom}' est terminé.\n"
-                    f"Statut : {execution.statut}\n\n"
-                    f"Rapport :\n{execution.rapport[:500]}..."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=destinataires,
-                fail_silently=False,
-            )
-        except Exception as e:
-            print("❌ Erreur lors de l'envoi de l'e-mail :", str(e))
+    if not destinataires:
+        print("Aucun destinataire trouvé")
+        return
+
+    connection = get_connection(
+        host='smtp.gmail.com',  # ou config.redmine_url si c'est aussi le SMTP host, sinon met le bon hôte SMTP
+        port=587,
+        username=config.email_host_user,
+        password=config.email_host_password,
+        use_tls=True,
+    )
+
+    subject = f"Test terminé : {configuration.nom}"
+    message = (
+        f"Le test '{configuration.nom}' est terminé.\n"
+        f"Statut : {execution.statut}\n\n"
+        f"Rapport :\n{execution.rapport[:500]}..."
+    )
+
+    email = EmailMessage(subject, message, config.email_host_user, destinataires, connection=connection)
+    try:
+        email.send()
+        print("✅ E-mail envoyé avec succès")
+    except Exception as e:
+        print(f"❌ Erreur envoi email: {e}")
+
 
 
 def lancer_scripts_pour_execution(execution_id):
@@ -126,6 +154,7 @@ def lancer_scripts_pour_execution(execution_id):
                         description=description
                         + "\n\nLogs complets:\n"
                         + "\n".join(logs),
+                        priorite_id=script.priorite
                     )
                     logs.append(f"\n✅ Ticket Redmine créé avec ID: {ticket_id}")
 

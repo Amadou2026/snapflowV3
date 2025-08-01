@@ -9,7 +9,7 @@ from django.utils.html import format_html
 from io import BytesIO
 
 import openpyxl
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 import logging
 from core.utils.redmine import get_last_redmine_tickets
 from django.contrib.admin.views.decorators import staff_member_required
@@ -148,66 +148,64 @@ class ProjetAdmin(admin.ModelAdmin):
         )
         return TemplateResponse(request, "admin/redmine_tickets.html", context)
     
+
     # Vue Globale
-    @staff_member_required     
+    @staff_member_required
     def vue_globale_view(self, request):
         """Vue globale avec toutes les statistiques"""
-        
-        # Récupérer les projets accessibles
+
+        # Récupérer les projets accessibles par l'utilisateur
         if request.user.is_superuser:
-            projets = Projet.objects.all()
+            projets_accessibles = Projet.objects.all()
         else:
-            projets = Projet.objects.filter(charge_de_compte=request.user)
-        
-        # Debug: afficher le nombre de projets
-        print(f"DEBUG: Nombre de projets trouvés: {projets.count()}")
-        for p in projets:
-            print(f"DEBUG: Projet - ID: {p.id}, Nom: {p.nom}")
-        
+            projets_accessibles = Projet.objects.filter(charge_de_compte=request.user)
+
+        projet_id = request.GET.get("projet")
+        if projet_id:
+            projets = projets_accessibles.filter(id=projet_id)
+        else:
+            projets = projets_accessibles
+
         # Calculer les statistiques globales
         total_tests = ExecutionTest.objects.filter(
             configuration__projet__in=projets
         ).count()
-        
+
         tests_echoues = ExecutionTest.objects.filter(
             configuration__projet__in=projets,
-            statut='error'  # Utilisez 'error' selon votre models.py
+            statut='error'
         ).count()
-        
+
         tests_reussis = ExecutionTest.objects.filter(
             configuration__projet__in=projets,
-            statut='done'  # Utilisez 'done' selon votre models.py
+            statut='done'
         ).count()
-        
-        # Calculer les tests non fonctionnels
+
+        # Tests non fonctionnels
         non_fonctionnels = ExecutionTest.objects.filter(
             configuration__projet__in=projets,
             statut__in=['error', 'running', 'pending']
         ).count()
-        
-        # Calculer les stats par projet pour le tableau "Projets affectés"
+
+        # Statistiques par projet
         execution_tests_by_projet = {}
         for projet in projets:
             total_projet = ExecutionTest.objects.filter(configuration__projet=projet).count()
             success_projet = ExecutionTest.objects.filter(configuration__projet=projet, statut='done').count()
             fail_projet = ExecutionTest.objects.filter(configuration__projet=projet, statut='error').count()
-            
+
             execution_tests_by_projet[projet.id] = {
                 'total': total_projet,
                 'success': success_projet,
                 'fail': fail_projet,
             }
-            
-            # Debug pour chaque projet
-            print(f"DEBUG: Projet {projet.nom} - Total: {total_projet}, Success: {success_projet}, Fail: {fail_projet}")
-        
-        # Statistiques pour affichage secondaire (optionnel)
+
         stats_par_projet = []
         for projet in projets:
             total_projet = execution_tests_by_projet[projet.id]['total']
             reussis_projet = execution_tests_by_projet[projet.id]['success']
             echoues_projet = execution_tests_by_projet[projet.id]['fail']
-            
+
             stats_par_projet.append({
                 'projet': projet,
                 'total': total_projet,
@@ -215,8 +213,7 @@ class ProjetAdmin(admin.ModelAdmin):
                 'echoues': echoues_projet,
                 'taux_reussite': round((reussis_projet / total_projet * 100) if total_projet > 0 else 0, 2)
             })
-        
-        # Contexte pour le template
+
         context = dict(
             self.admin_site.each_context(request),
             title="Vue Globale - Statistiques des Tests",
@@ -226,28 +223,26 @@ class ProjetAdmin(admin.ModelAdmin):
             non_fonctionnels=non_fonctionnels,
             taux_reussite_global=round((tests_reussis / total_tests * 100) if total_tests > 0 else 0, 2),
             stats_par_projet=stats_par_projet,
-            projets_utilisateur=projets,
+            projets_utilisateur=projets_accessibles,
             execution_tests_by_projet=execution_tests_by_projet,
-            projets_count=projets.count(),
-            # debug=True,  # Activez le debug temporairement
+            projets_count=projets_accessibles.count(),
+            selected_projet_id=int(projet_id) if projet_id else None,
         )
-        
-        print(f"DEBUG: Contexte - projets_utilisateur count: {len(context['projets_utilisateur'])}")
-        
+
         return TemplateResponse(request, "admin/vue-globale.html", context)
 
 
-    
     def lien_tickets_redmine(self, obj):
         url = reverse('admin:tickets-redmine')
         return format_html('<a href="{}">Voir Tickets Redmine</a>', url)
     lien_tickets_redmine.short_description = "Tickets Redmine"
-    
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:
-            return qs  # le superadmin voit tout
+            return qs
         return qs.filter(charge_de_compte=request.user)
+
   
 @admin.register(CustomUser)
 class CustomUserAdmin(BaseUserAdmin):
@@ -285,10 +280,10 @@ class SousAxeAdmin(admin.ModelAdmin):
 
 @admin.register(Script)
 class ScriptAdmin(admin.ModelAdmin):
-    list_display = ('axe', 'sous_axe', 'nom', 'afficher_fichier')
-    list_filter = ('axe', 'sous_axe')
+    list_display = ('axe', 'sous_axe', 'nom', 'afficher_fichier', 'priorite')
+    list_filter = ('axe', 'sous_axe', 'priorite')
     search_fields = ('nom',)
-    fields = ('axe', 'sous_axe', 'nom', 'fichier')
+    fields = ('axe', 'sous_axe', 'nom', 'fichier','priorite')
 
     def afficher_fichier(self, obj):
         return format_html('<a href="{}" download>Télécharger</a>', obj.fichier.url) if obj.fichier else '-'
@@ -340,17 +335,30 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
     # ✅ Injecter les projets dans le contexte du template
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
-        from .models import Projet  # ou adapter l'import
-        extra_context['projets'] = Projet.objects.all()
+        user = request.user
+
+        if user.is_superuser:
+            projets = Projet.objects.all()
+        else:
+            projets = Projet.objects.filter(charge_de_compte=user)
+
+        extra_context['projets'] = projets
         return super().changelist_view(request, extra_context=extra_context)
 
     # ✅ Filtrer par projet si présent dans l'URL
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
+        user = request.user
+
+        if not user.is_superuser:
+            queryset = queryset.filter(projet__charge_de_compte=user)
+
         projet_id = request.GET.get("projet")
         if projet_id:
             queryset = queryset.filter(projet_id=projet_id)
+
         return queryset
+
 
 # Filtrer par projet 
 from django.contrib.admin import SimpleListFilter
@@ -430,11 +438,14 @@ class ExecutionTestAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
 
-        projet_id = request.GET.get('configuration__projet')  # ✔️ Correspond au ProjetFilter
+        user = request.user
+        if not user.is_superuser:
+            queryset = queryset.filter(configuration__projet__charge_de_compte=user)
+
+        projet_id = request.GET.get('configuration__projet')
         if projet_id:
             queryset = queryset.filter(configuration__projet__id=projet_id)
 
-        # Ce bloc reste utile uniquement si tu passes des dates via l'URL (filtrage JS par ex.)
         started_at_gte = request.GET.get('started_at__gte')
         started_at_lt = request.GET.get('started_at__lt')
         if started_at_gte and started_at_lt:
@@ -447,6 +458,7 @@ class ExecutionTestAdmin(admin.ModelAdmin):
 
         print(f"[DEBUG] Total tests filtrés : {queryset.count()}")
         return queryset
+
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
@@ -620,34 +632,34 @@ class DashboardAdmin(admin.ModelAdmin):
 
         # Filtrer les projets accessibles à l'utilisateur
         projets = Projet.objects.all() if user.is_superuser else Projet.objects.filter(charge_de_compte=user)
+        projet_ids = projets.values_list("id", flat=True)
 
-        # Récupérer le projet sélectionné depuis la requête GET
-        projet_id = request.GET.get("projet_id")  # Changé de "projet" à "projet_id"
-        selected_projet_id = projet_id if projet_id else ""
+        if not projets.exists():
+            return HttpResponseForbidden("Vous n'avez accès à aucun projet.")
+
+        # Récupérer le projet sélectionné
+        projet_id = request.GET.get("projet_id")
         selected_projet = None
-        
+        selected_projet_id = projet_id if projet_id else ""
+
         if projet_id:
             try:
                 selected_projet = projets.get(id=projet_id)
             except Projet.DoesNotExist:
                 selected_projet = None
 
-        # Récupérer les execution_tests
+        # Récupérer les ExecutionTest selon le projet sélectionné ou tous les projets accessibles
         if selected_projet:
             execution_tests = ExecutionTest.objects.filter(
                 configuration__projet=selected_projet
             )
         else:
-            if user.is_superuser:
-                execution_tests = ExecutionTest.objects.all()
-            else:
-                execution_tests = ExecutionTest.objects.filter(
-                    configuration__projet__charge_de_compte=user
-                )
+            execution_tests = ExecutionTest.objects.filter(
+                configuration__projet_id__in=projet_ids
+            )
 
-        # Calculer les données seulement si on a des tests
+        # S'il y a des tests, on les traite
         if execution_tests.exists():
-            # Graphe 1 : Tests par jour
             tests_par_jour = (
                 execution_tests.annotate(date=TruncDate("started_at"))
                 .values("date")
@@ -657,7 +669,6 @@ class DashboardAdmin(admin.ModelAdmin):
             labels = [str(entry["date"]) for entry in tests_par_jour]
             values = [entry["total"] for entry in tests_par_jour]
 
-            # Graphe 2 : Succès vs Échec
             success_fail = (
                 execution_tests.annotate(date=TruncDate("started_at"))
                 .values("date", "statut")
@@ -680,7 +691,6 @@ class DashboardAdmin(admin.ModelAdmin):
             sf_success = [sf_result[d]["succès"] for d in sf_labels]
             sf_fail = [sf_result[d]["échec"] for d in sf_labels]
 
-            # Graphe 3 : Répartition par projet
             projets_data = (
                 execution_tests.values("configuration__projet__nom")
                 .annotate(total=Count("id"))
@@ -689,16 +699,12 @@ class DashboardAdmin(admin.ModelAdmin):
             projet_labels = [row["configuration__projet__nom"] for row in projets_data]
             projet_counts = [row["total"] for row in projets_data]
 
-            # KPI
             total_tests = execution_tests.count()
             total_success = execution_tests.filter(
                 statut__in=["done", "succès", "success"]
             ).count()
-            taux_reussite = (
-                round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
-            )
+            taux_reussite = round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
 
-            # Graphe 4 : Taux d'erreur par script
             erreurs_data = (
                 execution_tests.values("configuration__scripts__nom")
                 .annotate(
@@ -714,23 +720,28 @@ class DashboardAdmin(admin.ModelAdmin):
             ]
             erreurs_counts = [d["erreurs"] for d in erreurs_data]
 
-            # Résumé par projet
-            for p in projets:
-                executions = ExecutionTest.objects.filter(configuration__projet=p)
-                total = executions.count()
-                fonctionnels = executions.filter(
-                    statut__in=["done", "succès", "success"]
-                ).count()
-                non_fonctionnels = total - fonctionnels
-                projets_resumes.append(
-                    {
-                        "id": p.id,
-                        "nom": p.nom,
-                        "total": total,
-                        "fonctionnels": fonctionnels,
-                        "non_fonctionnels": non_fonctionnels,
-                    }
-                )
+            projets_map = {
+                p.id: {
+                    "id": p.id,
+                    "nom": p.nom,
+                    "total": 0,
+                    "fonctionnels": 0,
+                    "non_fonctionnels": 0,
+                }
+                for p in projets
+            }
+
+            for e in execution_tests.select_related("configuration__projet"):
+                pid = e.configuration.projet_id
+                if pid not in projets_map:
+                    continue
+                projets_map[pid]["total"] += 1
+                if e.statut in ["done", "succès", "success"]:
+                    projets_map[pid]["fonctionnels"] += 1
+                else:
+                    projets_map[pid]["non_fonctionnels"] += 1
+
+            projets_resumes = list(projets_map.values())
 
         context = dict(
             self.admin_site.each_context(request),
@@ -738,7 +749,6 @@ class DashboardAdmin(admin.ModelAdmin):
             projets=projets,
             selected_projet=selected_projet,
             selected_projet_id=selected_projet_id,
-            # Toutes les variables nécessaires au template
             labels=labels,
             values=values,
             sf_labels=sf_labels,
@@ -775,10 +785,12 @@ class DashboardAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return self.has_change_permission(request, obj)
 
+
 admin.site.register(Dashboard, DashboardAdmin)
 
-# Vue Globale Admin pour la sidebar
 
+
+# Vue Globale Admin pour la sidebar
 @admin.register(VueGlobale)
 class VueGlobaleAdmin(admin.ModelAdmin):
     """
@@ -796,92 +808,66 @@ class VueGlobaleAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
     
+    
     def vue_globale_view(self, request):
-        """Vue globale avec toutes les statistiques"""
-        # Récupérer les données selon les permissions de l'utilisateur
+        # Récupération du filtre période dans les GET params, 'jour' par défaut
+        periode = request.GET.get('periode', 'jour')
+
+        # Projets accessibles
         if request.user.is_superuser:
             projets = Projet.objects.all()
         else:
             projets = Projet.objects.filter(charge_de_compte=request.user)
-        
-        # Debug
-        print(f"DEBUG: Nombre de projets trouvés: {projets.count()}")
-        for p in projets:
-            print(f"DEBUG: Projet - ID: {p.id}, Nom: {p.nom}")
-            
-        # Calculer les statistiques globales
-        total_tests = ExecutionTest.objects.filter(
-            configuration__projet__in=projets
-        ).count()
-        
-        
-        # CORRECTION: Utiliser les bons statuts selon votre models.py
-        tests_echoues = ExecutionTest.objects.filter(
-            configuration__projet__in=projets,
-            statut='error'  # Changé de 'FAILED' à 'error'
-        ).count()
-        
-        tests_reussis = ExecutionTest.objects.filter(
-            configuration__projet__in=projets,
-            statut='done'  # Changé de 'SUCCESS' à 'done'
-        ).count()
-        
-        # Calculer les tests non fonctionnels
-        non_fonctionnels = ExecutionTest.objects.filter(
-            configuration__projet__in=projets,
-            statut__in=['error', 'running', 'pending']
-        ).count()
-        
-        # AJOUT: Créer le dictionnaire execution_tests_by_projet que le template attend
+
+        # Exemple simple de filtrage sur les tests selon la période
+        # (à adapter selon la structure de ton modèle ExecutionTest et champ date)
+        from django.utils.timezone import now
+        from datetime import timedelta
+
+        date_limite = None
+        if periode == 'jour':
+            date_limite = now() - timedelta(days=1)
+        elif periode == 'semaine':
+            date_limite = now() - timedelta(weeks=1)
+        elif periode == 'mois':
+            date_limite = now() - timedelta(days=30)
+        elif periode == 'annee':
+            date_limite = now() - timedelta(days=365)
+        else:
+            date_limite = None  # pas de filtre
+
+        tests_filter = ExecutionTest.objects.filter(configuration__projet__in=projets)
+        if date_limite:
+            tests_filter = tests_filter.filter(started_at__gte=date_limite)  # Remplace 'started_at' par le champ date pertinent
+
+        total_tests = tests_filter.count()
+        tests_echoues = tests_filter.filter(statut='error').count()
+        tests_reussis = tests_filter.filter(statut='done').count()
+        non_fonctionnels = tests_filter.filter(statut__in=['error', 'running', 'pending']).count()
+
         execution_tests_by_projet = {}
         for projet in projets:
-            total_projet = ExecutionTest.objects.filter(configuration__projet=projet).count()
-            success_projet = ExecutionTest.objects.filter(configuration__projet=projet, statut='done').count()
-            fail_projet = ExecutionTest.objects.filter(configuration__projet=projet, statut='error').count()
-            
+            tests_projet = tests_filter.filter(configuration__projet=projet)
             execution_tests_by_projet[projet.id] = {
-                'total': total_projet,
-                'success': success_projet,
-                'fail': fail_projet,
+                'total': tests_projet.count(),
+                'success': tests_projet.filter(statut='done').count(),
+                'fail': tests_projet.filter(statut='error').count(),
             }
-            
-            # Debug pour chaque projet
-            print(f"DEBUG: Projet {projet.nom} - Total: {total_projet}, Success: {success_projet}, Fail: {fail_projet}")
-        
-        # Statistiques détaillées par projet
-        stats_par_projet = []
-        for projet in projets:
-            total_projet = execution_tests_by_projet[projet.id]['total']
-            reussis_projet = execution_tests_by_projet[projet.id]['success']
-            echoues_projet = execution_tests_by_projet[projet.id]['fail']
-            
-            stats_par_projet.append({
-                'projet': projet,
-                'total': total_projet,
-                'reussis': reussis_projet,
-                'echoues': echoues_projet,
-                'taux_reussite': round((reussis_projet / total_projet * 100) if total_projet > 0 else 0, 2)
-            })
-        
+
         context = dict(
             self.admin_site.each_context(request),
             title="Vue Globale - Statistiques des Tests",
             total_tests=total_tests,
             tests_reussis=tests_reussis,
             tests_echoues=tests_echoues,
-            non_fonctionnels=non_fonctionnels,  # AJOUT: Variable manquante
+            non_fonctionnels=non_fonctionnels,
             taux_reussite_global=round((tests_reussis / total_tests * 100) if total_tests > 0 else 0, 2),
-            stats_par_projet=stats_par_projet,
-            projets_utilisateur=projets,  # AJOUT: Variable que le template attend
-            execution_tests_by_projet=execution_tests_by_projet,  # AJOUT: Dictionnaire attendu par le template
-            projets_count=projets.count(),
-            debug=True,  # TEMPORAIRE: Pour le debugging
+            projets_utilisateur=projets,
+            execution_tests_by_projet=execution_tests_by_projet,
+            periode=periode,  # important pour le template
         )
-        
-        print(f"DEBUG: Contexte - projets_utilisateur count: {len(context['projets_utilisateur'])}")
-        print(f"DEBUG: execution_tests_by_projet: {execution_tests_by_projet}")
-        
         return TemplateResponse(request, "admin/vue-globale.html", context)
+
     
     def has_module_permission(self, request):
         """Permet d'afficher le module dans la sidebar"""
@@ -902,3 +888,27 @@ class VueGlobaleAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Pas de permission de suppression"""
         return False
+
+#  config
+# core/admin.py
+
+from django.contrib import admin
+from .models import Configuration
+
+@admin.register(Configuration)
+class ConfigurationAdmin(admin.ModelAdmin):
+    def has_module_permission(self, request):
+        return request.user.is_superuser  # Visible dans le menu que pour superadmin
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        # Empêche d'ajouter plusieurs entrées
+        return Configuration.objects.count() == 0 and request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # On empêche la suppression

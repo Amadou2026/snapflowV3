@@ -68,8 +68,15 @@ class ProjetViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return Projet.objects.all()
-        return Projet.objects.filter(charge_de_compte=user)
+            queryset = Projet.objects.all()
+        else:
+            queryset = Projet.objects.filter(charge_de_compte=user)
+
+        projet_id = self.request.GET.get("projet_id")
+        if projet_id:
+            queryset = queryset.filter(id=projet_id)
+
+        return queryset
 
 
 class ConfigurationTestViewSet(viewsets.ModelViewSet):
@@ -92,10 +99,20 @@ class ConfigurationTestViewSet(viewsets.ModelViewSet):
         return Response({"status": "deactivated"}, status=status.HTTP_200_OK)
 
 
+# class ExecutionTestViewSet(viewsets.ModelViewSet):
+#     queryset = ExecutionTest.objects.all()
+#     serializer_class = ExecutionTestSerializer
+#     permission_classes = [IsAuthenticated]
 class ExecutionTestViewSet(viewsets.ModelViewSet):
     queryset = ExecutionTest.objects.all()
     serializer_class = ExecutionTestSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return ExecutionTest.objects.filter(
+            configuration__projet__charge_de_compte=user
+        )
 
 
 class RapportPDFView(APIView):
@@ -136,22 +153,47 @@ class RapportPDFView(APIView):
         )
 
 
+# Debut
+# core/views.py - Version avec debug complet
+
+from datetime import datetime, timedelta
 from django.shortcuts import render
 from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from core.models import Projet, ExecutionTest
 
-
+from datetime import datetime, timedelta
 from django.shortcuts import render
-from django.db.models import Count, Q
-from django.db.models.functions import TruncDate
 from core.models import Projet, ExecutionTest
-
 
 def dashboard_view(request):
-    print("📥 dashboard_view appelée")
+    print("=" * 50)
+    print("🚨 DASHBOARD_VIEW APPELÉE - DÉBUT")
+    print(f"🔍 URL complète: {request.get_full_path()}")
+    print(f"🔍 Méthode HTTP: {request.method}")
+    print(f"🔍 Paramètres GET RAW: {request.GET}")
+    print(f"🔍 Paramètres GET dict: {dict(request.GET)}")
     
-    # Initialiser toutes les variables pour éviter les KeyError
+    # Récupération des paramètres avec debug détaillé
+    projet_id = request.GET.get("projet_id")
+    periode = request.GET.get("periode", "mois")
+    selected_periode = periode if periode in ["jour", "semaine", "mois", "annee"] else "mois"
+    
+    print(f"🔍 projet_id récupéré: '{projet_id}' (type: {type(projet_id)})")
+    print(f"🔍 periode récupérée: '{selected_periode}' (type: {type(selected_periode)})")
+    
+    # Vérification des valeurs vides ou None
+    if not selected_periode or selected_periode.strip() == "":
+        selected_periode = "mois"
+        print(f"⚠️ Période vide, fallback vers: '{selected_periode}'")
+    
+    if not projet_id or projet_id.strip() == "":
+        projet_id = None
+        print(f"⚠️ Projet ID vide, fallback vers: {projet_id}")
+    
+    print(f"🔧 Valeurs finales: projet_id='{projet_id}', periode='{selected_periode}'")
+    
+    # Initialiser toutes les variables
     labels = []
     values = []
     sf_labels = []
@@ -165,149 +207,105 @@ def dashboard_view(request):
     total_success = 0
     taux_reussite = 0
     projets_resumes = []
-    
-    projets = Projet.objects.all()
 
-    # Filtrer les projets accessibles à l'utilisateur
+    # Gestion des projets utilisateur
+    projets = Projet.objects.all()
     if request.user.is_superuser:
         projets_utilisateur = projets
     else:
         projets_utilisateur = projets.filter(charge_de_compte=request.user)
 
-    projet_id = request.GET.get("projet_id")
+    print(f"🔍 Projets utilisateur: {projets_utilisateur.count()}")
+
+    # Gestion du projet sélectionné
     selected_projet_id = projet_id if projet_id else ""
     projet_selectionne = None
 
     if projet_id:
         try:
             projet_id_int = int(projet_id)
-            if request.user.is_superuser:
-                projet_selectionne = Projet.objects.get(id=projet_id_int)
+            if projets_utilisateur.filter(id=projet_id_int).exists():
+                projet_selectionne = projets_utilisateur.get(id=projet_id_int)
+                print(f"✅ Projet sélectionné: {projet_selectionne.nom}")
             else:
-                projet_selectionne = Projet.objects.get(
-                    id=projet_id_int, charge_de_compte=request.user
-                )
-        except (Projet.DoesNotExist, ValueError):
+                print("❌ Accès refusé à ce projet")
+        except (Projet.DoesNotExist, ValueError) as e:
             projet_selectionne = None
-            print("❌ Projet non trouvé ou accès refusé")
+            print(f"❌ Erreur projet: {e}")
 
-    # 🔧 CORRECTION : Logique pour execution_tests
+    # Filtrage de base
     if projet_selectionne:
-        execution_tests = ExecutionTest.objects.filter(
-            configuration__projet=projet_selectionne
-        )
-        print(f"📁 Tests filtrés pour le projet: {projet_selectionne.nom}")
+        execution_tests = ExecutionTest.objects.filter(configuration__projet=projet_selectionne)
+        print(f"🔍 Tests pour projet {projet_selectionne.nom}: {execution_tests.count()}")
     else:
-        # Si aucun projet sélectionné, afficher selon les droits
-        if request.user.is_superuser:
-            execution_tests = ExecutionTest.objects.all()
-            print("👑 Superuser - Tous les tests")
-        else:
-            # Afficher seulement les tests des projets de l'utilisateur
-            execution_tests = ExecutionTest.objects.filter(
-                configuration__projet__charge_de_compte=request.user
-            )
-            print(f"👤 Utilisateur normal - Tests des projets de {request.user.username}")
+        execution_tests = ExecutionTest.objects.filter(configuration__projet__in=projets_utilisateur)
+        print(f"🔍 Tests pour tous les projets: {execution_tests.count()}")
 
-    print("🛠️ DEBUG execution_tests count:", execution_tests.count())
-    print("🧪 Premier test:", execution_tests.first())
+    # Application du filtre temporel avec debug détaillé
+    aujourd_hui = datetime.now()
 
-    # Seulement calculer si on a des tests
-    if execution_tests.exists():
-        # Graphe 1 : Tests par jour
-        tests_par_jour = (
-            execution_tests.annotate(date=TruncDate("started_at"))
-            .values("date")
-            .annotate(total=Count("id"))
-            .order_by("date")
-        )
-        labels = [str(entry["date"]) for entry in tests_par_jour]
-        values = [entry["total"] for entry in tests_par_jour]
+    if selected_periode == "jour":
+        date_debut = aujourd_hui.replace(hour=0, minute=0, second=0, microsecond=0)
+        print(f"✅ Filtre JOUR - depuis: {date_debut}")
+    elif selected_periode == "semaine":
+        date_debut = aujourd_hui - timedelta(days=7)
+        print(f"✅ Filtre SEMAINE - depuis: {date_debut}")
+    elif selected_periode == "mois":
+        date_debut = aujourd_hui - timedelta(days=30)
+        print(f"✅ Filtre MOIS - depuis: {date_debut}")
+    elif selected_periode == "annee":
+        date_debut = aujourd_hui - timedelta(days=365)
+        print(f"✅ Filtre ANNÉE - depuis: {date_debut}")
+    else:
+        date_debut = aujourd_hui - timedelta(days=30)
+        print(f"❌ Période inconnue '{selected_periode}', défaut MOIS - depuis: {date_debut}")
 
-        # Graphe 2 : Succès vs Échec
-        success_fail = (
-            execution_tests.annotate(date=TruncDate("started_at"))
-            .values("date", "statut")
-            .annotate(total=Count("id"))
-            .order_by("date")
-        )
-        sf_result = {}
-        for row in success_fail:
-            date = str(row["date"])
-            statut = (row["statut"] or "").lower()
-            count = row["total"]
-            if date not in sf_result:
-                sf_result[date] = {"succès": 0, "échec": 0}
-            if statut in ["done", "succès", "success"]:
-                sf_result[date]["succès"] += count
-            elif statut in ["error", "échec", "fail", "failure"]:
-                sf_result[date]["échec"] += count
+    # Application du filtre et comptage
+    execution_tests_avant_filtre = execution_tests.count()
+    execution_tests_filtrees = execution_tests.filter(started_at__gte=date_debut)
+    execution_tests_apres_filtre = execution_tests_filtrees.count()
 
-        sf_labels = list(sf_result.keys())
-        sf_success = [sf_result[d]["succès"] for d in sf_labels]
-        sf_fail = [sf_result[d]["échec"] for d in sf_labels]
-
-        # Graphe 3 : Répartition par projet
-        projets_data = (
-            execution_tests.values("configuration__projet__nom")
-            .annotate(total=Count("id"))
-            .order_by("-total")
-        )
-        projet_labels = [row["configuration__projet__nom"] for row in projets_data]
-        projet_counts = [row["total"] for row in projets_data]
-
-        # KPI
-        total_tests = execution_tests.count()
-        total_success = execution_tests.filter(
+    if execution_tests_filtrees.exists():
+        total_tests = execution_tests_filtrees.count()
+        total_success = execution_tests_filtrees.filter(
             statut__in=["done", "succès", "success"]
         ).count()
-        taux_reussite = (
-            round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
-        )
+        taux_reussite = round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
+    else:
+        total_tests = 0
+        total_success = 0
+        taux_reussite = 0
 
-        # Graphe 4 : Taux d'erreur par script
-        erreurs_data = (
-            execution_tests.values("configuration__scripts__nom")
-            .annotate(
-                total=Count("id"),
-                erreurs=Count(
-                    "id", filter=Q(statut__in=["error", "échec", "fail", "failure"])
-                ),
-            )
-            .order_by("-erreurs")
-        )
-        erreurs_labels = [
-            d["configuration__scripts__nom"] or "Sans script" for d in erreurs_data
-        ]
-        erreurs_counts = [d["erreurs"] for d in erreurs_data]
+    # Calcul des scripts non exécutés
+    total_scripts = execution_tests_filtrees.values('configuration__script').distinct().count()
+    print(f"🔍 Total scripts concernés (distincts): {total_scripts}")
+    scripts_executed = execution_tests_filtrees.filter(
+        statut__in=['done', 'succès', 'success']
+    ).values('configuration__script').distinct().count()
+    scripts_non_executes = total_scripts - scripts_executed
+    percent_scripts_non_executes = round((scripts_non_executes / total_scripts * 100), 1) if total_scripts else 0
+    print(f"🔍 Scripts non exécutés: {scripts_non_executes} ({percent_scripts_non_executes}%)")
 
-    # 🔹 Résumé par projet affecté à l'utilisateur
+    # Comptage des tests en échec (statut 'error')
+    tests_en_echec = execution_tests_filtrees.filter(statut='error').count()
+    percent_tests_echec = round((tests_en_echec / total_tests * 100), 1) if total_tests else 0
+    print(f"🔍 Tests en échec: {tests_en_echec} ({percent_tests_echec}%)")
+
+    # Résumé par projet
     for p in projets_utilisateur:
-        executions = ExecutionTest.objects.filter(configuration__projet=p)
+        executions = execution_tests_filtrees.filter(configuration__projet=p)
         total = executions.count()
-        fonctionnels = executions.filter(
-            statut__in=["done", "succès", "success"]
-        ).count()
+        fonctionnels = executions.filter(statut__in=["done", "succès", "success"]).count()
         non_fonctionnels = total - fonctionnels
-        projets_resumes.append(
-            {
-                "id": p.id,
-                "nom": p.nom,
-                "total": total,
-                "fonctionnels": fonctionnels,
-                "non_fonctionnels": non_fonctionnels,
-            }
-        )
+        projets_resumes.append({
+            "id": p.id,
+            "nom": p.nom,
+            "total": total,
+            "fonctionnels": fonctionnels,
+            "non_fonctionnels": non_fonctionnels,
+        })
 
-    # Debug des données
-    print(f"🔍 DEBUG - Projet sélectionné: {projet_selectionne}")
-    print(f"🔍 DEBUG - Total tests calculé: {total_tests}")
-    print(f"🔍 DEBUG - Total success: {total_success}")
-    print(f"🔍 DEBUG - Taux réussite: {taux_reussite}")
-    print(f"🔍 DEBUG - Labels length: {len(labels)}")
-    print(f"🔍 DEBUG - SF Labels length: {len(sf_labels)}")
-
-    # Préparer le contexte
+    # Contexte final
     context = {
         "labels": labels,
         "values": values,
@@ -322,11 +320,93 @@ def dashboard_view(request):
         "total_tests": total_tests,
         "projets": projets_utilisateur,
         "selected_projet_id": selected_projet_id,
+        "selected_periode": selected_periode,
         "non_fonctionnels": total_tests - total_success,
         "projets_resumes": projets_resumes,
+        'scripts_non_executes': scripts_non_executes,
+        'percent_scripts_non_executes': percent_scripts_non_executes,
+        'tests_en_echec': tests_en_echec,
+        'percent_tests_echec': percent_tests_echec,
+        
+        # Debug info pour le template
+        "debug_info": {
+            "url_complete": request.get_full_path(),
+            "get_params": dict(request.GET),
+            "tests_avant_filtre": execution_tests_avant_filtre,
+            "tests_apres_filtre": execution_tests_apres_filtre,
+            "date_debut": date_debut,
+        }
     }
-    
-    print("🔍 DEBUG - Context keys:", list(context.keys()))
-    print(f"🔍 DEBUG - total_tests dans context: {context['total_tests']}")
-
+ 
     return render(request, "admin/dashboard.html", context)
+
+# core/api_views.py (ou dans views.py)
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from datetime import datetime, timedelta
+from core.models import Projet, ExecutionTest, Script
+
+class ScriptsTestsStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        projet_id = request.GET.get("projet_id")
+        periode = request.GET.get("periode", "mois")
+        user = request.user
+
+        # Gestion des projets accessibles par l'utilisateur
+        if user.is_superuser:
+            projets = Projet.objects.all()
+        else:
+            projets = Projet.objects.filter(charge_de_compte=user)
+
+        # Filtrer par projet si demandé
+        if projet_id:
+            projets = projets.filter(id=projet_id)
+
+        # Calcul de la date de début selon la période choisie
+        aujourd_hui = datetime.now()
+        if periode == "jour":
+            date_debut = aujourd_hui.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif periode == "semaine":
+            date_debut = aujourd_hui - timedelta(days=7)
+        elif periode == "mois":
+            date_debut = aujourd_hui - timedelta(days=30)
+        elif periode == "annee":
+            date_debut = aujourd_hui - timedelta(days=365)
+        else:
+            date_debut = aujourd_hui - timedelta(days=30)
+
+        # Récupération des tests filtrés par projets et date
+        tests = ExecutionTest.objects.filter(configuration__projet__in=projets, started_at__gte=date_debut)
+
+        test_ids = tests.values_list('id', flat=True)
+
+        # Comptage des scripts distincts liés aux tests
+        total_scripts = Script.objects.filter(configurationtest__executiontest__in=test_ids).distinct().count()
+
+        # Scripts exécutés avec succès
+        tests_success = tests.filter(statut__in=['done', 'succès', 'success'])
+        success_test_ids = tests_success.values_list('id', flat=True)
+        scripts_executed = Script.objects.filter(configurationtest__executiontest__in=success_test_ids).distinct().count()
+
+        scripts_non_executes = total_scripts - scripts_executed
+        percent_scripts_non_executes = round((scripts_non_executes / total_scripts * 100), 1) if total_scripts else 0
+
+        total_tests = tests.count()
+        tests_en_echec = tests.filter(statut='error').count()
+        percent_tests_echec = round((tests_en_echec / total_tests * 100), 1) if total_tests else 0
+
+        data = {
+            "scripts_non_executes": scripts_non_executes,
+            "percent_scripts_non_executes": percent_scripts_non_executes,
+            "tests_en_echec": tests_en_echec,
+            "percent_tests_echec": percent_tests_echec,
+            "total_scripts": total_scripts,
+            "total_tests": total_tests,
+        }
+
+        return Response(data)
+
