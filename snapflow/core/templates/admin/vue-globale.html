@@ -6,15 +6,14 @@
 <link rel="stylesheet" href="{% static 'css/vue_globale.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
-    <div class="container">
-        <form method="get" id="periode-form" style="margin-bottom: 1em;">
-            <label for="periode">Filtrer par période : </label>
+
+    <div class="filter-section">
+        <form method="get" id="periode-form" class="periode-form">
+            <label for="periode">📅 Filtrer par période :</label>
             <select name="periode" id="periode" onchange="this.form.submit()">
                 <option value="jour" {% if periode == 'jour' %}selected{% endif %}>Jour</option>
                 <option value="semaine" {% if periode == 'semaine' %}selected{% endif %}>Semaine</option>
@@ -24,13 +23,13 @@
         </form>
     </div>
 
-    <h3>Vue Globale des Tests</h3>
+    <h3>📈 Vue Globale des Tests</h3>
 
     <div class="kpi-section">
         <div class="kpi-card" title="Nombre total de tests exécutés">
-            <div class="kpi-icon primary">📊</div>
+            <div class="kpi-icon primary"></div>
             <div class="kpi-value">
-                <a href="{% url 'admin:core_executiontest_changelist' %}" class="kpi-link" title="Voir tous les tests exécutés">
+                <a href="{% url 'admin:core_executiontest_changelist' %}" class="kpi-link">
                     {{ total_tests }}
                 </a>
             </div>
@@ -38,50 +37,111 @@
         </div>
 
         <div class="kpi-card" title="Nombre de tests non fonctionnels">
-            <div class="kpi-icon error">❌</div>
+            <div class="kpi-icon error"></div>
             <div class="kpi-value">
-                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link" title="Voir les tests non fonctionnels">
+                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link">
                     {{ non_fonctionnels }}
                 </a>
             </div>
             <div class="kpi-label">Tests non concluants</div>
         </div>
+        
+<!-- Début scripts en attente -->
+
+<div class="kpi-card" title="Nombre de scripts en attente">
+    <div class="kpi-icon warning"></div>
+    <div class="kpi-value">
+        <a id="link-attente" href="{% url 'admin:core_executionresult_changelist' %}?statut__exact=pending" class="kpi-link">
+            <span id="val-attente">{{ tests_script_en_attente|default:0 }}</span>
+        </a>
+    </div>
+    <div class="kpi-label">
+        {% if tests_script_en_attente and tests_script_en_attente > 0 %}
+            Scripts en attente
+        {% else %}
+            <span style="font-style: italic;">Aucun script en attente</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Fin scripts en attente -->
+
+
+
+    <!-- Début Test concluant-->
+<div class="kpi-card" title="Nombre de tests concluants">
+    <div class="kpi-icon success"></div>
+    <div class="kpi-value">
+        <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=done" class="kpi-link">
+            {{ tests_reussis }}
+        </a>
+    </div>
+    <div class="kpi-label">
+        {% if tests_reussis > 0 %}
+            Tests concluants
+        {% else %}
+            <span style="font-style: italic;">Aucun test concluant</span>
+        {% endif %}
+    </div>
+</div>
+    <!-- Fin -->
+     <!-- Debut test non exécuté -->
+      <div class="kpi-card" title="Nombre de tests non exécutés"> 
+    <div class="kpi-icon nonexecute"></div>
+    <div class="kpi-value">
+        {% if non_executed > 0 %}
+            <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=non_executed" class="kpi-link">
+                {{ non_executed }}
+            </a>
+        {% else %}
+            <span class="kpi-link">0</span>
+        {% endif %}
+    </div>
+    <div class="kpi-label">
+        {% if non_executed > 0 %}
+            Tests non exécutés
+        {% else %}
+            <span style="font-style: italic;">Aucun test non exécuté n'a été détecté</span>
+        {% endif %}
+    </div>
+</div>
+
+     <!-- Fin test non exécuté -->
+        
     </div>
 
-    <hr>
-
-    <h3 class="espace_top">Projets affectés à l'utilisateur </h3>
-    <table class="admin-table" role="grid" aria-label="Liste des projets et statistiques des tests">
+    <h3 class="espace_top">Projets affectés à l'utilisateur</h3>
+    <table class="admin-table" role="grid">
         <thead>
             <tr>
-                <th scope="col">Projet</th>
-                <th scope="col">Tests exécutés</th>
-                <th scope="col">Concluants ✅</th>
-                <th scope="col">Non concluants ❌</th>
+                <th>Projet</th>
+                <th>Tests exécutés</th>
+                <th>Concluants ✅</th>
+                <th>Non concluants ❌</th>
             </tr>
         </thead>
         <tbody>
             {% for projet in projets_utilisateur %}
-            {% with execution_tests_by_projet|get_item:projet.id as stats %}
-            <tr>
-                <td>{{ projet.nom }}</td>
-                <td>
-                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}" class="kpi-link" title="Voir tous les tests du projet {{ projet.nom }}">
-                        {{ stats.total|default:0 }}
-                    </a>
-                </td>
-                <td>
-                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=done">
-                        {{ stats.success|default:0 }}
-                    </a>
-                </td>
-                <td>
-                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=error">
-                        {{ stats.fail|default:0 }}
-                    </a>
-                </td>
-            </tr>
-            {% endwith %}
+                {% with execution_tests_by_projet|get_item:projet.id as stats %}
+                <tr>
+                    <td>{{ projet.nom }}</td>
+                    <td>
+                        <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}" class="kpi-link">
+                            {{ stats.total|default:0 }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=done">
+                            {{ stats.success|default:0 }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=error">
+                            {{ stats.fail|default:0 }}
+                        </a>
+                    </td>
+                </tr>
+                {% endwith %}
             {% empty %}
             <tr>
                 <td colspan="4" style="text-align:center; font-style: italic;">Aucun projet affecté.</td>
@@ -91,26 +151,25 @@
     </table>
 
     <div class="chart-card withfull espace_top" aria-label="Graphique du taux d'erreur par script">
-        <hr>
         <h3 class="chart-title">Taux d'erreur par script</h3>
         <div class="chart-container">
-            <canvas id="erreursScriptChart" role="img" aria-label="Graphique en barres du nombre d'erreurs par script"></canvas>
+            <canvas id="erreursScriptChart" role="img" aria-label="Graphique des erreurs par script"></canvas>
         </div>
     </div>
-
-    <br>
 
     <div class="chart-card withfull">
         <div class="chart-header">
-            <span class="chart-icon">⚖️</span>
-            <h3 class="chart-title">Tests non exécutés et tests échoués</h3>
+            <span class="chart-icon"></span>
+            <h3 class="chart-title">Scripts concluants / non concluants</h3>
         </div>
         <div class="chart-container">
-            <canvas id="testsNonExecuteChart" role="img" aria-label="Graphique en barres des tests non exécutés et non concluants"></canvas>
+            <canvas id="testsconcluantnonconcluant" role="img"
+                aria-label="Graphique en barres des scripts concluants et non concluants"></canvas>
         </div>
-    </div>
-
- <script src="{% static 'js/dashboard-charts.js' %}"></script>
- <script src="{% static 'js/vue-globale-chart.js' %}"></script>
+    </div>         
+ 
 </div>
+
+<script src="{% static 'js/dashboard-charts.js' %}" defer></script>
+<script src="{% static 'js/vue-globale-chart.js' %}"></script>
 {% endblock %}

@@ -340,7 +340,7 @@ def dashboard_view(request):
  
     return render(request, "admin/dashboard.html", context)
 
-# core/api_views.py (ou dans views.py)
+# core/views.py (ou dans views.py)
 
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -410,3 +410,11 @@ class ScriptsTestsStatsView(APIView):
 
         return Response(data)
 
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+from .models import ExecutionResult
+
+@staff_member_required
+def execution_resultats_view(request):
+    resultats = ExecutionResult.objects.select_related('execution', 'script', 'execution__configuration').order_by('-execution__started_at')
+    return render(request, 'admin/execution_resultats.html', {'resultats': resultats})

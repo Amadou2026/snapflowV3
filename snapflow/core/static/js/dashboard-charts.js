@@ -165,7 +165,7 @@ function initSFChart(labels, successData, failData) {
   const totalFail = failData.reduce((a, b) => a + b, 0);
   const totalAll = totalSuccess + totalFail;
 
-  const extendedLabels = [...labels, "Total"];
+  const extendedLabels = [...labels,];
   const extendedSuccessData = [...successData, totalSuccess];
   const extendedFailData = [...failData, totalFail];
   const extendedTotalData = extendedSuccessData.map((v, i) => v + (extendedFailData[i] || 0));
@@ -189,12 +189,7 @@ function initSFChart(labels, successData, failData) {
           backgroundColor: colors.error,
           borderWidth: 1
         },
-        {
-          label: 'Total',
-          data: extendedTotalData,
-          backgroundColor: 'rgba(232, 233, 235, 0)',
-          borderWidth: 0
-        }
+        
       ]
     },
     options: {
@@ -240,7 +235,7 @@ function initSFChart(labels, successData, failData) {
             const datasetLabel = context.dataset.label;
             if (datasetLabel === 'Succès') return '#ffffffff'; // noir
             if (datasetLabel === 'Échecs') return '#ffffff'; // blanc
-            if (datasetLabel === 'Total') return '#000000';  // noir
+            // if (datasetLabel === 'Total') return '#000000';  // noir
             return '#ffffff';
           },
           font: { weight: 'bold', size: 12 },
@@ -256,10 +251,10 @@ function initSFChart(labels, successData, failData) {
           ticks: { color: '#64748b' }
         },
         y: {
-          type: 'logarithmic',
+          type: 'linear',
           stacked: true,
           beginAtZero: true,
-          max: 80,
+          max: 40,
           ticks: {
             stepSize: 5,
             color: '#64748b'
@@ -404,7 +399,48 @@ function initErreursScriptChart(labels, erreursCounts) {
   });
 }
 
+  
+  
+  
+  // Fonction pour charger les stats des scripts en attente
+function chargerScriptsEnAttente() {
+  const span = document.getElementById("val-attente");
+  if (!span) {
+    // console.log("❌ Élément val-attente non trouvé, skip de l'API");
+    return;
+  }
 
+  fetch("/api/stats/scripts-en-attente/")
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    })
+    .then(data => {
+      // console.log("🔍 Données scripts en attente reçues:", data);
+
+      const count = data.tests_script_en_attente;
+      span.textContent = count;
+
+      const kpiCard = span.closest('.kpi-card');
+      const label = kpiCard ? kpiCard.querySelector('.kpi-label') : null;
+
+      if (label) {
+        if (count > 0) {
+          label.innerHTML = "Scripts en attente";
+        } else {
+          label.innerHTML = "<span style='font-style: italic;'>Aucun script en attente</span>";
+        }
+      }
+
+      // console.log(`✅ Scripts en attente mis à jour: ${count}`);
+    })
+    .catch(err => {
+      console.error("❌ Erreur chargement stats scripts en attente:", err);
+      span.textContent = "Error";
+    });
+}
 
 // Fin erreur par script
 
@@ -414,6 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const projetId = urlParams.get('projet_id');
   console.log("Projet sélectionné après DOM ready:", projetId);
+
+   // ===== CHARGEMENT DES SCRIPTS EN ATTENTE =====
+  chargerScriptsEnAttente();
 
   const queryParam = projetId ? `?projet_id=${projetId}` : '';
 
@@ -644,5 +683,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
   
 });
-
-

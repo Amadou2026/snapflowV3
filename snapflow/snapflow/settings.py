@@ -150,11 +150,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'fr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Tunis'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 USE_I18N = True  # internationalisation
 

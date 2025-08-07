@@ -1,3 +1,97 @@
+html[data-theme='dark'] {
+  --bg-primary: #0f172a;
+  --bg-card: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+}
+
+/* === Dark Mode Adaptation === */
+html[data-theme='dark'] .dashboard-container {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.6);
+}
+
+html[data-theme='dark'] .dashboard-container h3 {
+  color: var(--text-primary);
+}
+
+html[data-theme='dark'] .kpi-card {
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(148, 163, 184, 0.2);
+}
+
+html[data-theme='dark'] .kpi-icon {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+html[data-theme='dark'] .kpi-value {
+  color: var(--text-primary);
+}
+
+html[data-theme='dark'] .kpi-label {
+  color: var(--text-secondary);
+}
+
+html[data-theme='dark'] .kpi-link {
+  color: var(--text-primary);
+}
+
+html[data-theme='dark'] .kpi-link:hover,
+html[data-theme='dark'] .kpi-link:focus {
+  color: #f87171;
+  text-decoration: underline;
+}
+
+html[data-theme='dark'] hr {
+  border-top: 1.5px solid var(--border-color);
+}
+
+html[data-theme='dark'] .admin-table th {
+  color: var(--text-secondary);
+}
+
+html[data-theme='dark'] .admin-table td {
+  color: var(--text-primary);
+  background-color: #1e293b;
+}
+
+html[data-theme='dark'] .admin-table tbody tr {
+  background: #1e293b;
+  box-shadow: 0 2px 12px rgba(148, 163, 184, 0.1);
+}
+
+html[data-theme='dark'] .admin-table tbody tr:hover {
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.2);
+}
+
+html[data-theme='dark'] .admin-table td a {
+  color: #a5b4fc;
+}
+
+html[data-theme='dark'] .admin-table td a:hover,
+html[data-theme='dark'] .admin-table td a:focus {
+  color: #c7d2fe;
+}
+
+html[data-theme='dark'] .admin-table tbody tr td[colspan] {
+  color: var(--text-secondary);
+}
+
+html[data-theme='dark'] .chart-card {
+  background: #1e293b;
+  box-shadow: 0 10px 25px rgba(148, 163, 184, 0.1);
+}
+
+html[data-theme='dark'] .chart-title {
+  color: var(--text-primary);
+}
+
+html[data-theme='dark'] #total-erreurs {
+  color: #f87171;
+}
+
 /* ===== Container général ===== */
 .dashboard-container {
   max-width: 1100px;
@@ -84,7 +178,7 @@
 
 /* lien dans KPI */
 .kpi-link {
-  color: #ef4444;
+  color: #000000;
   font-weight: 600;
   text-decoration: none;
   transition: color 0.3s ease;
@@ -206,6 +300,37 @@ hr {
   color: #ef4444;
   margin-bottom: 1rem;
   font-size: 1.15rem;
+}
+
+
+.filter-section {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.periode-form label {
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+.periode-form select {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.success{
+  background-color: rgb(152, 218, 53);
+}
+.neutral{
+   background-color:#9ca3af;
+}
+.nonexecute{
+  background-color:#bec923;
 }
 
 /* ===== Responsive ===== */

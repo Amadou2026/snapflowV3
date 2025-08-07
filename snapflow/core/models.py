@@ -75,6 +75,7 @@ class EmailNotification(models.Model):
     def __str__(self):
         return self.email
 
+
 class ConfigurationTest(models.Model):
     PERIODICITE_CHOICES = [
         ('2min', 'Toutes les 2 minutes'),
@@ -92,8 +93,13 @@ class ConfigurationTest(models.Model):
     last_execution = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)  # Ajout du champ is_active
 
+    # Nouveaux champs
+    date_activation = models.DateTimeField(null=True, blank=True, help_text="Date et heure de lancement de la configuration")
+    date_desactivation = models.DateTimeField(null=True, blank=True, help_text="Date et heure de désactivation de la configuration")
+
     def __str__(self):
         return self.nom
+
 
 
 
@@ -101,8 +107,9 @@ class ExecutionTest(models.Model):
     STATUS_CHOICES = [
         ('pending', 'En attente'),
         ('running', 'En cours'),
-        ('done', 'Terminé'),
-        ('error', 'Erreur'),
+        ('done', 'Concluant'),
+        ('error', 'Non concluant'),
+        ('non_executed', 'Non exécuté'),  
     ]
     configuration = models.ForeignKey(ConfigurationTest, on_delete=models.CASCADE)
     statut = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -114,6 +121,48 @@ class ExecutionTest(models.Model):
 
     def __str__(self):
         return f"{self.configuration.nom} - {self.statut}"
+
+    @property
+    def resultat_interprete(self):
+        if self.statut == 'done':
+            return "Concluant"
+        elif self.statut == 'error':
+            return "Non concluant"
+        elif self.statut == 'pending':
+            return "En attente d'exécution"
+        elif self.statut == 'running':
+            return "En cours d'exécution"
+        elif self.statut == 'non_executed':
+            return "Non exécuté"
+        return "Statut inconnu"
+
+
+
+class ExecutionResult(models.Model):
+    execution = models.ForeignKey(ExecutionTest, on_delete=models.CASCADE, related_name='resultats')
+    script = models.ForeignKey(Script, on_delete=models.CASCADE)
+    statut = models.CharField(max_length=20, choices=ExecutionTest.STATUS_CHOICES)
+    log_fichier = models.FileField(upload_to="logs/", null=True, blank=True)
+    commentaire = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.script.nom} - {self.get_statut_display()}"
+
+    @property
+    def resultat_interprete(self):
+        if self.statut == 'done':
+            return "Concluant"
+        elif self.statut == 'error':
+            return "Non concluant"
+        elif self.statut == 'pending':
+            return "En attente"
+        elif self.statut == 'running':
+            return "En cours"
+        return "Statut inconnu"
+    class Meta:
+        verbose_name = "Résultat d'exécution de script"
+        verbose_name_plural = "Résultats des scripts"
+
 
 class TicketRedmine:
     # modèle factice, non lié à la DB

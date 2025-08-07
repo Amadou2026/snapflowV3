@@ -1,3 +1,4 @@
+# core/runner.py
 import json
 import subprocess
 import os
@@ -100,7 +101,6 @@ def notifier_utilisateurs(execution):
         print(f"❌ Erreur envoi email: {e}")
 
 
-
 def lancer_scripts_pour_execution(execution_id):
     execution = ExecutionTest.objects.get(id=execution_id)
     execution.statut = "running"
@@ -114,39 +114,60 @@ def lancer_scripts_pour_execution(execution_id):
         scripts = execution.configuration.scripts.all()
         projet = execution.configuration.projet
         infos_projet = f"=== Projet : {projet.nom} ===\n\n"
+        id_redmine = projet.id_redmine
 
-        id_redmine = projet.id_redmine  # id du projet Redmine
+        from core.models import ExecutionResult
 
         for script in scripts:
             path = os.path.join(settings.MEDIA_ROOT, script.fichier.name)
             logs.append(f"➡️ Execution du script: {script.nom}\n")
 
-            result = subprocess.run(
-                ["python", path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=300,
+            try:
+                result = subprocess.run(
+                    ["python", path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=300,
+                )
+                stdout = result.stdout.decode("utf-8", errors="replace")
+                stderr = result.stderr.decode("utf-8", errors="replace")
+
+                logs.append(stdout)
+                if stderr:
+                    logs.append("ERREUR:\n" + stderr)
+
+                statut_resultat = (
+                    "error"
+                    if result.returncode != 0
+                    or "ERREURS_FORMULAIRES" in stdout
+                    or "❌" in stdout
+                    else "done"
+                )
+
+            except Exception as e:
+                stdout = ""
+                stderr = str(e)
+                statut_resultat = "error"
+                logs.append(f"❌ Erreur pendant l'exécution du script: {e}")
+
+            # ✅ Mise à jour ou création d’un ExecutionResult
+            execution_result, _ = ExecutionResult.objects.get_or_create(
+                execution=execution,
+                script=script,
+                defaults={'statut': statut_resultat}
             )
-            stdout = result.stdout.decode("utf-8", errors="replace")
-            stderr = result.stderr.decode("utf-8", errors="replace")
+            execution_result.statut = statut_resultat
+            execution_result.log_fichier.name = f"logs/execution_{execution.id}.txt"
+            execution_result.save()
 
-            logs.append(stdout)
-            if stderr:
-                logs.append("ERREUR:\n" + stderr)
-
-            if (
-                result.returncode != 0
-                or "ERREURS_FORMULAIRES" in stdout
-                or "❌" in stdout
-            ):
+            # ✅ Si erreur, créer un ticket Redmine
+            if statut_resultat == "error":
                 erreur_detectee = True
-                execution.statut = "error"
                 description = (
-                    f"Le script '{script.nom}' a échoué avec le code {result.returncode}.\n\n"
+                    f"Le script '{script.nom}' a échoué avec le code {result.returncode if 'result' in locals() else 'N/A'}.\n\n"
                     f"Rapport d'exécution :\n\n{stdout[:2000]}"
                 )
 
-                # Création du ticket Redmine
                 try:
                     ticket_id = creer_ticket_redmine(
                         projet_id=id_redmine,
@@ -154,32 +175,25 @@ def lancer_scripts_pour_execution(execution_id):
                         description=description
                         + "\n\nLogs complets:\n"
                         + "\n".join(logs),
-                        priorite_id=script.priorite
+                        priority_id=script.priorite
                     )
                     logs.append(f"\n✅ Ticket Redmine créé avec ID: {ticket_id}")
-
                     execution.ticket_redmine_id = ticket_id
-                    execution.save()
                 except Exception as e:
                     logs.append(f"\n❌ Échec création ticket Redmine : {str(e)}")
 
-                execution.rapport = infos_projet + "\n".join(logs)
-                break
-
-        if not erreur_detectee:
-            execution.statut = "done"
-            execution.rapport = infos_projet + "\n".join([log for log in logs if log])
+        # ✅ Mise à jour finale
+        execution.statut = "error" if erreur_detectee else "done"
+        execution.rapport = infos_projet + "\n".join(logs)
 
     except Exception:
         erreur_trace = traceback.format_exc()
-        logs.append("❌ Exception:\n" + erreur_trace)
+        logs.append("❌ Exception globale:\n" + erreur_trace)
         execution.statut = "error"
         execution.rapport = infos_projet + "\n".join(logs)
-        # Ne pas créer de ticket ici, ou le faire si tu veux
 
+    # ✅ Sauvegarde du log global
     execution.ended_at = now()
-
-    # Sauvegarde du fichier log
     log_path = f"logs/execution_{execution.id}.txt"
     full_log_path = os.path.join(settings.MEDIA_ROOT, log_path)
     os.makedirs(os.path.dirname(full_log_path), exist_ok=True)
@@ -191,3 +205,4 @@ def lancer_scripts_pour_execution(execution_id):
     execution.save()
 
     notifier_utilisateurs(execution)
+

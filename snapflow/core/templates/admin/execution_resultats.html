@@ -1,0 +1,67 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Résultats d'exécution des scripts{% endblock %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+<style>
+    .statut-done { color: green; font-weight: bold; }
+    .statut-error { color: red; font-weight: bold; }
+    .statut-pending, .statut-running { color: gray; font-style: italic; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    th, td {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+    }
+    th {
+        background-color: #f3f4f6;
+        text-align: left;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>📄 Résultats d'exécution des scripts</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Script</th>
+            <th>Configuration</th>
+            <th>Date d'exécution</th>
+            <th>Statut</th>
+            <th>Résultat interprété</th>
+            <th>Log</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for resultat in resultats %}
+        <tr>
+            <td>{{ resultat.script.nom }}</td>
+            <td>{{ resultat.execution.configuration.nom }}</td>
+            <td>{{ resultat.execution.started_at|date:"Y-m-d H:i" }}</td>
+            <td class="statut-{{ resultat.statut }}">
+                {{ resultat.get_statut_display }}
+            </td>
+            <td>
+                {{ resultat.resultat_interprete }}
+            </td>
+            <td>
+                {% if resultat.log_fichier %}
+                    <a href="{{ resultat.log_fichier.url }}" target="_blank">📄 Voir le log</a>
+                {% else %}
+                    Aucun
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Aucun résultat disponible.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

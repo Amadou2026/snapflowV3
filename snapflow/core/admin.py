@@ -149,10 +149,28 @@ class ProjetAdmin(admin.ModelAdmin):
         return TemplateResponse(request, "admin/redmine_tickets.html", context)
     
 
-    # Vue Globale
+   # Vue Globale
     @staff_member_required
     def vue_globale_view(self, request):
         """Vue globale avec toutes les statistiques"""
+
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Gestion de la période sélectionnée
+        periode_selectionnee = request.GET.get("periode", "jour")
+        now = timezone.now()
+
+        if periode_selectionnee == "semaine":
+            date_debut = now - timedelta(days=7)
+        elif periode_selectionnee == "mois":
+            date_debut = now - timedelta(days=30)
+        elif periode_selectionnee == "annee":
+            date_debut = now - timedelta(days=365)
+        else:  # par défaut : jour
+            date_debut = now - timedelta(days=1)
+
+        periode_range = (date_debut, now)
 
         # Récupérer les projets accessibles par l'utilisateur
         if request.user.is_superuser:
@@ -166,33 +184,34 @@ class ProjetAdmin(admin.ModelAdmin):
         else:
             projets = projets_accessibles
 
-        # Calculer les statistiques globales
-        total_tests = ExecutionTest.objects.filter(
-            configuration__projet__in=projets
-        ).count()
+        # Filtrage commun des tests par projet et période
+        tests_filter = ExecutionTest.objects.filter(configuration__projet__in=projets)
+        if periode_range:
+            tests_filter = tests_filter.filter(started_at__range=periode_range)
 
-        tests_echoues = ExecutionTest.objects.filter(
-            configuration__projet__in=projets,
-            statut='error'
-        ).count()
+        # Calcul des statistiques
+        total_tests = tests_filter.count()
 
-        tests_reussis = ExecutionTest.objects.filter(
-            configuration__projet__in=projets,
-            statut='done'
-        ).count()
+        tests_reussis = tests_filter.filter(statut='done').count()
+        tests_echoues = tests_filter.filter(statut='error').count()
+        non_fonctionnels = tests_filter.filter(statut__in=['error', 'running']).count()
 
-        # Tests non fonctionnels
-        non_fonctionnels = ExecutionTest.objects.filter(
-            configuration__projet__in=projets,
-            statut__in=['error', 'running', 'pending']
+        # ⚠️ Correction ici : filtre sur les scripts en attente respectant la période
+        tests_en_attente = ExecutionResult.objects.filter(
+            statut='pending',
+            execution__in=tests_filter
         ).count()
 
         # Statistiques par projet
         execution_tests_by_projet = {}
         for projet in projets:
-            total_projet = ExecutionTest.objects.filter(configuration__projet=projet).count()
-            success_projet = ExecutionTest.objects.filter(configuration__projet=projet, statut='done').count()
-            fail_projet = ExecutionTest.objects.filter(configuration__projet=projet, statut='error').count()
+            tests_par_projet = ExecutionTest.objects.filter(configuration__projet=projet)
+            if periode_range:
+                tests_par_projet = tests_par_projet.filter(started_at__range=periode_range)
+
+            total_projet = tests_par_projet.count()
+            success_projet = tests_par_projet.filter(statut='done').count()
+            fail_projet = tests_par_projet.filter(statut='error').count()
 
             execution_tests_by_projet[projet.id] = {
                 'total': total_projet,
@@ -219,6 +238,7 @@ class ProjetAdmin(admin.ModelAdmin):
             title="Vue Globale - Statistiques des Tests",
             total_tests=total_tests,
             tests_reussis=tests_reussis,
+            tests_en_attente=tests_en_attente,
             tests_echoues=tests_echoues,
             non_fonctionnels=non_fonctionnels,
             taux_reussite_global=round((tests_reussis / total_tests * 100) if total_tests > 0 else 0, 2),
@@ -227,10 +247,10 @@ class ProjetAdmin(admin.ModelAdmin):
             execution_tests_by_projet=execution_tests_by_projet,
             projets_count=projets_accessibles.count(),
             selected_projet_id=int(projet_id) if projet_id else None,
+            periode=periode_selectionnee,  # important pour réafficher dans le select
         )
 
         return TemplateResponse(request, "admin/vue-globale.html", context)
-
 
     def lien_tickets_redmine(self, obj):
         url = reverse('admin:tickets-redmine')
@@ -290,20 +310,24 @@ class ScriptAdmin(admin.ModelAdmin):
     afficher_fichier.short_description = 'Fichier'
 
 
+from django.utils.html import format_html
+from django.contrib import admin
+from .models import ConfigurationTest, Projet
+
 @admin.register(ConfigurationTest)
 class ConfigurationTestAdmin(admin.ModelAdmin):
     change_list_template = "admin/ConfigurationTestAdmin.html" 
-    list_display = ('nom', 'projet', 'periodicite', 'is_active', 'afficher_scripts_lies')
-    list_filter = ('projet','is_active', 'periodicite')
+    list_display = ('nom', 'projet', 'periodicite', 'is_active', 'afficher_scripts_lies', 'date_activation', 'date_desactivation')
+    list_filter = ('projet','is_active', 'periodicite', 'date_activation', 'date_desactivation')
     search_fields = ('nom',)
-    filter_horizontal = ('scripts',)
+    filter_horizontal = ('scripts', 'emails_notification')
     actions = ['activer_configurations', 'desactiver_configurations']
     actions_on_top = True
     autocomplete_fields = ['projet']
 
     fieldsets = (
         ("Informations générales", {
-            'fields': ('nom', 'projet', 'is_active', 'periodicite')
+            'fields': ('nom', 'projet', 'is_active', 'periodicite', 'date_activation', 'date_desactivation')
         }),
         ("Sélection des scripts", {
             'fields': ('scripts',)
@@ -312,7 +336,6 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
             'fields': ('emails_notification',),
         }),
     )
-    filter_horizontal = ('scripts',)
 
     def afficher_scripts_lies(self, obj):
         scripts = obj.scripts.all()
@@ -332,7 +355,6 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} configuration(s) désactivée(s).")
     desactiver_configurations.short_description = "❌ Désactiver les configurations sélectionnées"
     
-    # ✅ Injecter les projets dans le contexte du template
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         user = request.user
@@ -345,7 +367,6 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
         extra_context['projets'] = projets
         return super().changelist_view(request, extra_context=extra_context)
 
-    # ✅ Filtrer par projet si présent dans l'URL
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         user = request.user
@@ -358,6 +379,7 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
             queryset = queryset.filter(projet_id=projet_id)
 
         return queryset
+
 
 
 # Filtrer par projet 
@@ -430,7 +452,7 @@ class StartedAtListFilter(SimpleListFilter):
 @admin.register(ExecutionTest)
 class ExecutionTestAdmin(admin.ModelAdmin):
     change_list_template = "admin/executiontestadmin.html"
-    list_display = ('configuration', 'projet', 'statut', 'started_at', 'ended_at', 'lien_log_excel')
+    list_display = ('configuration','projet', 'statut', 'started_at', 'ended_at', 'lien_log_excel')
     list_filter = (ProjetFilter, 'statut', StartedAtListFilter)
     readonly_fields = ('rapport', 'log_fichier')
     actions = ['exporter_excel']
@@ -524,6 +546,85 @@ class ExecutionTestAdmin(admin.ModelAdmin):
         return response
 
     exporter_excel.short_description = "📤 Exporter les logs en Excel"
+
+# Début
+
+from django.utils.translation import gettext_lazy as _
+from django.contrib.admin import SimpleListFilter
+from django.utils import timezone
+from datetime import timedelta
+
+class ExecutionStartedAtPeriodFilter(SimpleListFilter):
+    title = _('Période de début d’exécution')
+    parameter_name = 'periode_execution'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('jour', _('Dernier jour')),
+            ('semaine', _('Dernière semaine')),
+            ('mois', _('Dernier mois')),
+            ('annee', _('Dernière année')),
+        ]
+
+    def queryset(self, request, queryset):
+        now = timezone.now()
+
+        if self.value() == 'jour':
+            date_limite = now - timedelta(days=1)
+            return queryset.filter(execution__started_at__gte=date_limite)
+
+        if self.value() == 'semaine':
+            date_limite = now - timedelta(days=7)
+            return queryset.filter(execution__started_at__gte=date_limite)
+
+        if self.value() == 'mois':
+            date_limite = now - timedelta(days=30)
+            return queryset.filter(execution__started_at__gte=date_limite)
+
+        if self.value() == 'annee':
+            date_limite = now - timedelta(days=365)
+            return queryset.filter(execution__started_at__gte=date_limite)
+
+        return queryset
+
+
+
+
+# Fin 
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import ExecutionResult
+
+@admin.register(ExecutionResult)
+class ExecutionResultAdmin(admin.ModelAdmin):
+    list_display = (
+        'script',
+        'configuration',
+        'started_at',
+        'statut',
+        'resultat_interprete',
+        'voir_log',
+    )
+    list_filter = ('statut', 'script', 'execution__configuration__projet',ExecutionStartedAtPeriodFilter)
+    search_fields = ('script__nom', 'execution__configuration__nom')
+
+    def resultat_interprete(self, obj):
+        return obj.resultat_interprete
+    resultat_interprete.short_description = "Résultat"
+
+    def configuration(self, obj):
+        return obj.execution.configuration.nom
+    configuration.short_description = "Configuration"
+
+    def started_at(self, obj):
+        return obj.execution.started_at
+    started_at.short_description = "Début"
+
+    def voir_log(self, obj):
+        if obj.log_fichier:
+            return format_html('<a href="{}" target="_blank">📄 Voir</a>', obj.log_fichier.url)
+        return "Aucun"
+    voir_log.short_description = "Log"
 
 
 
@@ -770,10 +871,10 @@ class DashboardAdmin(admin.ModelAdmin):
         return True
 
     def has_view_permission(self, request, obj=None):
-        return True
+        return False
 
     def has_add_permission(self, request):
-        return request.user.is_superuser
+        return False
 
     def has_change_permission(self, request, obj=None):
         if request.user.is_superuser:
@@ -783,7 +884,7 @@ class DashboardAdmin(admin.ModelAdmin):
         return obj.charge_de_compte == request.user
 
     def has_delete_permission(self, request, obj=None):
-        return self.has_change_permission(request, obj)
+        return False
 
 
 admin.site.register(Dashboard, DashboardAdmin)
@@ -808,21 +909,14 @@ class VueGlobaleAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
     
-    
+    # debut
     def vue_globale_view(self, request):
-        # Récupération du filtre période dans les GET params, 'jour' par défaut
         periode = request.GET.get('periode', 'jour')
 
-        # Projets accessibles
         if request.user.is_superuser:
             projets = Projet.objects.all()
         else:
             projets = Projet.objects.filter(charge_de_compte=request.user)
-
-        # Exemple simple de filtrage sur les tests selon la période
-        # (à adapter selon la structure de ton modèle ExecutionTest et champ date)
-        from django.utils.timezone import now
-        from datetime import timedelta
 
         date_limite = None
         if periode == 'jour':
@@ -833,18 +927,27 @@ class VueGlobaleAdmin(admin.ModelAdmin):
             date_limite = now() - timedelta(days=30)
         elif periode == 'annee':
             date_limite = now() - timedelta(days=365)
-        else:
-            date_limite = None  # pas de filtre
 
+        # === Filtrage des ExecutionTest ===
         tests_filter = ExecutionTest.objects.filter(configuration__projet__in=projets)
         if date_limite:
-            tests_filter = tests_filter.filter(started_at__gte=date_limite)  # Remplace 'started_at' par le champ date pertinent
+            tests_filter = tests_filter.filter(started_at__gte=date_limite)
 
         total_tests = tests_filter.count()
         tests_echoues = tests_filter.filter(statut='error').count()
         tests_reussis = tests_filter.filter(statut='done').count()
         non_fonctionnels = tests_filter.filter(statut__in=['error', 'running', 'pending']).count()
 
+        # === Filtrage des ExecutionResult ===
+        resultats_filter = ExecutionResult.objects.filter(execution__in=tests_filter)
+
+        total_resultats = resultats_filter.count()
+        resultats_done = resultats_filter.filter(statut='done').count()
+        resultats_error = resultats_filter.filter(statut='error').count()
+        resultats_pending = resultats_filter.filter(statut='pending').count()
+        resultats_running = resultats_filter.filter(statut='running').count()
+
+        # Pour les projets : stats par projet
         execution_tests_by_projet = {}
         for projet in projets:
             tests_projet = tests_filter.filter(configuration__projet=projet)
@@ -864,11 +967,19 @@ class VueGlobaleAdmin(admin.ModelAdmin):
             taux_reussite_global=round((tests_reussis / total_tests * 100) if total_tests > 0 else 0, 2),
             projets_utilisateur=projets,
             execution_tests_by_projet=execution_tests_by_projet,
-            periode=periode,  # important pour le template
+            periode=periode,
+
+            # === Ajout des résultats ExecutionResult ===
+            total_resultats=total_resultats,
+            resultats_done=resultats_done,
+            resultats_error=resultats_error,
+            resultats_pending=resultats_pending,
+            resultats_running=resultats_running,
         )
+
         return TemplateResponse(request, "admin/vue-globale.html", context)
 
-    
+   
     def has_module_permission(self, request):
         """Permet d'afficher le module dans la sidebar"""
         return True
@@ -888,6 +999,7 @@ class VueGlobaleAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Pas de permission de suppression"""
         return False
+    
 
 #  config
 # core/admin.py

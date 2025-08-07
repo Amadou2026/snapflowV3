@@ -1,9 +1,6 @@
 // Fonction d'initialisation du graphique tests non exécutés + non concluants
 function initTestsNonExecuteChart(labels, nonExecuteCounts, nonConcluantCounts) {
-    console.log("📊 Initialisation du graphique Tests non exécutés + non concluants");
-    console.log("📅 Labels :", labels);
-    console.log("❌ Non exécutés :", nonExecuteCounts);
-    console.log("⚠️ Non concluants :", nonConcluantCounts);
+
 
     const canvas = document.getElementById('testsNonExecuteChart');
     if (!canvas) {
@@ -123,3 +120,94 @@ document.addEventListener("DOMContentLoaded", () => {
         projetSelect.addEventListener("change", fetchAndRenderTestsNonExecute);
     }
 });
+
+
+// Initialise le graphique au chargement
+// document.addEventListener("DOMContentLoaded", function () {
+//   const dateForm = document.getElementById("date-filter-form");
+
+//   if (dateForm) {
+//     dateForm.addEventListener("submit", function (e) {
+//       e.preventDefault();
+//       const startDate = document.getElementById("start-date").value;
+//       const endDate = document.getElementById("end-date").value;
+//       fetchConcluantNonConcluantChart(startDate, endDate);
+//     });
+//   }
+
+//   // Chargement initial sans filtre
+//   fetchConcluantNonConcluantChart();
+// });
+// Concluant non concluant
+document.addEventListener("DOMContentLoaded", function () {
+  const ctx = document.getElementById("testsconcluantnonconcluant");
+
+  const getChartData = async (start = "", end = "") => {
+    let url = "/api/stats/execution-resultats-concluant-nonconcluant/";
+    if (start && end) {
+      url += `?start_date=${start}&end_date=${end}`;
+    }
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    const grouped = {};
+
+    data.forEach(item => {
+      const config = item.configuration || "Inconnu";
+      if (!grouped[config]) {
+        grouped[config] = { Concluant: 0, "Non concluant": 0, Autres: 0 };
+      }
+
+      if (item.statut === "Concluant") {
+        grouped[config]["Concluant"]++;
+      } else if (item.statut === "Non concluant") {
+        grouped[config]["Non concluant"]++;
+      } else {
+        grouped[config]["Autres"]++;
+      }
+    });
+
+    const labels = Object.keys(grouped);
+    const dataConcluant = labels.map(label => grouped[label]["Concluant"]);
+    const dataNonConcluant = labels.map(label => grouped[label]["Non concluant"]);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Concluant",
+          data: dataConcluant,
+          backgroundColor: "rgba(11, 223, 89, 0.6)", // vert
+        },
+        {
+          label: "Non concluant",
+          data: dataNonConcluant,
+          backgroundColor: "rgba(255, 5, 5, 0.6)", // rouge
+        },
+      ],
+    };
+  };
+
+  const createChart = async () => {
+    const chartData = await getChartData();
+
+    new Chart(ctx, {
+      type: "bar",
+      data: chartData,
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: "top" },
+          title: {
+            display: true,
+            text: "Scripts concluants / non concluants par batterie de test",
+          },
+        },
+      },
+    });
+  };
+
+  createChart();
+});
+

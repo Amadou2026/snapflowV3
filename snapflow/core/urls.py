@@ -55,5 +55,8 @@ urlpatterns = [
         name="nombre-test-non-execute",
     ),
         path('stats/scripts-tests/', ScriptsTestsStatsView.as_view(), name='scripts-tests-stats'),
+        path("stats/scripts-en-attente/",  stats_views.stats_scripts_en_attente, name="stats_scripts_en_attente"),
+        path("stats/execution-resultats-concluant-nonconcluant/", stats_views.stats_execution_concluant_nonconcluant, name="stats_execution_concluant_nonconcluant"),
+
 
 ]

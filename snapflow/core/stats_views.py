@@ -1,5 +1,6 @@
 # core/stats_views.py
 from django.http import JsonResponse
+from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Count, Q
@@ -533,3 +534,77 @@ def nombre_test_non_execute(request):
         })
 
     return JsonResponse(data, safe=False)
+
+#  Execution result
+from django.http import JsonResponse
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import ExecutionResult
+
+@staff_member_required
+def stats_scripts_en_attente(request):
+    tests_script_en_attente = ExecutionResult.objects.filter(statut='pending').count()
+
+    return JsonResponse({
+        "tests_script_en_attente": tests_script_en_attente,
+    })
+
+# core/views.py
+
+from django.http import JsonResponse
+from django.db.models import Count
+from datetime import datetime
+from core.models import ExecutionResult
+
+@staff_member_required
+def stats_execution_concluant_nonconcluant(request):
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    resultats = ExecutionResult.objects.select_related(
+        "execution__configuration", "script"
+    ).all()
+
+    if start_date and end_date:
+        try:
+            # Inclure toute la journée de end_date jusqu'à 23h59
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            resultats = resultats.filter(execution__started_at__range=(start_dt, end_dt))
+        except ValueError:
+            return JsonResponse({"error": "Format de date invalide. Format attendu : YYYY-MM-DD"}, status=400)
+
+    data = []
+
+    for resultat in resultats.order_by("execution__configuration__nom", "script__nom"):
+        configuration_nom = getattr(resultat.execution.configuration, "nom", "")
+        script_nom = getattr(resultat.script, "nom", "")
+        statut = resultat.resultat_interprete
+
+        data.append({
+            "configuration": configuration_nom,
+            "script": script_nom,
+            "statut": statut,
+        })
+
+    return JsonResponse(data, safe=False)
+
+
+# 
+from django.shortcuts import render
+from .models import ExecutionTest
+
+def statistiques_tests_view(request):
+    total_tests = ExecutionTest.objects.count()
+    total_concluants = ExecutionTest.objects.filter(statut='done').count()
+    total_non_concluants = ExecutionTest.objects.filter(statut='error').count()
+    total_en_attente = ExecutionTest.objects.filter(statut='pending').count()
+
+    context = {
+        'total_tests': total_tests,
+        'total_concluants': total_concluants,
+        'total_non_concluants': total_non_concluants,
+        'total_en_attente': total_en_attente,
+    }
+
+    return render(request, 'core/statistiques_tests.html', context)
+
