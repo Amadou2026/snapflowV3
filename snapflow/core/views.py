@@ -278,7 +278,7 @@ def dashboard_view(request):
 
     # Calcul des scripts non exécutés
     total_scripts = execution_tests_filtrees.values('configuration__script').distinct().count()
-    print(f"🔍 Total scripts concernés (distincts): {total_scripts}")
+    # print(f"🔍 Total scripts concernés (distincts): {total_scripts}")
     scripts_executed = execution_tests_filtrees.filter(
         statut__in=['done', 'succès', 'success']
     ).values('configuration__script').distinct().count()
@@ -289,7 +289,7 @@ def dashboard_view(request):
     # Comptage des tests en échec (statut 'error')
     tests_en_echec = execution_tests_filtrees.filter(statut='error').count()
     percent_tests_echec = round((tests_en_echec / total_tests * 100), 1) if total_tests else 0
-    print(f"🔍 Tests en échec: {tests_en_echec} ({percent_tests_echec}%)")
+    # print(f"🔍 Tests en échec: {tests_en_echec} ({percent_tests_echec}%)")
 
     # Résumé par projet
     for p in projets_utilisateur:

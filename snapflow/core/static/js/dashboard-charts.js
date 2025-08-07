@@ -225,7 +225,7 @@ function initSFChart(labels, successData, failData) {
           titleColor: '#f1f5f9',
           bodyColor: '#f1f5f9',
           borderColor: '#334155',
-          borderWidth: 1,
+          // borderWidth: 1,
           cornerRadius: 8,
           mode: 'index',
           intersect: false
@@ -580,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
           datalabels: {
             anchor: 'end',
             align: 'right',
-            color: '#000',
+            color: '#a0a1a3ff',
             font: { weight: 'bold', size: 14 },
             formatter: value => value
           }
@@ -588,10 +588,10 @@ document.addEventListener('DOMContentLoaded', () => {
         scales: {
           x: {
             beginAtZero: true,
-            ticks: { precision: 0, color: '#374151' }
+            ticks: { precision: 0, color: '#a0a1a3ff' }
           },
           y: {
-            ticks: { color: '#374151' }
+            ticks: { color: '#a0a1a3ff' }
           }
         }
       },

@@ -279,6 +279,10 @@ html[data-theme="dark"] div#user-tools {
   font-weight: 600;
 }
 
+html[data-theme="dark"] .filters-container {
+  background: linear-gradient(135deg, #6a6d71 0%, #617289 100%);
+}
+
 /* Styles pour les filtres */
 .filters-container {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -375,6 +379,27 @@ html[data-theme="dark"] div#user-tools {
   vertical-align: middle;
   /* optionnel */
 }
+html[data-theme='dark'] .kpi-card-modern {
+  background-color: var(--bg-card); 
+}
+html[data-theme='dark'] .kpi-title {
+  color: white; 
+}
+html[data-theme='dark'] #scripts-non-executes-value {
+  color: white; 
+}
+html[data-theme='dark'] #tests-en-echec-value {
+  color: white; 
+}
+html[data-theme='dark'] .chart-card {
+  background: var(--bg-card);
+}
+html[data-theme='dark'] .chart-title {
+  color: white; 
+}
+
+
+
 .kpi-card-modern {
   background-color: #fff;
   border-radius: 12px;

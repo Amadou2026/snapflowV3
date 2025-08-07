@@ -138,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
 //   // Chargement initial sans filtre
 //   fetchConcluantNonConcluantChart();
 // });
-// Concluant non concluant
+
 document.addEventListener("DOMContentLoaded", function () {
   const ctx = document.getElementById("testsconcluantnonconcluant");
 
@@ -178,12 +178,12 @@ document.addEventListener("DOMContentLoaded", function () {
         {
           label: "Concluant",
           data: dataConcluant,
-          backgroundColor: "rgba(11, 223, 89, 0.6)", // vert
+          backgroundColor: "rgba(11, 223, 89, 0.6)",
         },
         {
           label: "Non concluant",
           data: dataNonConcluant,
-          backgroundColor: "rgba(255, 5, 5, 0.6)", // rouge
+          backgroundColor: "rgba(255, 5, 5, 0.6)",
         },
       ],
     };
@@ -197,6 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
       data: chartData,
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: { position: "top" },
           title: {
@@ -204,10 +205,20 @@ document.addEventListener("DOMContentLoaded", function () {
             text: "Scripts concluants / non concluants par batterie de test",
           },
         },
+        scales: {
+          x: {
+            ticks: {
+              maxRotation: 45,
+              minRotation: 0,
+              autoSkip: true,
+            }
+          }
+        }
       },
     });
   };
 
   createChart();
 });
+
 

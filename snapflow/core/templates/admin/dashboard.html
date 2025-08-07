@@ -17,7 +17,7 @@
 
     <form method="get" id="dashboard-form" class="dashboard-form">
       <label for="projet">Tous les projets :</label>
-      <select name="projet_id" id="projet" onchange="this.form.submit();">
+      <select name="projet_id" id="projet" onchange = "this.form.submit();">
         <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Tous les projets --</option>
         {% for projet in projets %}
         <option value="{{ projet.id }}" {% if projet.id|stringformat:"s" == selected_projet_id %}selected{% endif %}>
@@ -61,23 +61,17 @@
     <div class="kpi-card-modern">
       <div class="kpi-header-modern">
         <div class="kpi-icon-modern warning"></div>
-        <div class="kpi-title">Les scipts non exécutités / échoués</div>
+        <div class="kpi-title">Les Tests échoués</div>
       </div>
       <div class="kpi-section">
-        <div class="kpi-number">
-          <strong id="scripts-non-executes-value">--</strong>
-          <span class="kpi-percent" id="percent-scripts-non-executes">-- %</span>
-          <span class="kpi-percent" id="percent-scripts-non-executes">%</span>
-        </div>
-        <div class="kpi-label">Scripts non exécutés</div>
       </div>
       <div class="kpi-divider"></div>
       <div class="kpi-section">
-        <div class="kpi-number">
+        <a href="/admin/core/executiontest/?statut__exact=error" class="kpi-number clickable">
           <strong id="tests-en-echec-value">--</strong>
           <span class="kpi-percent" id="percent-tests-echec">--%</span>
-          <span class="kpi-percent" >%</span>
-        </div>
+          <span class="kpi-percent" id="percent-tests-echec">%</span>
+        </a>
         <div class="kpi-label">Tests échoués</div>
       </div>
     </div>
@@ -125,20 +119,20 @@
     </div>
   </div>
 </div>
- <!-- .dashboard-container -->
+<!-- .dashboard-container -->
 
 <!-- JS Data -->
 <script>
   window.dashboardData = {
     labels: {{ labels | safe }},
-  values: {{ values | safe }},
-  sf_labels: {{ sf_labels | safe }},
-  sf_success: {{ sf_success | safe }},
-  sf_fail: {{ sf_fail | safe }},
-  projet_labels: {{ projet_labels | safe }},
-  projet_counts: {{ projet_counts | safe }},
-  erreurs_labels: {{ erreurs_labels | safe }},
-  erreurs_counts: {{ erreurs_counts | safe }}
+  values: { { values | safe } },
+  sf_labels: { { sf_labels | safe } },
+  sf_success: { { sf_success | safe } },
+  sf_fail: { { sf_fail | safe } },
+  projet_labels: { { projet_labels | safe } },
+  projet_counts: { { projet_counts | safe } },
+  erreurs_labels: { { erreurs_labels | safe } },
+  erreurs_counts: { { erreurs_counts | safe } }
   };
 </script>
 
@@ -153,8 +147,8 @@
       .then(data => {
         // console.log("Données récupérées :", data);
 
-        document.getElementById('scripts-non-executes-value').textContent = data.scripts_non_executes;
-        document.getElementById('percent-scripts-non-executes').textContent = data.percent_scripts_non_executes;
+        // document.getElementById('scripts-non-executes-value').textContent = data.scripts_non_executes;
+        // document.getElementById('percent-scripts-non-executes').textContent = data.percent_scripts_non_executes;
 
         document.getElementById('tests-en-echec-value').textContent = data.tests_en_echec;
         document.getElementById('percent-tests-echec').textContent = data.percent_tests_echec;
