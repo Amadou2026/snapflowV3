@@ -167,20 +167,20 @@ from django.shortcuts import render
 from core.models import Projet, ExecutionTest
 
 def dashboard_view(request):
-    print("=" * 50)
-    print("🚨 DASHBOARD_VIEW APPELÉE - DÉBUT")
-    print(f"🔍 URL complète: {request.get_full_path()}")
-    print(f"🔍 Méthode HTTP: {request.method}")
-    print(f"🔍 Paramètres GET RAW: {request.GET}")
-    print(f"🔍 Paramètres GET dict: {dict(request.GET)}")
+    # print("=" * 50)
+    # print("🚨 DASHBOARD_VIEW APPELÉE - DÉBUT")
+    # print(f"🔍 URL complète: {request.get_full_path()}")
+    # print(f"🔍 Méthode HTTP: {request.method}")
+    # print(f"🔍 Paramètres GET RAW: {request.GET}")
+    # print(f"🔍 Paramètres GET dict: {dict(request.GET)}")
     
     # Récupération des paramètres avec debug détaillé
     projet_id = request.GET.get("projet_id")
     periode = request.GET.get("periode", "mois")
     selected_periode = periode if periode in ["jour", "semaine", "mois", "annee"] else "mois"
     
-    print(f"🔍 projet_id récupéré: '{projet_id}' (type: {type(projet_id)})")
-    print(f"🔍 periode récupérée: '{selected_periode}' (type: {type(selected_periode)})")
+    # print(f"🔍 projet_id récupéré: '{projet_id}' (type: {type(projet_id)})")
+    # print(f"🔍 periode récupérée: '{selected_periode}' (type: {type(selected_periode)})")
     
     # Vérification des valeurs vides ou None
     if not selected_periode or selected_periode.strip() == "":
@@ -340,7 +340,7 @@ def dashboard_view(request):
  
     return render(request, "admin/dashboard.html", context)
 
-# core/views.py (ou dans views.py)
+# core/views.py Les tests échoués
 
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated

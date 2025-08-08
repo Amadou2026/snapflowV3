@@ -52,18 +52,22 @@ def success_vs_failed_par_jour(request):
 
     result = {}
     for row in data:
-        date_str = row["date"].strftime("%d-%m-%Y")  # format string pour JSON
+        if row["date"] is None:
+            continue  # ⚠️ On saute les lignes sans date
+
+        date_str = row["date"].strftime("%d-%m-%Y")
         statut = row["statut"] or "inconnu"
         count = row["total"]
+
         if date_str not in result:
             result[date_str] = {"succès": 0, "échec": 0}
-        # On mappe le statut en "succès" ou "échec"
+
         if statut.lower() in ["done", "succès", "success"]:
             result[date_str]["succès"] = count
         elif statut.lower() in ["error", "échec", "fail", "failure"]:
             result[date_str]["échec"] = count
         else:
-            pass
+            pass  # Statut inconnu, on ignore
 
     response = [
         {"date": date, "succès": counts["succès"], "échec": counts["échec"]}
@@ -71,6 +75,7 @@ def success_vs_failed_par_jour(request):
     ]
 
     return Response(response)
+
 
 
 @api_view(["GET"])
