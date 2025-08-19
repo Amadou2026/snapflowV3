@@ -167,21 +167,12 @@ from django.shortcuts import render
 from core.models import Projet, ExecutionTest
 
 def dashboard_view(request):
-    # print("=" * 50)
-    # print("🚨 DASHBOARD_VIEW APPELÉE - DÉBUT")
-    # print(f"🔍 URL complète: {request.get_full_path()}")
-    # print(f"🔍 Méthode HTTP: {request.method}")
-    # print(f"🔍 Paramètres GET RAW: {request.GET}")
-    # print(f"🔍 Paramètres GET dict: {dict(request.GET)}")
-    
+
     # Récupération des paramètres avec debug détaillé
     projet_id = request.GET.get("projet_id")
     periode = request.GET.get("periode", "mois")
     selected_periode = periode if periode in ["jour", "semaine", "mois", "annee"] else "mois"
-    
-    # print(f"🔍 projet_id récupéré: '{projet_id}' (type: {type(projet_id)})")
-    # print(f"🔍 periode récupérée: '{selected_periode}' (type: {type(selected_periode)})")
-    
+       
     # Vérification des valeurs vides ou None
     if not selected_periode or selected_periode.strip() == "":
         selected_periode = "mois"
@@ -206,6 +197,7 @@ def dashboard_view(request):
     total_tests = 0
     total_success = 0
     taux_reussite = 0
+    taux_echec = 0
     projets_resumes = []
 
     # Gestion des projets utilisateur
@@ -214,8 +206,6 @@ def dashboard_view(request):
         projets_utilisateur = projets
     else:
         projets_utilisateur = projets.filter(charge_de_compte=request.user)
-
-    print(f"🔍 Projets utilisateur: {projets_utilisateur.count()}")
 
     # Gestion du projet sélectionné
     selected_projet_id = projet_id if projet_id else ""
@@ -270,15 +260,19 @@ def dashboard_view(request):
         total_success = execution_tests_filtrees.filter(
             statut__in=["done", "succès", "success"]
         ).count()
+        tests_en_echec = execution_tests_filtrees.filter(statut="error").count()
+
         taux_reussite = round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
+        taux_echec = round((tests_en_echec / total_tests) * 100, 2) if total_tests > 0 else 0
     else:
         total_tests = 0
         total_success = 0
+        tests_en_echec = 0
         taux_reussite = 0
+        taux_echec = 0
 
     # Calcul des scripts non exécutés
     total_scripts = execution_tests_filtrees.values('configuration__script').distinct().count()
-    # print(f"🔍 Total scripts concernés (distincts): {total_scripts}")
     scripts_executed = execution_tests_filtrees.filter(
         statut__in=['done', 'succès', 'success']
     ).values('configuration__script').distinct().count()
@@ -286,10 +280,8 @@ def dashboard_view(request):
     percent_scripts_non_executes = round((scripts_non_executes / total_scripts * 100), 1) if total_scripts else 0
     print(f"🔍 Scripts non exécutés: {scripts_non_executes} ({percent_scripts_non_executes}%)")
 
-    # Comptage des tests en échec (statut 'error')
-    tests_en_echec = execution_tests_filtrees.filter(statut='error').count()
+    # Comptage des tests en échec déjà calculé
     percent_tests_echec = round((tests_en_echec / total_tests * 100), 1) if total_tests else 0
-    # print(f"🔍 Tests en échec: {tests_en_echec} ({percent_tests_echec}%)")
 
     # Résumé par projet
     for p in projets_utilisateur:
@@ -315,6 +307,7 @@ def dashboard_view(request):
         "projet_labels": projet_labels,
         "projet_counts": projet_counts,
         "taux_reussite": taux_reussite,
+        "taux_echec": taux_echec,  
         "erreurs_labels": erreurs_labels,
         "erreurs_counts": erreurs_counts,
         "total_tests": total_tests,
@@ -323,11 +316,11 @@ def dashboard_view(request):
         "selected_periode": selected_periode,
         "non_fonctionnels": total_tests - total_success,
         "projets_resumes": projets_resumes,
-        'scripts_non_executes': scripts_non_executes,
-        'percent_scripts_non_executes': percent_scripts_non_executes,
-        'tests_en_echec': tests_en_echec,
-        'percent_tests_echec': percent_tests_echec,
-        
+        "scripts_non_executes": scripts_non_executes,
+        "percent_scripts_non_executes": percent_scripts_non_executes,
+        "tests_en_echec": tests_en_echec,
+        "percent_tests_echec": percent_tests_echec,
+
         # Debug info pour le template
         "debug_info": {
             "url_complete": request.get_full_path(),
@@ -339,6 +332,7 @@ def dashboard_view(request):
     }
  
     return render(request, "admin/dashboard.html", context)
+
 
 # core/views.py Les tests échoués
 

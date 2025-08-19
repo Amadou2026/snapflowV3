@@ -48,7 +48,7 @@
         
 <!-- Début scripts en attente -->
 
-<div class="kpi-card" title="Nombre de scripts en attente">
+<div class="kpi-card" title="Nombre de scripts Planifié">
     <div class="kpi-icon warning"></div>
     <div class="kpi-value">
         <a id="link-attente" href="{% url 'admin:core_executionresult_changelist' %}?statut__exact=pending" class="kpi-link">
@@ -57,9 +57,9 @@
     </div>
     <div class="kpi-label">
         {% if tests_script_en_attente and tests_script_en_attente > 0 %}
-            Scripts en attente
+            Scripts Planifié
         {% else %}
-            <span style="font-style: italic;">Aucun script en attente</span>
+            <span style="font-style: italic;">Aucun script planifié</span>
         {% endif %}
     </div>
 </div>
@@ -151,7 +151,7 @@
     </table>
 
     <div class="chart-card espace_top" aria-label="Graphique du taux d'erreur par script">
-        <h3 class="chart-title">Taux d'erreur par script</h3>
+        <h3 class="chart-title">Taux de bugs par script</h3>
         <div class="chart-container">
             <canvas id="erreursScriptChart" role="img" aria-label="Graphique des erreurs par script"></canvas>
         </div>

@@ -1,5 +1,6 @@
 // dashboard-charts.js
 
+
 // Configuration globale des graphiques
 Chart.defaults.font.family = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 Chart.defaults.color = '#64748b';
@@ -189,7 +190,7 @@ function initSFChart(labels, successData, failData) {
           backgroundColor: colors.error,
           borderWidth: 1
         },
-        
+
       ]
     },
     options: {
@@ -254,9 +255,9 @@ function initSFChart(labels, successData, failData) {
           type: 'linear',
           stacked: true,
           beginAtZero: true,
-          max: 40,
+          max: 30,
           ticks: {
-            stepSize: 5,
+            stepSize: 1,
             color: '#64748b'
           },
           grid: { color: '#f1f5f9' }
@@ -272,22 +273,22 @@ function initSFChart(labels, successData, failData) {
   });
 }
 
-  // init par defaut
-  function initCharts() {
-    // Initialisation par défaut si aucune autre fonction n'est encore appelée
-    console.log("initCharts() appelée – aucun graphique spécifique défini.");
+// init par defaut
+function initCharts() {
+  // Initialisation par défaut si aucune autre fonction n'est encore appelée
+  console.log("initCharts() appelée – aucun graphique spécifique défini.");
 
-    // Exemple : désactive les erreurs silencieuses
-    try {
-      // Appelle les fonctions individuelles de graphiques si elles existent
-      if (typeof initTestsParJourChart === 'function') initTestsParJourChart();
-      if (typeof initRepartitionProjetChart === 'function') initRepartitionProjetChart();
-      if (typeof initErreursParScriptChart === 'function') initErreursParScriptChart();
-      if (typeof fetchScriptsTestsStats === 'function') fetchScriptsTestsStats();
-    } catch (err) {
-      console.error("Erreur dans initCharts():", err);
-    }
+  // Exemple : désactive les erreurs silencieuses
+  try {
+    // Appelle les fonctions individuelles de graphiques si elles existent
+    if (typeof initTestsParJourChart === 'function') initTestsParJourChart();
+    if (typeof initRepartitionProjetChart === 'function') initRepartitionProjetChart();
+    if (typeof initErreursParScriptChart === 'function') initErreursParScriptChart();
+    if (typeof fetchScriptsTestsStats === 'function') fetchScriptsTestsStats();
+  } catch (err) {
+    console.error("Erreur dans initCharts():", err);
   }
+}
 
 //  FIn
 
@@ -399,10 +400,10 @@ function initErreursScriptChart(labels, erreursCounts) {
   });
 }
 
-  
-  
-  
-  // Fonction pour charger les stats des scripts en attente
+
+
+
+// Fonction pour charger les stats des scripts en attente
 function chargerScriptsEnAttente() {
   const span = document.getElementById("val-attente");
   if (!span) {
@@ -428,16 +429,16 @@ function chargerScriptsEnAttente() {
 
       if (label) {
         if (count > 0) {
-          label.innerHTML = "Scripts en attente";
+          label.innerHTML = "Scripts planifiés";
         } else {
-          label.innerHTML = "<span style='font-style: italic;'>Aucun script en attente</span>";
+          label.innerHTML = "<span style='font-style: italic;'>Aucun script planifié</span>";
         }
       }
 
       // console.log(`✅ Scripts en attente mis à jour: ${count}`);
     })
     .catch(err => {
-      console.error("❌ Erreur chargement stats scripts en attente:", err);
+      console.error("❌ Erreur chargement stats scripts planifiés:", err);
       span.textContent = "Error";
     });
 }
@@ -451,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const projetId = urlParams.get('projet_id');
   console.log("Projet sélectionné après DOM ready:", projetId);
 
-   // ===== CHARGEMENT DES SCRIPTS EN ATTENTE =====
+  // ===== CHARGEMENT DES SCRIPTS EN ATTENTE =====
   chargerScriptsEnAttente();
 
   const queryParam = projetId ? `?projet_id=${projetId}` : '';
@@ -618,37 +619,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fin  
 
-  // Fetch taux de réussite
-  fetch(`/api/stats/taux-reussite${queryParam}`)
+  // Début
+  
+
+  // Fin
+
+  // Fetch taux de réussite et taux d'échec
+    fetch(`/api/stats/taux-reussite${queryParam || ""}`)
     .then(response => response.json())
     .then(data => {
-      const taux = data.taux_reussite;
-      const kpiDiv = document.getElementById("kpi-taux-reussite");
+      const tauxReussite = data.taux_reussite.toFixed(2);
+      const tauxEchec = data.taux_echec.toFixed(2);
+
+      const kpiReussiteDiv = document.getElementById("kpi-taux-reussite");
+      const kpiEchecDiv = document.getElementById("kpi-taux-echec");
       const detailDiv = document.getElementById("kpi-detail-tests");
+      const detailEchecDiv = document.getElementById("kpi-detail-echec");
+      const echecLink = document.getElementById("kpi-echec-link");
+      const totalTestsEchec = document.getElementById("total-tests-echec");
       const statusIndicator = document.getElementById("status-indicator");
 
-      if (kpiDiv && statusIndicator) {
-        kpiDiv.innerText = `${taux}%`;
+      const succesLink = document.getElementById("kpi-succes-link");
+      const totalTestsSucces = document.getElementById("total-tests-succes");
 
-        if (detailDiv) {
-          detailDiv.innerText = `${data.succès} succès / ${data.total} tests`;
-        }
+      // Récupérer l'id du projet si présent dans l'URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const projetId = urlParams.get("projet_id");
 
-        if (taux >= 90) {
-          statusIndicator.innerText = " ";
-          statusIndicator.className = "status-indicator excellent";
-        } else if (taux >= 70) {
-          statusIndicator.innerText = " ";
-          statusIndicator.className = "status-indicator good";
-        } else {
-          statusIndicator.innerText = " ";
-          statusIndicator.className = "status-indicator poor";
+      // KPI taux de réussite
+      if (kpiReussiteDiv && statusIndicator) {
+        kpiReussiteDiv.innerText = `${tauxReussite}%`;
+        if (detailDiv && succesLink && totalTestsSucces) {
+          succesLink.innerText = data["succès"];
+          totalTestsSucces.innerText = data.total;
+
+          // Construire URL avec filtre projet
+          let succesUrl = `/admin/core/executiontest/?statut__exact=done`;
+          if (projetId) {
+            succesUrl += `&configuration__projet=${projetId}`;
+          }
+          succesLink.href = succesUrl;
+
+          // Style clic
+          succesLink.style.textDecoration = "none";
+          succesLink.style.cursor = "pointer";
+
+          // Mettre le texte complet
+          detailDiv.innerHTML = `${succesLink.outerHTML} succès / ${totalTestsSucces.innerText} tests`;
         }
+        if (tauxReussite >= 90) statusIndicator.className = "status-indicator excellent";
+        else if (tauxReussite >= 70) statusIndicator.className = "status-indicator good";
+        else statusIndicator.className = "status-indicator poor";
+      }
+
+      // KPI taux d'échec
+      if (kpiEchecDiv && echecLink && totalTestsEchec) {
+        kpiEchecDiv.innerText = `${tauxEchec}%`;
+        echecLink.innerText = data["échec"];
+        totalTestsEchec.innerText = data.total;
+
+        // Construire URL avec filtre projet
+        let echecUrl = `/admin/core/executiontest/?statut__exact=error`;
+        if (projetId) {
+          echecUrl += `&configuration__projet=${projetId}`;
+        }
+        echecLink.href = echecUrl;
+
+        // Style clic
+        echecLink.style.textDecoration = "none";
+        echecLink.style.cursor = "pointer";
       }
     })
     .catch(error => {
-      console.error("Erreur lors du chargement du taux de réussite :", error);
+      console.error("Erreur lors du chargement des taux :", error);
     });
+
 
   // Fetch répartition par projet
   fetch(`/api/stats/repartition-projet${queryParam}`)
@@ -680,6 +725,33 @@ document.addEventListener('DOMContentLoaded', () => {
       initErreursScriptChart(labels, erreursCounts);
     })
     .catch(error => console.error('Erreur récupération taux d\'erreur par script:', error));
+// Debut
 
-  
+// ===== KPI Total des tests cliquable =====
+const totalTestsKpiDiv = document.getElementById("kpi-taux-total-tests");
+const totalTestsLink = document.getElementById("total-tests-link");
+
+if (totalTestsKpiDiv && totalTestsLink) {
+  // Récupère le total depuis le dataset global ou depuis Django contexte
+  // Ici, tu peux mettre une variable transmise depuis Django : total_tests
+  const totalTests = parseInt(totalTestsKpiDiv.dataset.total) || 0;
+
+  totalTestsLink.innerText = totalTests;
+
+  // Construire URL avec filtre projet si nécessaire
+  let url = "/admin/core/executiontest/";
+  if (projetId) {
+    url += `?configuration__projet=${projetId}`;
+  }
+  totalTestsLink.href = url;
+
+  // Style cliquable
+  totalTestsLink.style.textDecoration = "none";
+  totalTestsLink.style.cursor = "pointer";
+}
+
+// Fin
+
+
+
 });

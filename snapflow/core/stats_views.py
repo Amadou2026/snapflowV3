@@ -7,6 +7,7 @@ from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from .models import *
 from core.models import ExecutionTest  # adapte le nom selon ton app
+# from .serializers import ExecutionResultSerializer
 
 
 from collections import defaultdict
@@ -133,18 +134,23 @@ def taux_reussite(request):
     success = qs.filter(
         statut__in=["done", "succès", "success"]
     ).count()  # succès possibles multiples
-    echec = qs.filter(statut__in=["error", "échec", "fail", "failure"]).count()
+    echec = qs.filter(
+        statut__in=["error", "échec", "fail", "failure"]
+    ).count()
 
-    taux = (success / total * 100) if total > 0 else 0
+    taux_reussite = (success / total * 100) if total > 0 else 0
+    taux_echec = (echec / total * 100) if total > 0 else 0
 
     return Response(
         {
             "total": total,
             "succès": success,
             "échec": echec,
-            "taux_reussite": round(taux, 2),
+            "taux_reussite": round(taux_reussite, 2),
+            "taux_echec": round(taux_echec, 2),
         }
     )
+
 
 
 # Debut
@@ -438,6 +444,7 @@ def get_projets_erreurs_details(request):
 # Fin
 
 
+
 def apply_period_filter(queryset, periode):
     """Fonction helper pour appliquer le filtre de période"""
     aujourd_hui = datetime.now()
@@ -539,6 +546,28 @@ def nombre_test_non_execute(request):
         })
 
     return JsonResponse(data, safe=False)
+
+# Debut Script planifié
+
+# @api_view(["GET"])
+# def scripts_planifies(request):
+#     """
+#     Retourne la liste des scripts planifiés pour exécution
+#     """
+#     projet_id = request.GET.get("projet_id")
+
+#     # Inclut 'scheduled' et 'Planifié' pour couvrir tous les cas
+#     qs = ExecutionResult.objects.filter(
+#         statut__in=["scheduled", "Planifié"]
+#     ).order_by("execution__started_at")
+
+#     if projet_id:
+#         qs = qs.filter(execution__configuration__projet__id=projet_id)
+
+#     serializer = ExecutionResultSerializer(qs, many=True)
+#     return Response(serializer.data)
+
+# Fin
 
 #  Execution result
 from django.http import JsonResponse

@@ -17,7 +17,7 @@
 
     <form method="get" id="dashboard-form" class="dashboard-form">
       <label for="projet">Tous les projets :</label>
-      <select name="projet_id" id="projet" onchange = "this.form.submit();">
+      <select name="projet_id" id="projet" onchange="this.form.submit();">
         <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Tous les projets --</option>
         {% for projet in projets %}
         <option value="{{ projet.id }}" {% if projet.id|stringformat:"s" == selected_projet_id %}selected{% endif %}>
@@ -40,22 +40,41 @@
       </div>
     </div>
 
+<div class="kpi-card">
+  <div class="kpi-header-modern">
+    <div class="kpi-icon-modern-nbr-test"></div>
+     <h3 class="chart-title"> Nombre total des tests</h3>
+  </div>
+  <div class="kpi-divider-nbr-test"></div>
+  <div id="kpi-taux-total-tests" class="kpi-value" data-total="{{ total_tests }}">
+    <a id="total-tests-link" href="#">0</a> tests
+  </div>
+  <div class="kpi-label">Total des tests</div>
+</div>
+
+    <!-- KPI Taux de Réussite -->
     <div class="kpi-card">
-      <div class="kpi-header">
-        <div class="kpi-icon primary">📈</div>
+      <div class="kpi-header-modern">
+        <div class="kpi-icon-modern-percent-test"></div>
+        <h3 class="chart-title"> Pourcentage des tests</h3>        
+        <span id="status-indicator" class="status-indicator"></span>
+
       </div>
-      <div id="total-tests" class="kpi-value">{{ total_tests }}</div>
-      <div class="kpi-label">Total des tests</div>
+      <div class="kpi-divider-percent-test"></div>
+      <div id="kpi-taux-reussite" class="kpi-value">0%</div>
+      <div id="kpi-detail-tests" class="kpi-detail">
+        <a id="kpi-succes-link" href="#"><b>0</b></a> succès / <span id="total-tests-succes">0</span> tests
+      </div>
+      <div class="kpi-label">Taux de réussite global</div>
+      <br>
+      <div id="kpi-taux-echec" class="kpi-value">0%</div>
+      <div id="kpi-detail-echec" class="kpi-detail">
+        <a href="#" id="kpi-echec-link"><b>0</b></a> échecs / <span id="total-tests-echec">0</span> tests
+      </div>
+      <div class="kpi-label">Taux d'échecs global</div>
     </div>
 
-    <div class="kpi-card">
-      <div class="kpi-header">
-        <div class="kpi-icon success">🎯</div>
-        <span id="status-indicator" class="status-indicator"></span>
-      </div>
-      <div id="kpi-taux-reussite" class="kpi-value">0%</div>
-      <div class="kpi-label">Taux de réussite global</div>
-    </div>
+
 
     <!-- Bloc Alertes -->
     <div class="kpi-card-modern">
@@ -69,10 +88,8 @@
       <div class="kpi-section">
         <a href="/admin/core/executiontest/?statut__exact=error" class="kpi-number clickable">
           <strong id="tests-en-echec-value">--</strong>
-          <span class="kpi-percent" id="percent-tests-echec">--%</span>
-          <span class="kpi-percent" id="percent-tests-echec">%</span>
-        </a>
-        <div class="kpi-label">Tests échoués</div>
+          <span class="kpi-percent" id="percent-tests-echec"> tests échoués</span>          
+        </a>        
       </div>
     </div>
   </div>
@@ -138,24 +155,56 @@
 
 <!-- Script pour initialiser les graphiques + injecter les KPI scripts/tests -->
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // console.log("Document chargé");
-    initCharts(window.dashboardData);
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialiser les graphiques
+  initCharts(window.dashboardData);
 
-    fetch('/api/stats/scripts-tests/')
-      .then(response => response.json())
-      .then(data => {
-        // console.log("Données récupérées :", data);
+  // Récupérer le projet sélectionné depuis l'URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const projetId = urlParams.get('projet_id');
+  const queryParam = projetId ? `?projet_id=${projetId}` : '';
 
-        // document.getElementById('scripts-non-executes-value').textContent = data.scripts_non_executes;
-        // document.getElementById('percent-scripts-non-executes').textContent = data.percent_scripts_non_executes;
+  // Fetch des KPIs scripts/tests filtrés par projet
+  fetch(`/api/stats/scripts-tests/${queryParam}`)
+    .then(response => response.json())
+    .then(data => {
+      // Tests en échec
+      const testsEchecDiv = document.getElementById('tests-en-echec-value');
+      const percentEchecDiv = document.getElementById('percent-tests-echec');
 
-        document.getElementById('tests-en-echec-value').textContent = data.tests_en_echec;
-        document.getElementById('percent-tests-echec').textContent = data.percent_tests_echec;
-      })
-      .catch(error => {
-        console.error("Erreur lors du fetch des KPIs scripts/tests :", error);
-      });
-  });
+      if (testsEchecDiv && percentEchecDiv) {
+        // Construire URL filtrée pour les tests échoués
+        let echecUrl = `/admin/core/executiontest/?statut__exact=error`;
+        if (projetId) echecUrl += `&configuration__projet=${projetId}`;
+
+        // Chiffres cliquables
+        testsEchecDiv.innerHTML = `<a href="${echecUrl}">${data.tests_en_echec}</a>`;
+        // percentEchecDiv.textContent = `${data.percent_tests_echec}%`;
+      }
+
+      // Total tests cliquables
+      const totalTestsDiv = document.getElementById('total-tests-value');
+      if (totalTestsDiv) {
+        let totalUrl = `/admin/core/executiontest/?`;
+        if (projetId) totalUrl += `configuration__projet=${projetId}`;
+        totalTestsDiv.innerHTML = `<a href="${totalUrl}">${data.total_tests}</a>`;
+      }
+
+      // Scripts non exécutés (optionnel)
+      const scriptsNonExecDiv = document.getElementById('scripts-non-executes-value');
+      if (scriptsNonExecDiv) {
+        scriptsNonExecDiv.textContent = data.scripts_non_executes;
+      }
+
+      const percentScriptsNonExecDiv = document.getElementById('percent-scripts-non-executes');
+      if (percentScriptsNonExecDiv) {
+        percentScriptsNonExecDiv.textContent = `${data.percent_scripts_non_executes}%`;
+      }
+    })
+    .catch(error => {
+      console.error("Erreur lors du fetch des KPIs scripts/tests :", error);
+    });
+});
 </script>
+
 {% endblock %}

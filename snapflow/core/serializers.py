@@ -54,3 +54,26 @@ class ExecutionTestExportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExecutionTest
         fields = ['statut', 'started_at', 'ended_at', 'projet_nom', 'numero_ticket_redmine']
+
+# class ExecutionResultSerializer(serializers.ModelSerializer):
+#     script_nom = serializers.CharField(source="script.nom", read_only=True)
+#     execution_nom = serializers.CharField(source="execution.configuration.nom", read_only=True)
+#     projet_nom = serializers.CharField(source="execution.configuration.projet.nom", read_only=True)
+#     started_at = serializers.DateTimeField(source="execution.started_at", read_only=True)
+#     statut_execution = serializers.CharField(source="execution.statut", read_only=True)
+
+#     class Meta:
+#         model = ExecutionResult
+#         fields = [
+#             "id",
+#             "execution",
+#             "execution_nom",
+#             "projet_nom",
+#             "script",
+#             "script_nom",
+#             "statut",
+#             "statut_execution",
+#             "started_at",
+#             "log_fichier",
+#             "commentaire",
+#         ]

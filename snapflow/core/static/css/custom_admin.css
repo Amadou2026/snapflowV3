@@ -416,6 +416,28 @@ html[data-theme='dark'] .chart-title {
   align-items: center;
   margin-bottom: 16px;
 }
+.kpi-icon-modern-nbr-test {
+  font-size: 1.8rem;
+  background-color: #b82d14;
+  color: #fff;
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+.kpi-icon-modern-percent-test {
+  font-size: 1.8rem;
+  background-color: #14b8a6;
+  color: #fff;
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
 .kpi-icon-modern {
   font-size: 1.8rem;
   background-color: #fbbf24;
@@ -437,18 +459,28 @@ html[data-theme='dark'] .chart-title {
   margin-bottom: 12px;
 }
 .kpi-number {
-  font-size: 1.4rem;
+  font-size: 2.0rem;
   font-weight: bold;
   color: #1f2937;
 }
 .kpi-percent {
-  font-size: 0.9rem;
+  font-size: 1.9rem;
   color: #9ca3af;
   margin-left: 4px;
 }
 .kpi-label {
   font-size: 0.9rem;
   color: #6b7280;
+}
+.kpi-divider-percent-test {
+  height: 1px;
+  background-color: #14b8a6;
+  margin: 16px 0;
+}
+.kpi-divider-nbr-test {
+  height: 1px;
+  background-color: #b82d14;
+  margin: 16px 0;
 }
 .kpi-divider {
   height: 1px;

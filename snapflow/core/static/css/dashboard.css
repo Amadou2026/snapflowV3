@@ -331,3 +331,8 @@ html[data-theme="dark"] .kpi-link:hover {
 .mt-5 {
   margin-top: 30px;
 }
+.kpi-detail a {
+  text-decoration: none !important;
+  cursor: pointer;
+  /* color: inherit; garde la couleur du texte */
+}

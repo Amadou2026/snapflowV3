@@ -711,6 +711,8 @@ TicketRedmineAdminView(admin.site)
 from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 
+
+# Debut Dashboard avec période pour les blocs
 class DashboardAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
@@ -728,7 +730,9 @@ class DashboardAdmin(admin.ModelAdmin):
         erreurs_counts = []
         total_tests = 0
         total_success = 0
+        total_echec = 0
         taux_reussite = 0
+        taux_echec = 0
         projets_resumes = []
 
         # Filtrer les projets accessibles à l'utilisateur
@@ -751,16 +755,13 @@ class DashboardAdmin(admin.ModelAdmin):
 
         # Récupérer les ExecutionTest selon le projet sélectionné ou tous les projets accessibles
         if selected_projet:
-            execution_tests = ExecutionTest.objects.filter(
-                configuration__projet=selected_projet
-            )
+            execution_tests = ExecutionTest.objects.filter(configuration__projet=selected_projet)
         else:
-            execution_tests = ExecutionTest.objects.filter(
-                configuration__projet_id__in=projet_ids
-            )
+            execution_tests = ExecutionTest.objects.filter(configuration__projet_id__in=projet_ids)
 
         # S'il y a des tests, on les traite
         if execution_tests.exists():
+            # Tests par jour
             tests_par_jour = (
                 execution_tests.annotate(date=TruncDate("started_at"))
                 .values("date")
@@ -770,6 +771,7 @@ class DashboardAdmin(admin.ModelAdmin):
             labels = [str(entry["date"]) for entry in tests_par_jour]
             values = [entry["total"] for entry in tests_par_jour]
 
+            # Succès / échec par jour
             success_fail = (
                 execution_tests.annotate(date=TruncDate("started_at"))
                 .values("date", "statut")
@@ -792,6 +794,7 @@ class DashboardAdmin(admin.ModelAdmin):
             sf_success = [sf_result[d]["succès"] for d in sf_labels]
             sf_fail = [sf_result[d]["échec"] for d in sf_labels]
 
+            # Répartition par projet
             projets_data = (
                 execution_tests.values("configuration__projet__nom")
                 .annotate(total=Count("id"))
@@ -800,38 +803,31 @@ class DashboardAdmin(admin.ModelAdmin):
             projet_labels = [row["configuration__projet__nom"] for row in projets_data]
             projet_counts = [row["total"] for row in projets_data]
 
+            # Totaux
             total_tests = execution_tests.count()
-            total_success = execution_tests.filter(
-                statut__in=["done", "succès", "success"]
-            ).count()
-            taux_reussite = round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
+            total_success = execution_tests.filter(statut__in=["done", "succès", "success"]).count()
+            total_echec = execution_tests.filter(statut__in=["error", "échec", "fail", "failure"]).count()
 
+            taux_reussite = round((total_success / total_tests) * 100, 2) if total_tests > 0 else 0
+            taux_echec = round((total_echec / total_tests) * 100, 2) if total_tests > 0 else 0
+
+            # Erreurs par script
             erreurs_data = (
                 execution_tests.values("configuration__scripts__nom")
                 .annotate(
                     total=Count("id"),
-                    erreurs=Count(
-                        "id", filter=Q(statut__in=["error", "échec", "fail", "failure"])
-                    ),
+                    erreurs=Count("id", filter=Q(statut__in=["error", "échec", "fail", "failure"])),
                 )
                 .order_by("-erreurs")
             )
-            erreurs_labels = [
-                d["configuration__scripts__nom"] or "Sans script" for d in erreurs_data
-            ]
+            erreurs_labels = [d["configuration__scripts__nom"] or "Sans script" for d in erreurs_data]
             erreurs_counts = [d["erreurs"] for d in erreurs_data]
 
+            # Résumé par projet
             projets_map = {
-                p.id: {
-                    "id": p.id,
-                    "nom": p.nom,
-                    "total": 0,
-                    "fonctionnels": 0,
-                    "non_fonctionnels": 0,
-                }
+                p.id: {"id": p.id, "nom": p.nom, "total": 0, "fonctionnels": 0, "non_fonctionnels": 0}
                 for p in projets
             }
-
             for e in execution_tests.select_related("configuration__projet"):
                 pid = e.configuration.projet_id
                 if pid not in projets_map:
@@ -841,8 +837,18 @@ class DashboardAdmin(admin.ModelAdmin):
                     projets_map[pid]["fonctionnels"] += 1
                 else:
                     projets_map[pid]["non_fonctionnels"] += 1
-
             projets_resumes = list(projets_map.values())
+
+        # Construire les URLs cliquables pour admin
+        base_url = "/admin/core/executiontest/?"
+        total_tests_url = f"{base_url}"
+        success_url = f"{base_url}statut__exact=done"
+        echec_url = f"{base_url}statut__exact=error"
+
+        if selected_projet:
+            total_tests_url += f"&configuration__projet={selected_projet.id}"
+            success_url += f"&configuration__projet={selected_projet.id}"
+            echec_url += f"&configuration__projet={selected_projet.id}"
 
         context = dict(
             self.admin_site.each_context(request),
@@ -858,14 +864,22 @@ class DashboardAdmin(admin.ModelAdmin):
             projet_labels=projet_labels,
             projet_counts=projet_counts,
             taux_reussite=taux_reussite,
+            taux_echec=taux_echec,
             erreurs_labels=erreurs_labels,
             erreurs_counts=erreurs_counts,
             total_tests=total_tests,
+            total_success=total_success,
+            total_echec=total_echec,
             non_fonctionnels=total_tests - total_success,
             projets_resumes=projets_resumes,
+            total_tests_url=total_tests_url,
+            success_url=success_url,
+            echec_url=echec_url,
             **extra_context
         )
         return TemplateResponse(request, "admin/dashboard.html", context)
+
+
 
     def has_module_permission(self, request):
         return True
