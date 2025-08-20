@@ -2,13 +2,21 @@
 {% load static %}
 
 {% block extrahead %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-<script src="{% static 'js/dashboard-charts.js' %}"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+  <!-- Plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+  <!-- Ton script qui utilise Chart.js + plugins -->
+  <script src="{% static 'js/dashboard-charts.js' %}"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
 {% endblock %}
+
 
 {% block content %}
 <div class="dashboard-container">

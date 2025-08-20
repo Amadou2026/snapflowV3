@@ -166,7 +166,7 @@ function initSFChart(labels, successData, failData) {
   const totalFail = failData.reduce((a, b) => a + b, 0);
   const totalAll = totalSuccess + totalFail;
 
-  const extendedLabels = [...labels,];
+  const extendedLabels = [...labels];
   const extendedSuccessData = [...successData, totalSuccess];
   const extendedFailData = [...failData, totalFail];
   const extendedTotalData = extendedSuccessData.map((v, i) => v + (extendedFailData[i] || 0));
@@ -189,8 +189,7 @@ function initSFChart(labels, successData, failData) {
           data: extendedFailData,
           backgroundColor: colors.error,
           borderWidth: 1
-        },
-
+        }
       ]
     },
     options: {
@@ -226,7 +225,6 @@ function initSFChart(labels, successData, failData) {
           titleColor: '#f1f5f9',
           bodyColor: '#f1f5f9',
           borderColor: '#334155',
-          // borderWidth: 1,
           cornerRadius: 8,
           mode: 'index',
           intersect: false
@@ -253,9 +251,20 @@ function initSFChart(labels, successData, failData) {
           align: (context) => {
             return context.dataset.label === 'Succès' ? 'start' : 'end';
           },
-          clamp: true // empêche le texte de sortir du graphe
+          clamp: true
+        },
+        // ➡️ Ajout du plugin zoom/pan
+        zoom: {
+          zoom: {
+            wheel: { enabled: true },   // zoom molette
+            pinch: { enabled: true },   // zoom tactile
+            mode: 'x'                   // zoom horizontal
+          },
+          pan: {
+            enabled: true,
+            mode: 'x'                   // pan (slide) horizontal
+          }
         }
-
       },
       scales: {
         x: {
@@ -284,6 +293,7 @@ function initSFChart(labels, successData, failData) {
     plugins: [ChartDataLabels]
   });
 }
+
 
 // init par defaut
 function initCharts() {
