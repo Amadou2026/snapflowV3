@@ -234,17 +234,28 @@ function initSFChart(labels, successData, failData) {
         datalabels: {
           color: (context) => {
             const datasetLabel = context.dataset.label;
-            if (datasetLabel === 'Succès') return '#ffffffff'; // noir
-            if (datasetLabel === 'Échecs') return '#ffffff'; // blanc
-            // if (datasetLabel === 'Total') return '#000000';  // noir
+            if (datasetLabel === 'Succès') return '#ffffff';
+            if (datasetLabel === 'Échecs') return '#ffffff';
             return '#ffffff';
           },
-          padding: 30,
-          font: { family: "'Arial', sans-serif", weight: 'normal', size: 10, lineWidth: 100,},
-          formatter: (value, context) => (value === 0 ? '' : `${context.dataset.label}: ${value}`),
-          anchor: 'end',
-          align: 'start'
+          font: {
+            family: "'Arial', sans-serif",
+            weight: 'bold',
+            size: 10
+          },
+          formatter: (value, context) => {
+            if (value === 0) return '';
+            return `${context.dataset.label}: ${value}`;
+          },
+          anchor: (context) => {
+            return context.dataset.label === 'Succès' ? 'end' : 'start';
+          },
+          align: (context) => {
+            return context.dataset.label === 'Succès' ? 'start' : 'end';
+          },
+          clamp: true // empêche le texte de sortir du graphe
         }
+
       },
       scales: {
         x: {
@@ -621,12 +632,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Fin  
 
   // Début
-  
+
 
   // Fin
 
   // Fetch taux de réussite et taux d'échec
-    fetch(`/api/stats/taux-reussite${queryParam || ""}`)
+  fetch(`/api/stats/taux-reussite${queryParam || ""}`)
     .then(response => response.json())
     .then(data => {
       const tauxReussite = data.taux_reussite.toFixed(2);
@@ -726,32 +737,32 @@ document.addEventListener('DOMContentLoaded', () => {
       initErreursScriptChart(labels, erreursCounts);
     })
     .catch(error => console.error('Erreur récupération taux d\'erreur par script:', error));
-// Debut
+  // Debut
 
-// ===== KPI Total des tests cliquable =====
-const totalTestsKpiDiv = document.getElementById("kpi-taux-total-tests");
-const totalTestsLink = document.getElementById("total-tests-link");
+  // ===== KPI Total des tests cliquable =====
+  const totalTestsKpiDiv = document.getElementById("kpi-taux-total-tests");
+  const totalTestsLink = document.getElementById("total-tests-link");
 
-if (totalTestsKpiDiv && totalTestsLink) {
-  // Récupère le total depuis le dataset global ou depuis Django contexte
-  // Ici, tu peux mettre une variable transmise depuis Django : total_tests
-  const totalTests = parseInt(totalTestsKpiDiv.dataset.total) || 0;
+  if (totalTestsKpiDiv && totalTestsLink) {
+    // Récupère le total depuis le dataset global ou depuis Django contexte
+    // Ici, tu peux mettre une variable transmise depuis Django : total_tests
+    const totalTests = parseInt(totalTestsKpiDiv.dataset.total) || 0;
 
-  totalTestsLink.innerText = totalTests;
+    totalTestsLink.innerText = totalTests;
 
-  // Construire URL avec filtre projet si nécessaire
-  let url = "/admin/core/executiontest/";
-  if (projetId) {
-    url += `?configuration__projet=${projetId}`;
+    // Construire URL avec filtre projet si nécessaire
+    let url = "/admin/core/executiontest/";
+    if (projetId) {
+      url += `?configuration__projet=${projetId}`;
+    }
+    totalTestsLink.href = url;
+
+    // Style cliquable
+    totalTestsLink.style.textDecoration = "none";
+    totalTestsLink.style.cursor = "pointer";
   }
-  totalTestsLink.href = url;
 
-  // Style cliquable
-  totalTestsLink.style.textDecoration = "none";
-  totalTestsLink.style.cursor = "pointer";
-}
-
-// Fin
+  // Fin
 
 
 
