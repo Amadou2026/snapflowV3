@@ -412,3 +412,213 @@ from .models import ExecutionResult
 def execution_resultats_view(request):
     resultats = ExecutionResult.objects.select_related('execution', 'script', 'execution__configuration').order_by('-execution__started_at')
     return render(request, 'admin/execution_resultats.html', {'resultats': resultats})
+
+
+# views.py
+from datetime import timedelta
+from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
+from django.views.decorators.http import require_http_methods
+from django.views.generic import ListView
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from .models import ConfigurationTest, Projet, Script
+
+
+# ========== VUES API (JSON) ==========
+
+@require_http_methods(["GET"])
+def api_next_scheduled_scripts(request):
+    """API pour obtenir les prochains scripts planifiés"""
+    hours_ahead = int(request.GET.get('hours', 24))
+    project_id = request.GET.get('project_id')
+    
+    if project_id:
+        try:
+            data = get_next_scripts_for_project(int(project_id), hours_ahead)
+            scripts_data = [{
+                'script_id': item['script'].id,
+                'script_name': getattr(item['script'], 'nom', str(item['script'])),
+                'configuration_id': item['configuration'].id,
+                'configuration_name': item['configuration'].nom,
+                'execution_time': item['execution_time'].isoformat(),
+                'time_until_seconds': int(item['time_until'].total_seconds())
+            } for item in data]
+        except ValueError:
+            return JsonResponse({'error': 'Invalid project_id'}, status=400)
+    else:
+        scheduled = ConfigurationTest.get_next_scheduled_configurations(hours_ahead)
+        scripts_data = []
+        for item in scheduled:
+            for script in item['scripts']:
+                scripts_data.append({
+                    'script_id': script.id,
+                    'script_name': getattr(script, 'nom', str(script)),
+                    'configuration_id': item['configuration'].id,
+                    'configuration_name': item['configuration'].nom,
+                    'execution_time': item['next_execution'].isoformat(),
+                    'time_until_seconds': int(item['time_until_execution'].total_seconds())
+                })
+    
+    return JsonResponse({
+        'scheduled_scripts': scripts_data,
+        'total_count': len(scripts_data),
+        'hours_ahead': hours_ahead
+    })
+
+
+@require_http_methods(["GET"])
+def api_configurations_to_execute(request):
+    """API pour obtenir les configurations à exécuter maintenant"""
+    configurations = ConfigurationTest.get_configurations_to_execute()
+    
+    data = [{
+        'configuration_id': config.id,
+        'configuration_name': config.nom,
+        'project_name': config.projet.nom if hasattr(config.projet, 'nom') else str(config.projet),
+        'scripts': [{
+            'id': script.id,
+            'name': getattr(script, 'nom', str(script))
+        } for script in config.scripts.all()],
+        'periodicite': config.get_periodicite_display(),
+        'last_execution': config.last_execution.isoformat() if config.last_execution else None
+    } for config in configurations]
+    
+    return JsonResponse({
+        'configurations_to_execute': data,
+        'total_count': len(data)
+    })
+
+
+@require_http_methods(["GET"])
+def api_overdue_configurations(request):
+    """API pour obtenir les configurations en retard"""
+    overdue = ConfigurationTest.get_overdue_configurations()
+    
+    data = [{
+        'configuration_id': item['configuration'].id,
+        'configuration_name': item['configuration'].nom,
+        'project_name': item['configuration'].projet.nom if hasattr(item['configuration'].projet, 'nom') else str(item['configuration'].projet),
+        'expected_time': item['expected_time'].isoformat(),
+        'delay_seconds': int(item['delay'].total_seconds()),
+        'scripts_count': len(item['scripts'])
+    } for item in overdue]
+    
+    return JsonResponse({
+        'overdue_configurations': data,
+        'total_count': len(data)
+    })
+
+
+# ========== VUES HTML ==========
+
+@login_required
+def dashboard_scheduled_scripts(request):
+    """Tableau de bord des scripts planifiés"""
+    hours_ahead = int(request.GET.get('hours', 24))
+    
+    context = {
+        'dashboard_data': get_dashboard_data(),
+        'hours_ahead': hours_ahead,
+        'next_scheduled': ConfigurationTest.get_next_scheduled_configurations(hours_ahead),
+        'projects': Projet.objects.all(),
+        'active_configurations_count': ConfigurationTest.objects.filter(is_active=True).count(),
+    }
+    
+    return render(request, 'configurations/dashboard.html', context)
+
+
+@method_decorator(login_required, name='dispatch')
+class ScheduledScriptsListView(ListView):
+    """Vue liste des scripts planifiés"""
+    model = ConfigurationTest
+    template_name = 'configurations/scheduled_list.html'
+    context_object_name = 'configurations'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = ConfigurationTest.objects.filter(is_active=True).select_related('projet')
+        
+        project_id = self.request.GET.get('project')
+        if project_id:
+            queryset = queryset.filter(projet_id=project_id)
+            
+        return queryset.order_by('nom')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['projects'] = Projet.objects.all()
+        context['selected_project'] = self.request.GET.get('project', '')
+        
+        # Ajouter les prochaines exécutions pour chaque configuration
+        for config in context['configurations']:
+            config.next_execution = config.get_next_execution_time()
+            config.is_overdue = False
+            if config.last_execution:
+                expected_next = config.last_execution + config.get_periodicite_timedelta()
+                config.is_overdue = timezone.now() > expected_next
+        
+        return context
+
+
+@login_required
+def configuration_detail_scheduled(request, config_id):
+    """Détail d'une configuration avec ses scripts planifiés"""
+    configuration = get_object_or_404(ConfigurationTest, id=config_id)
+    
+    context = {
+        'configuration': configuration,
+        'next_execution': configuration.get_next_execution_time(),
+        'is_due': configuration.is_due_for_execution(),
+        'scripts': configuration.scripts.all(),
+        'periodicite_display': configuration.get_periodicite_display(),
+    }
+    
+    # Calculer si en retard
+    if configuration.last_execution:
+        expected_next = configuration.last_execution + configuration.get_periodicite_timedelta()
+        if timezone.now() > expected_next:
+            context['is_overdue'] = True
+            context['delay'] = timezone.now() - expected_next
+    
+    return render(request, 'configurations/detail_scheduled.html', context)
+
+
+# ========== FONCTIONS UTILITAIRES ==========
+
+def get_dashboard_data():
+    """Fonction utilitaire pour récupérer les données du tableau de bord"""
+    return {
+        'configurations_to_execute_now': ConfigurationTest.get_configurations_to_execute(),
+        'next_24h_schedule': ConfigurationTest.get_next_scheduled_configurations(24),
+        'overdue_configurations': ConfigurationTest.get_overdue_configurations(),
+        'active_configurations_count': ConfigurationTest.objects.filter(is_active=True).count(),
+    }
+
+
+def get_next_scripts_for_project(project_id, hours_ahead=24):
+    """Obtenir les prochains scripts pour un projet spécifique"""
+    configurations = ConfigurationTest.objects.filter(
+        projet_id=project_id, 
+        is_active=True
+    ).prefetch_related('scripts')
+    
+    next_scripts = []
+    now = timezone.now()
+    limit_time = now + timedelta(hours=hours_ahead)
+    
+    for config in configurations:
+        next_time = config.get_next_execution_time()
+        if next_time and now <= next_time <= limit_time:
+            for script in config.scripts.all():
+                next_scripts.append({
+                    'script': script,
+                    'configuration': config,
+                    'execution_time': next_time,
+                    'time_until': next_time - now
+                })
+    
+    # Trier par heure d'exécution
+    next_scripts.sort(key=lambda x: x['execution_time'])
+    return next_scripts

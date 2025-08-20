@@ -249,6 +249,8 @@ class ProjetAdmin(admin.ModelAdmin):
             selected_projet_id=int(projet_id) if projet_id else None,
             periode=periode_selectionnee,  # important pour réafficher dans le select
         )
+        
+        
 
         return TemplateResponse(request, "admin/vue-globale.html", context)
 

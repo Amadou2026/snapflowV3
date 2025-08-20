@@ -2,7 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import *
 from rest_framework_simplejwt.views import TokenRefreshView
-from . import stats_views
+from . import stats_views, views
+
 
 router = DefaultRouter()
 router.register(r"axes", AxeViewSet)
@@ -58,6 +59,13 @@ urlpatterns = [
         path("stats/scripts-en-attente/",  stats_views.stats_scripts_en_attente, name="stats_scripts_en_attente"),
         path("stats/execution-resultats-concluant-nonconcluant/", stats_views.stats_execution_concluant_nonconcluant, name="stats_execution_concluant_nonconcluant"),
         # path("stats/scripts-planifies/", stats_views.scripts_planifies, name="scripts_planifies"),
+        path('stats/scheduled/', views.ScheduledScriptsListView.as_view(), name='scheduled_list'),
+        path('/statsscheduled/<int:config_id>/', views.configuration_detail_scheduled, name='scheduled_detail'),
+        path('stats/next-scripts/', views.api_next_scheduled_scripts, name='api_next_scripts'),
+        path('stats/to-execute/', views.api_configurations_to_execute, name='api_to_execute'),
+        path('stats/overdue/', views.api_overdue_configurations, name='api_overdue'),
+
+
         
 
 

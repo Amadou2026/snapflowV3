@@ -239,7 +239,8 @@ function initSFChart(labels, successData, failData) {
             // if (datasetLabel === 'Total') return '#000000';  // noir
             return '#ffffff';
           },
-          font: { weight: 'bold', size: 12 },
+          padding: 30,
+          font: { family: "'Arial', sans-serif", weight: 'normal', size: 10, lineWidth: 100,},
           formatter: (value, context) => (value === 0 ? '' : `${context.dataset.label}: ${value}`),
           anchor: 'end',
           align: 'start'

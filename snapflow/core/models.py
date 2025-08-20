@@ -75,6 +75,11 @@ class EmailNotification(models.Model):
     def __str__(self):
         return self.email
 
+# Debut
+
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.db import models
 
 class ConfigurationTest(models.Model):
     PERIODICITE_CHOICES = [
@@ -85,23 +90,151 @@ class ConfigurationTest(models.Model):
         ('1s', 'Une fois par semaine'),
         ('1m', 'Une fois par mois'),
     ]
+    
     nom = models.CharField(max_length=255)
-    projet = models.ForeignKey(Projet, on_delete=models.CASCADE)
-    scripts = models.ManyToManyField(Script)
-    emails_notification = models.ManyToManyField(EmailNotification, blank=True)
+    projet = models.ForeignKey('Projet', on_delete=models.CASCADE)
+    scripts = models.ManyToManyField('Script')
+    emails_notification = models.ManyToManyField('EmailNotification', blank=True)
     periodicite = models.CharField(max_length=10, choices=PERIODICITE_CHOICES)
     last_execution = models.DateTimeField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)  # Ajout du champ is_active
-
-    # Nouveaux champs
+    is_active = models.BooleanField(default=True)
     date_activation = models.DateTimeField(null=True, blank=True, help_text="Date et heure de lancement de la configuration")
     date_desactivation = models.DateTimeField(null=True, blank=True, help_text="Date et heure de désactivation de la configuration")
 
     def __str__(self):
         return self.nom
 
+    def get_periodicite_timedelta(self):
+        """Convertit la périodicité en timedelta"""
+        periodicite_map = {
+            '2min': timedelta(minutes=2),
+            '2h': timedelta(hours=2),
+            '6h': timedelta(hours=6),
+            '1j': timedelta(days=1),
+            '1s': timedelta(weeks=1),
+            '1m': timedelta(days=30),  # Approximation pour 1 mois
+        }
+        return periodicite_map.get(self.periodicite, timedelta(days=1))
+
+    def get_next_execution_time(self):
+        """Calcule la prochaine heure d'exécution en tenant compte de la périodicité et de la date de désactivation"""
+        now = timezone.now()
+
+        # Si la configuration n'est pas active, retourner None
+        if not self.is_active:
+            return None
+
+        # Vérifier plage d'activation
+        if self.date_activation and now < self.date_activation:
+            return self.date_activation
+
+        # Déterminer le temps de base
+        base_time = self.last_execution or self.date_activation or now
+
+        # Boucler pour trouver la prochaine exécution après maintenant
+        next_time = base_time + self.get_periodicite_timedelta()
+        while next_time < now:
+            next_time += self.get_periodicite_timedelta()
+
+        # Si dépasse date de désactivation
+        if self.date_desactivation and next_time > self.date_desactivation:
+            return None
+
+        return next_time
+
+    # Debut retourne heure diff / script
+   
+    def get_next_executions_within(self, hours_ahead=24):
+        """Renvoie toutes les heures d'exécution prévues dans les prochaines heures_ahead heures"""
+        now = timezone.now()
+        limit_time = now + timedelta(hours=hours_ahead)
+
+        if not self.is_active:
+            return []
+
+        base_time = self.last_execution or self.date_activation or now
+        executions = []
+
+        # Calculer la première exécution après maintenant
+        next_time = base_time
+        while next_time <= now:
+            next_time += self.get_periodicite_timedelta()
+
+        # Générer toutes les exécutions jusqu'à limit_time
+        while next_time <= limit_time:
+            if self.date_desactivation and next_time > self.date_desactivation:
+                break
+            executions.append(next_time)
+            next_time += self.get_periodicite_timedelta()
+
+        return executions
 
 
+    # 
+
+    def is_due_for_execution(self):
+        """Vérifie si la configuration doit être exécutée maintenant"""
+        next_time = self.get_next_execution_time()
+        if not next_time:
+            return False
+        return timezone.now() >= next_time
+
+    @classmethod
+    def get_configurations_to_execute(cls):
+        """Retourne les configurations qui doivent être exécutées maintenant"""
+        return [config for config in cls.objects.filter(is_active=True) 
+                if config.is_due_for_execution()]
+
+    @classmethod
+    def get_next_scheduled_configurations(cls, limit_hours=24):
+        """
+        Retourne les configurations planifiées dans les prochaines heures
+        avec leur heure d'exécution prévue
+        """
+        now = timezone.now()
+        limit_time = now + timedelta(hours=limit_hours)
+        
+        scheduled_configs = []
+        
+        for config in cls.objects.filter(is_active=True):
+            next_time = config.get_next_execution_time()
+            if next_time and now <= next_time <= limit_time:
+                scheduled_configs.append({
+                    'configuration': config,
+                    'next_execution': next_time,
+                    'scripts': list(config.scripts.all()),
+                    'time_until_execution': next_time - now
+                })
+        
+        # Trier par heure d'exécution
+        scheduled_configs.sort(key=lambda x: x['next_execution'])
+        return scheduled_configs
+
+    @classmethod
+    def get_overdue_configurations(cls):
+        """Retourne les configurations en retard d'exécution"""
+        overdue_configs = []
+        
+        for config in cls.objects.filter(is_active=True):
+            if config.last_execution:
+                expected_next = config.last_execution + config.get_periodicite_timedelta()
+                if timezone.now() > expected_next:
+                    overdue_configs.append({
+                        'configuration': config,
+                        'expected_time': expected_next,
+                        'delay': timezone.now() - expected_next,
+                        'scripts': list(config.scripts.all())
+                    })
+        
+        return overdue_configs
+
+    class Meta:
+        verbose_name = "Configuration Test"
+        verbose_name_plural = "Configurations Test"
+        ordering = ['nom']
+
+
+# Fin
 
 class ExecutionTest(models.Model):
     STATUS_CHOICES = [
