@@ -298,6 +298,7 @@ class ExecutionResult(models.Model):
         elif self.statut == 'running':
             return "En cours"
         return "Statut inconnu"
+   
     class Meta:
         verbose_name = "Résultat d'exécution de script"
         verbose_name_plural = "Résultats des scripts"
