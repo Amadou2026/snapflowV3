@@ -262,7 +262,12 @@ function initSFChart(labels, successData, failData) {
           },
           pan: {
             enabled: true,
-            mode: 'x'                   // pan (slide) horizontal
+            mode: 'x',
+            modifierKey: null,
+            // ➡️ Permet de glisser librement sur tout l’axe X
+            limits: {
+              x: { min: -Infinity, max: Infinity }
+            }
           }
         }
       },

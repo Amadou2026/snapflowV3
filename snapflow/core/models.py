@@ -64,9 +64,15 @@ class Projet(models.Model):
     contrat = models.TextField()
     charge_de_compte = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     id_redmine_charge_de_compte = models.IntegerField(null=True, blank=True)  
+    
 
     def __str__(self):
         return self.nom
+    
+    # class Meta:
+    #     verbose_name = "Projet"
+    #     verbose_name_plural = "Gestion des Projets"
+        
 
 
 class EmailNotification(models.Model):

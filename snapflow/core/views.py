@@ -99,10 +99,7 @@ class ConfigurationTestViewSet(viewsets.ModelViewSet):
         return Response({"status": "deactivated"}, status=status.HTTP_200_OK)
 
 
-# class ExecutionTestViewSet(viewsets.ModelViewSet):
-#     queryset = ExecutionTest.objects.all()
-#     serializer_class = ExecutionTestSerializer
-#     permission_classes = [IsAuthenticated]
+
 class ExecutionTestViewSet(viewsets.ModelViewSet):
     queryset = ExecutionTest.objects.all()
     serializer_class = ExecutionTestSerializer

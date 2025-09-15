@@ -98,13 +98,26 @@ def tests_par_projet(request):
 @api_view(["GET"])
 def taux_erreur_par_script(request):
     projet_id = request.GET.get("projet_id")
+
+    # Base queryset
     qs = ExecutionTest.objects.all()
+
+    user = request.user
+    if not user.is_superuser:  # pas superadmin
+        # Filtrer seulement les projets où l'utilisateur est charge_de_compte
+        projets_ids = Projet.objects.filter(charge_de_compte=user).values_list("id", flat=True)
+        qs = qs.filter(configuration__projet__id__in=projets_ids)
+
+    # Filtrer par projet_id si précisé dans l’URL
     if projet_id:
         qs = qs.filter(configuration__projet__id=projet_id)
 
     data = (
         qs.values("configuration__scripts__nom")
-        .annotate(total=Count("id"), erreurs=Count("id", filter=Q(statut="error")))
+        .annotate(
+            total=Count("id"),
+            erreurs=Count("id", filter=Q(statut="error"))
+        )
         .order_by("-erreurs")
     )
 
@@ -164,7 +177,14 @@ from .models import ExecutionTest
 @permission_classes([IsAuthenticated])
 def repartition_par_projet(request):
     projet_id = request.GET.get("projet_id")
+
     qs = ExecutionTest.objects.all()
+
+    user = request.user
+    if not user.is_superuser:  # pas superadmin
+        projets_ids = Projet.objects.filter(charge_de_compte=user).values_list("id", flat=True)
+        qs = qs.filter(configuration__projet__id__in=projets_ids)
+
     if projet_id:
         qs = qs.filter(configuration__projet__id=projet_id)
 
@@ -173,6 +193,7 @@ def repartition_par_projet(request):
         .annotate(total=Count("id"))
         .order_by("-total")
     )
+
     projet_labels = [row["configuration__projet__nom"] for row in projets]
     projet_counts = [row["total"] for row in projets]
 
@@ -598,6 +619,11 @@ def stats_execution_concluant_nonconcluant(request):
         "execution__configuration", "script"
     ).all()
 
+    user = request.user
+    if not user.is_superuser:  # pas superadmin
+        projets_ids = Projet.objects.filter(charge_de_compte=user).values_list("id", flat=True)
+        resultats = resultats.filter(execution__configuration__projet__id__in=projets_ids)
+
     if start_date and end_date:
         try:
             # Inclure toute la journée de end_date jusqu'à 23h59
@@ -605,10 +631,12 @@ def stats_execution_concluant_nonconcluant(request):
             end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
             resultats = resultats.filter(execution__started_at__range=(start_dt, end_dt))
         except ValueError:
-            return JsonResponse({"error": "Format de date invalide. Format attendu : YYYY-MM-DD"}, status=400)
+            return JsonResponse(
+                {"error": "Format de date invalide. Format attendu : YYYY-MM-DD"},
+                status=400
+            )
 
     data = []
-
     for resultat in resultats.order_by("execution__configuration__nom", "script__nom"):
         configuration_nom = getattr(resultat.execution.configuration, "nom", "")
         script_nom = getattr(resultat.script, "nom", "")
