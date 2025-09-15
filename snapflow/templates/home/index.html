@@ -1,0 +1,318 @@
+<!-- templates/home/index.html -->
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block content %}
+    <!-- Grande Bannière Hero -->
+    <section class="hero-banner">
+        <div class="container">
+            <div class="row align-items-center min-vh-100">
+                <div class="col-lg-6">
+                    <h1 class="hero-title">Transformez Votre Suivi de Projets en Expérience Exceptionnelle</h1>
+                    <p class="hero-subtitle">Snapflow révolutionne le monitoring de projets avec des insights intelligents, des rapports automatisés et une intégration Redmine transparente.</p>
+                    <div class="hero-cta">
+                        <a href="#demo" class="btn btn-primary btn-lg me-3">
+                            <i class="fas fa-play-circle me-2"></i>Démo Gratuite
+                        </a>
+                        <a href="#pricing" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-star me-2"></i>Commencer
+                        </a>
+                    </div>
+                    <div class="hero-stats mt-5">
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <h3 class="stat-number">500+</h3>
+                                    <p class="stat-label">Projets Monitorés</p>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <h3 class="stat-number">98%</h3>
+                                    <p class="stat-label">Satisfaction Clients</p>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <h3 class="stat-number">24/7</h3>
+                                    <p class="stat-label">Support</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="hero-image">
+                        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                             alt="Dashboard Snapflow" class="img-fluid rounded-3 shadow-lg">
+                        <!-- <div class="floating-card">
+                            <i class="fas fa-chart-line text-primary"></i>
+                            <span>Performance +47%</span>
+                        </div> -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Logos Clients -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <div class="text-center mb-4">
+                <p class="text-muted">Rejoignez les entreprises qui nous font confiance</p>
+            </div>
+            <div class="row align-items-center">
+                <div class="col-2 text-center">
+                    <img src="https://www.medianet.tn/u_p_l_d/public/ref/05.png" alt="Client 1" class="img-fluid opacity-75">
+                </div>
+                <div class="col-2 text-center">
+                    <img src="https://www.medianet.tn/u_p_l_d/public/index_logos/index_logos_modif/ey.png" alt="Client 2" class="img-fluid opacity-75">
+                </div>
+                <div class="col-2 text-center">
+                    <img src="https://www.medianet.tn/u_p_l_d/public/index_logos/index2/orange.png" alt="Client 3" class="img-fluid opacity-75">
+                </div>
+                <div class="col-2 text-center">
+                    <img src="https://www.medianet.tn/u_p_l_d/public/index_logos/index2/bcao.png" alt="Client 4" class="img-fluid opacity-75">
+                </div>
+                <div class="col-2 text-center">
+                    <img src="https://www.medianet.tn/u_p_l_d/public/index_logos/index2/albarka.png" alt="Client 5" class="img-fluid opacity-75">
+                </div>
+                <div class="col-2 text-center">
+                    <img src="https://www.medianet.tn/u_p_l_d/public/banque_habitat.png" alt="Client 6" class="img-fluid opacity-75">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-4 fw-bold">Des Fonctionnalités Puissantes pour Votre Succès</h2>
+                <p class="lead text-muted">Découvrez comment Snapflow transforme votre gestion de projets</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-redmine"></i>
+                        </div>
+                        <h4>Intégration Redmine Native</h4>
+                        <p>Synchronisation automatique avec vos projets existants, sans effort supplémentaire.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <h4>Analytics Avancés</h4>
+                        <p>Tableaux de bord personnalisables avec des métriques en temps réel.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <h4>Alertes Intelligentes</h4>
+                        <p>Notifications proactives pour anticiper les problèmes avant qu'ils n'arrivent.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h4>Automatisation</h4>
+                        <p>Automatisez vos rapports et processus récurrents pour gagner du temps.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h4>Sécurité Enterprise</h4>
+                        <p>Données cryptées et conformité aux standards de sécurité les plus stricts.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h4>Collaboration</h4>
+                        <p>Travaillez en équipe avec des permissions granulaires et du partage facile.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-5 bg-primary text-white">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h2 class="display-5 fw-bold">Prêt à révolutionner votre gestion de projets ?</h2>
+                    <p class="lead mb-0">Rejoignez les milliers d'équipes qui font confiance à Snapflow.</p>
+                </div>
+                <div class="col-lg-4 text-lg-end">
+                    <a href="#pricing" class="btn btn-light btn-lg">
+                        <i class="fas fa-arrow-right me-2"></i>Commencer Maintenant
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+<section id="pricing" class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-4 fw-bold">Des Tarifs Adaptés à Votre Croissance</h2>
+            <p class="lead text-muted">Choisissez la formule qui correspond à vos ambitions</p>
+        </div>
+        
+        <!-- Toggle Switch Annuel/Mensuel -->
+        <div class="row justify-content-center mb-5">
+            <div class="col-lg-6 text-center">
+                <div class="pricing-toggle">
+                    <span class="me-3">Facturation mensuelle</span>
+                    <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input" type="checkbox" id="pricingToggle">
+                        <label class="form-check-label" for="pricingToggle"></label>
+                    </div>
+                    <span class="ms-3">
+                        Facturation annuelle 
+                        <span class="badge bg-success ms-1">-20%</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Plan Starter -->
+            <div class="col-lg-4">
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h4>Starter</h4>
+                        <div class="price">
+                            <span class="monthly-price">29€</span>
+                            <span class="annual-price d-none">23€</span>
+                            <small>/mois</small>
+                        </div>
+                        <p class="text-muted">Parfait pour les petites équipes</p>
+                    </div>
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check text-success me-2"></i> Jusqu'à 5 projets</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Reporting basique</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Support par email</li>
+                            <li><i class="fas fa-check text-success me-2"></i> 100 notifications/mois</li>
+                            <li><i class="fas fa-times text-muted me-2"></i> Intégration Redmine</li>
+                            <li><i class="fas fa-times text-muted me-2"></i> API complète</li>
+                            <li><i class="fas fa-times text-muted me-2"></i> Export avancé</li>
+                        </ul>
+                    </div>
+                    <div class="pricing-cta">
+                        <a href="#" class="btn btn-outline-primary w-100">Commencer gratuitement</a>
+                        <p class="small text-muted mt-2">Essai de 14 jours inclus</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan Professional (Recommandé) -->
+            <div class="col-lg-4">
+                <div class="pricing-card featured">
+                    <div class="popular-badge">POPULAIRE</div>
+                    <div class="pricing-header">
+                        <h4>Professional</h4>
+                        <div class="price">
+                            <span class="monthly-price">79€</span>
+                            <span class="annual-price d-none">63€</span>
+                            <small>/mois</small>
+                        </div>
+                        <p class="text-muted">Pour les équipes en croissance</p>
+                    </div>
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check text-success me-2"></i> Projets illimités</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Reporting avancé</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Support prioritaire</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Notifications illimitées</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Intégration Redmine</li>
+                            <li><i class="fas fa-check text-success me-2"></i> API complète</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Export avancé PDF/Excel</li>
+                        </ul>
+                    </div>
+                    <div class="pricing-cta">
+                        <a href="#" class="btn btn-primary w-100">Essayer gratuitement</a>
+                        <p class="small text-muted mt-2">Essai de 30 jours inclus</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan Enterprise -->
+            <div class="col-lg-4">
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h4>Enterprise</h4>
+                        <div class="price">
+                            <span class="custom-price">Sur mesure</span>
+                        </div>
+                        <p class="text-muted">Pour les grandes organisations</p>
+                    </div>
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check text-success me-2"></i> Toutes les fonctionnalités Pro</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Hébergement dédié</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Support 24/7</li>
+                            <li><i class="fas fa-check text-success me-2"></i> SLA 99.9%</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Formation sur site</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Intégrations personnalisées</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Audit de sécurité</li>
+                        </ul>
+                    </div>
+                    <div class="pricing-cta">
+                        <a href="#contact" class="btn btn-outline-primary w-100">Contact commercial</a>
+                        <p class="small text-muted mt-2">Devis personnalisé sous 24h</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section garantie -->
+        <div class="row mt-5">
+            <div class="col-lg-8 mx-auto">
+                <div class="guarantee-section text-center p-4 rounded-3 bg-light">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <div class="guarantee-item">
+                                <i class="fas fa-shield-alt fa-2x text-primary mb-3"></i>
+                                <h6>Garantie satisfait ou remboursé</h6>
+                                <p class="small text-muted">30 jours sans risque</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="guarantee-item">
+                                <i class="fas fa-lock fa-2x text-primary mb-3"></i>
+                                <h6>Données 100% sécurisées</h6>
+                                <p class="small text-muted">Certification GDPR</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="guarantee-item">
+                                <i class="fas fa-sync-alt fa-2x text-primary mb-3"></i>
+                                <h6>Changement de plan flexible</h6>
+                                <p class="small text-muted">À tout moment</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

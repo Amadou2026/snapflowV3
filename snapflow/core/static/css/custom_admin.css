@@ -487,3 +487,155 @@ html[data-theme='dark'] .chart-title {
   background-color: #fbbf24;
   margin: 16px 0;
 }
+
+/* ---------- HEADER ACTIONS ---------- */
+/* -------- Header global -------- */
+.header-actions {
+  position: absolute;
+  right: 20px;
+  top: 15px;
+  display: flex;
+  align-items: center;
+}
+
+/* User + toggle sur une ligne */
+.user-menu-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Bouton user */
+.user-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background 0.3s;
+  max-width: 200px; /* évite trop long */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.username {
+  color: #000;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dropdown */
+.user-menu-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  margin-top: 8px;
+  background: #fff;
+  min-width: 180px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.user-menu-dropdown.show {
+  display: block;
+}
+
+.user-menu-dropdown a {
+  display: block;
+  padding: 10px 14px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.user-menu-dropdown a:hover {
+  background: #417690;
+  border-radius: 8px;
+  color: #fff;
+}
+
+/* Toggle thème */
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background 0.3s;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.theme-toggle svg {
+  width: 23px;
+  height: 24px;
+  fill: #fff;
+}
+
+/* Cacher la barre user Django native */
+#user-tools {
+  display: none !important;
+}
+
+/* -------- Responsive -------- */
+@media (max-width: 768px) {
+  .header-actions {
+    position: static;
+    margin-top: 10px;
+    justify-content: flex-end;
+  }
+
+  .user-menu-wrapper {
+    gap: 6px;
+  }
+
+  .username {
+    display: none; /* on masque le texte pour gagner de la place */
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .theme-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .user-menu-dropdown {
+    right: 0;
+    left: auto;
+    min-width: 150px;
+  }
+}

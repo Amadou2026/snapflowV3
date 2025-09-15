@@ -21,19 +21,7 @@ import logging
 
 
 logger = logging.getLogger(__name__)
-# Redmine
-# try:
-#     # Chargement des variables d'environnement
-#     REDMINE_URL = config("REDMINE_URL")
-#     REDMINE_API_KEY = config("REDMINE_API_KEY")
 
-#     # Log informatif
-#     logger.info(f"✅ Redmine configuré : URL = {REDMINE_URL}")
-#     logger.debug("✅ Clé API Redmine chargée avec succès (non affichée pour des raisons de sécurité)")
-# except Exception as e:
-#     logger.error(f"❌ Erreur lors du chargement de la configuration Redmine : {e}")
-#     REDMINE_URL = None
-#     REDMINE_API_KEY = None
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -106,11 +94,11 @@ MIDDLEWARE = [
 
 
 ROOT_URLCONF = 'snapflow.urls'
-
+BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -186,6 +174,7 @@ USE_L10N = True  # localisation
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

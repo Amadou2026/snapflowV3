@@ -619,3 +619,35 @@ def get_next_scripts_for_project(project_id, hours_ahead=24):
     # Trier par heure d'exécution
     next_scripts.sort(key=lambda x: x['execution_time'])
     return next_scripts
+
+
+#  Vue page d'accueille
+# core/views.py
+from django.shortcuts import render
+from django.views.generic import TemplateView
+
+class HomeView(TemplateView):
+    template_name = 'home/index.html'
+
+def home_view(request):
+    return render(request, 'home/index.html')
+
+# JS Script Dynamique
+from django.http import JsonResponse
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import Script
+
+@staff_member_required
+def scripts_by_projet(request):
+    projet_id = request.GET.get('projet_id')
+    if projet_id:
+        scripts = Script.objects.filter(projet_id=projet_id).values('id', 'nom', 'axe__nom', 'sous_axe__nom')
+        data = [
+            {
+                'id': s['id'],
+                'label': f"{s['axe__nom'] or '-'} / {s['sous_axe__nom'] or '-'} / {s['nom']}"
+            } for s in scripts
+        ]
+    else:
+        data = []
+    return JsonResponse(data, safe=False)

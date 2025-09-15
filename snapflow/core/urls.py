@@ -64,6 +64,7 @@ urlpatterns = [
         path('stats/next-scripts/', views.api_next_scheduled_scripts, name='api_next_scripts'),
         path('stats/to-execute/', views.api_configurations_to_execute, name='api_to_execute'),
         path('stats/overdue/', views.api_overdue_configurations, name='api_overdue'),
+        path('admin/scripts-by-projet/', views.scripts_by_projet, name='scripts_by_projet'),
 
 
         
