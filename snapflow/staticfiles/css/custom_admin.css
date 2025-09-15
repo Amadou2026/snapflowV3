@@ -1,0 +1,489 @@
+/* Change la couleur du header */
+#header {
+  background-color: #fff !important;
+  /* Remplace cette couleur par celle que tu veux */
+}
+
+#header h1 a {
+  color: #000000 !important;
+  /* Couleur du texte (titre Django admin) */
+}
+
+/* Admin execution */
+/* Conteneur principal stylisé */
+.custom-admin-wrapper {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+  /* Enlève la coupure, sans scroll abusif */
+}
+
+/* Header modernisé */
+.custom-header {
+  padding: 20px 25px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  color: rgb(0, 0, 0);
+  background: #f0f4f8;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+}
+
+.custom-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.custom-header p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Mode sombre compatible Django 5 */
+html[data-theme="dark"] .custom-header {
+  background: linear-gradient(to right, #2563eb, #1e40af);
+  color: #dbeafe;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+}
+
+
+/* Table admin clean et fluide */
+/* Conteneur principal stylisé */
+.custom-admin-wrapper {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+  /* Enlève la coupure, sans scroll abusif */
+}
+
+/* Header modernisé */
+
+
+.custom-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.custom-header p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Table admin clean et fluide */
+.change-list .results table {
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+
+.change-list .results table th,
+.change-list .results table td {
+  padding: 12px 15px;
+  white-space: nowrap;
+}
+
+.change-list .results table td {
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid #f1f1f1;
+  border-right: 1px solid #f1f1f1;
+}
+
+/* Boutons */
+a.button,
+input[type="submit"],
+input[type="button"] {
+  background-color: #4facfe !important;
+  border: none;
+  border-radius: 6px;
+  color: white !important;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+a.button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover {
+  background-color: #00c6fb !important;
+}
+
+/* Scroll horizontal atténué pour les grands écrans */
+@media (min-width: 768px) {
+  .custom-admin-wrapper {
+    overflow-x: hidden;
+  }
+}
+
+/* Zone contenant les filtres + actions sur une seule ligne */
+.action-and-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  background: #f7f7f7;
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  flex-wrap: wrap;
+}
+
+/* Formulaire du filtre projet */
+.custom-filter-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Label commun */
+.custom-label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Style pour le select */
+.custom-filter-form select,
+.custom-actions select {
+  padding: 2px 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+/* Actions */
+.custom-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* config */
+.filter-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-bar .filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Style clair par défaut */
+#header a:link,
+#header a:visited,
+#logout-form button {
+  color: #000000 !important;
+}
+
+div#user-tools {
+  color: #000000 !important;
+}
+
+/* Mode sombre compatible Django 5 */
+html[data-theme="dark"] #header a:link,
+html[data-theme="dark"] #header a:visited,
+html[data-theme="dark"] #logout-form button,
+html[data-theme="dark"] div#user-tools {
+  color: #000000 !important;
+}
+
+
+/* === Dark Mode (Django 5 compatible avec dark-mode et data-theme) === */
+html.dark-mode,
+html[data-theme="dark"] {
+  background-color: #0f172a;
+  color: #cbd5e1;
+}
+
+html.dark-mode .custom-admin-wrapper,
+html[data-theme="dark"] .custom-admin-wrapper {
+  background-color: #1e293b;
+  color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+html.dark-mode .custom-header,
+html[data-theme="dark"] .custom-header {
+  background: linear-gradient(to right, #2563eb, #1e40af);
+  color: #dbeafe;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+}
+
+html.dark-mode .change-list .results table td,
+html[data-theme="dark"] .change-list .results table td {
+  background-color: #334155;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+html.dark-mode a.button,
+html[data-theme="dark"] a.button,
+html.dark-mode input[type="submit"],
+html[data-theme="dark"] input[type="submit"],
+html.dark-mode input[type="button"],
+html[data-theme="dark"] input[type="button"] {
+  background-color: #2563eb !important;
+  color: #e0e7ff !important;
+}
+
+html.dark-mode a.button:hover,
+html[data-theme="dark"] a.button:hover,
+html.dark-mode input[type="submit"]:hover,
+html[data-theme="dark"] input[type="submit"]:hover,
+html.dark-mode input[type="button"]:hover,
+html[data-theme="dark"] input[type="button"]:hover {
+  background-color: #3b82f6 !important;
+}
+
+html.dark-mode .custom-filter-form select,
+html[data-theme="dark"] .custom-filter-form select,
+html.dark-mode .custom-actions select,
+html[data-theme="dark"] .custom-actions select {
+  background-color: #475569;
+  color: #e0e7ff;
+  border: 1px solid #64748b;
+}
+
+html.dark-mode #header a:link,
+html[data-theme="dark"] #header a:link,
+html.dark-mode #header a:visited,
+html[data-theme="dark"] #header a:visited,
+html.dark-mode #logout-form button,
+html[data-theme="dark"] #logout-form button,
+html.dark-mode div#user-tools,
+html[data-theme="dark"] div#user-tools {
+  color: #dbeafe;
+}
+
+.custom-filter-bar {
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.custom-label {
+  font-weight: 600;
+}
+
+html[data-theme="dark"] .filters-container {
+  background: linear-gradient(135deg, #6a6d71 0%, #617289 100%);
+}
+
+/* Styles pour les filtres */
+.filters-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.filter-group label {
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.filter-group select,
+.filter-group input {
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#resetFilters:hover {
+  background-color: #4b5563;
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* Animation pour le loader */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .filters-row {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  #dateInputsContainer {
+    flex-direction: column !important;
+    width: 100%;
+  }
+}
+
+/* Styles pour les cartes de graphique */
+.chart-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.chart-icon {
+  font-size: 1.5rem;
+  margin-right: 0.75rem;
+}
+
+.chart-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.margin-top-large {
+  margin-top: 2rem;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: center !important;
+  vertical-align: middle;
+  /* optionnel */
+}
+html[data-theme='dark'] .kpi-card-modern {
+  background-color: var(--bg-card); 
+}
+html[data-theme='dark'] .kpi-title {
+  color: white; 
+}
+html[data-theme='dark'] #scripts-non-executes-value {
+  color: white; 
+}
+html[data-theme='dark'] #tests-en-echec-value {
+  color: white; 
+}
+html[data-theme='dark'] .chart-card {
+  background: var(--bg-card);
+}
+html[data-theme='dark'] .chart-title {
+  color: white; 
+}
+
+
+
+.kpi-card-modern {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 20px;
+  max-width: 300px;
+  transition: transform 0.2s;
+}
+.kpi-card-modern:hover {
+  transform: translateY(-3px);
+}
+.kpi-header-modern {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.kpi-icon-modern-nbr-test {
+  font-size: 1.8rem;
+  background-color: #b82d14;
+  color: #fff;
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+.kpi-icon-modern-percent-test {
+  font-size: 1.8rem;
+  background-color: #14b8a6;
+  color: #fff;
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+.kpi-icon-modern {
+  font-size: 1.8rem;
+  background-color: #fbbf24;
+  color: #fff;
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+.kpi-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #1f2937;
+}
+.kpi-section {
+  text-align: center;
+  margin-bottom: 12px;
+}
+.kpi-number {
+  font-size: 2.0rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+.kpi-percent {
+  font-size: 1.9rem;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+.kpi-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+.kpi-divider-percent-test {
+  height: 1px;
+  background-color: #14b8a6;
+  margin: 16px 0;
+}
+.kpi-divider-nbr-test {
+  height: 1px;
+  background-color: #b82d14;
+  margin: 16px 0;
+}
+.kpi-divider {
+  height: 1px;
+  background-color: #fbbf24;
+  margin: 16px 0;
+}

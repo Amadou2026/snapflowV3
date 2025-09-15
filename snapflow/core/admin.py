@@ -20,7 +20,7 @@ from django.conf import settings
 import requests
 
 
-admin.site.site_header = "Snapflow Software Monitoring"
+# admin.site.site_header = "Snapflow Software Monitoring"
 admin.site.site_title = "Snapflow Admin"
 admin.site.index_title = "Tableau de bord"
 
@@ -460,6 +460,34 @@ def custom_get_app_list(self, request):
     
     if reporting_section['models']:
         reordered_app_list.append(reporting_section)
+        
+    # 👤 6. Gestion du Profil (section personnalisée)
+    profile_section = {
+        'name': 'Gestion du Profil',
+        'app_label': 'profile_section',
+        'models': [
+            {
+                'name': 'Gérer mon compte',
+                'object_name': 'CustomUser',
+                'admin_url': f'/admin/core/customuser/{request.user.id}/change/',
+                'view_only': False,
+            },
+            {
+                'name': 'Modifier mot de passe',
+                'object_name': 'PasswordChange',
+                'admin_url': '/admin/password_change/',
+                'view_only': False,
+            },
+            {
+                'name': 'Déconnexion',
+                'object_name': 'Logout',
+                'admin_url': '/admin/logout/',
+                'view_only': False,
+            }
+        ]
+    }
+    
+    reordered_app_list.append(profile_section)
     
     # Ajouter les autres apps (comme auth, etc.)
     for app in app_list:
@@ -495,13 +523,23 @@ class SousAxeAdmin(admin.ModelAdmin):
 
 @admin.register(Script)
 class ScriptAdmin(admin.ModelAdmin):
-    list_display = ('axe', 'sous_axe', 'nom', 'afficher_fichier', 'priorite')
-    list_filter = ('axe', 'sous_axe', 'priorite')
-    search_fields = ('nom',)
-    fields = ('axe', 'sous_axe', 'nom', 'fichier','priorite')
+    # Affichage des colonnes dans la liste
+    list_display = ('projet', 'axe', 'sous_axe', 'nom', 'afficher_fichier', 'priorite')
+    
+    # Filtres dans la sidebar
+    list_filter = ('projet', 'axe', 'sous_axe', 'priorite')
+    
+    # Champs recherchables
+    search_fields = ('nom', 'axe__nom', 'sous_axe__nom', 'projet__nom')
+    
+    # Champs affichés dans le formulaire d'édition
+    fields = ('projet', 'axe', 'sous_axe', 'nom', 'fichier', 'priorite')
 
+    # Affichage du lien pour télécharger le fichier
     def afficher_fichier(self, obj):
-        return format_html('<a href="{}" download>Télécharger</a>', obj.fichier.url) if obj.fichier else '-'
+        if obj.fichier:
+            return format_html('<a href="{}" download>Télécharger</a>', obj.fichier.url)
+        return '-'
     afficher_fichier.short_description = 'Fichier'
 
 
@@ -511,6 +549,7 @@ from .models import ConfigurationTest, Projet
 
 @admin.register(ConfigurationTest)
 class ConfigurationTestAdmin(admin.ModelAdmin):
+    
     change_list_template = "admin/ConfigurationTestAdmin.html" 
     list_display = ('nom', 'projet', 'periodicite', 'is_active', 'afficher_scripts_lies', 'date_activation', 'date_desactivation')
     list_filter = ('projet','is_active', 'periodicite', 'date_activation', 'date_desactivation')
@@ -531,6 +570,18 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
             'fields': ('emails_notification',),
         }),
     )
+    class Media:
+        js = ('admin/js/configuration_test.js',)
+        ordering = ['nom'] 
+    
+    # def formfield_for_manytomany(self, db_field, request, **kwargs):
+    #     if db_field.name == "scripts":
+    #         projet_id = request.GET.get('projet')
+    #         if projet_id:
+    #             kwargs["queryset"] = Script.objects.filter(projet_id=projet_id)
+    #         else:
+    #             kwargs["queryset"] = Script.objects.none()  # Aucun projet sélectionné
+    #     return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     def afficher_scripts_lies(self, obj):
         scripts = obj.scripts.all()

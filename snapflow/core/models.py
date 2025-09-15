@@ -35,23 +35,7 @@ class SousAxe(models.Model):
 
 
 
-class Script(models.Model):
-    PRIORITY_CHOICES = [
-        (1, 'Basse'),
-        (2, 'Normale'),
-        (3, 'Haute'),
-        (4, 'Urgente'),
-        (5, 'Immédiate'),
-    ]
 
-    nom = models.CharField(max_length=255)
-    fichier = models.FileField(upload_to="scripts/")
-    axe = models.ForeignKey('Axe', on_delete=models.SET_NULL, null=True)
-    sous_axe = models.ForeignKey('SousAxe', on_delete=models.SET_NULL, null=True)
-    priorite = models.PositiveSmallIntegerField(choices=PRIORITY_CHOICES, default=2)
-
-    def __str__(self):
-        return f"{self.axe.nom}/{self.sous_axe.nom}/{self.nom}"
 
 
 
@@ -73,7 +57,24 @@ class Projet(models.Model):
     #     verbose_name = "Projet"
     #     verbose_name_plural = "Gestion des Projets"
         
+class Script(models.Model):
+    PRIORITY_CHOICES = [
+        (1, 'Basse'),
+        (2, 'Normale'),
+        (3, 'Haute'),
+        (4, 'Urgente'),
+        (5, 'Immédiate'),
+    ]
 
+    nom = models.CharField(max_length=255)
+    fichier = models.FileField(upload_to="scripts/")
+    axe = models.ForeignKey('Axe', on_delete=models.SET_NULL, null=True)
+    sous_axe = models.ForeignKey('SousAxe', on_delete=models.SET_NULL, null=True)
+    projet = models.ForeignKey(Projet, on_delete=models.CASCADE, related_name='scripts', null=True)
+    priorite = models.PositiveSmallIntegerField(choices=PRIORITY_CHOICES, default=2)
+
+    def __str__(self):
+        return f"{self.axe.nom}/{self.sous_axe.nom}/{self.nom}"
 
 class EmailNotification(models.Model):
     email = models.EmailField(unique=True)

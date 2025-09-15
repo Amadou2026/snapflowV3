@@ -1,0 +1,11 @@
+<!-- templates/admin/login.html -->
+{% extends "admin/login.html" %}
+{% load static %}
+
+{% block branding %}
+<div style="text-align: center; margin-bottom: 30px;">
+    <img src="{% static 'images/snapflow_B.png' %}" alt="Snapflow Logo" style="height: 20px; margin-bottom: 15px;">
+    <h1 style="color: #c6c4e9; margin: 0;">Software Monitoring</h1>
+    <p style="color: #666; margin: 5px 0 0 0;">Administration System</p>
+</div>
+{% endblock %}
