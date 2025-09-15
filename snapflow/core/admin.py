@@ -266,6 +266,34 @@ class ProjetAdmin(admin.ModelAdmin):
         return qs.filter(charge_de_compte=request.user)
 
   
+# @admin.register(CustomUser)
+# class CustomUserAdmin(BaseUserAdmin):
+#     model = CustomUser
+#     list_display = ('email', 'first_name', 'last_name', 'is_staff')
+#     list_filter = ('is_staff', 'is_superuser')
+#     search_fields = ('email', 'first_name', 'last_name')
+#     ordering = ('email',)
+#     fieldsets = (
+#         (None, {'fields': ('email', 'password')}),
+#         ("Informations personnelles", {'fields': ('first_name', 'last_name')}),
+#         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+#         ("Dates importantes", {'fields': ('last_login', 'date_joined')}),
+#     )
+#     add_fieldsets = (
+#         (None, {
+#             'classes': ('wide',),
+#             'fields': ('email', 'password1', 'password2')}
+#         ),
+#     )
+
+# core/admin.py
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group
+from django.apps import apps
+from .models import CustomUser
+
+# 🔹 1. Configuration de CustomUser
 @admin.register(CustomUser)
 class CustomUserAdmin(BaseUserAdmin):
     model = CustomUser
@@ -286,6 +314,171 @@ class CustomUserAdmin(BaseUserAdmin):
         ),
     )
 
+# 🔹 2. Override de la méthode get_app_list pour réorganiser le menu
+original_get_app_list = admin.AdminSite.get_app_list
+
+def custom_get_app_list(self, request):
+    app_list = original_get_app_list(self, request)
+    
+    # Nouvelle organisation du menu
+    reordered_app_list = []
+    
+    # 🔑 1. Authentification & Autorisation
+    auth_section = {
+        'name': 'Authentification & Autorisation',
+        'app_label': 'auth_section',
+        'models': []
+    }
+    
+    # Ajouter Group
+    group_model = next((m for m in app_list if m['app_label'] == 'auth' for model in m['models'] if model['object_name'] == 'Group'), None)
+    if group_model:
+        auth_section['models'].append({
+            'name': 'Groupes',
+            'object_name': 'Group',
+            'admin_url': '/admin/auth/group/',
+            'view_only': False
+        })
+    
+    # Ajouter CustomUser
+    custom_user_model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == 'CustomUser'), None)
+    if custom_user_model:
+        auth_section['models'].append({
+            'name': 'Utilisateurs',
+            'object_name': 'CustomUser',
+            'admin_url': '/admin/core/customuser/',
+            'view_only': False
+        })
+    
+    if auth_section['models']:
+        reordered_app_list.append(auth_section)
+    
+    # ⚙️ 2. Paramétrage & Configuration
+    config_section = {
+        'name': 'Paramétrage & Configuration',
+        'app_label': 'config_section',
+        'models': []
+    }
+    
+    # Dictionnaire des modèles avec noms personnalisés
+    config_models_custom = {
+        'Configuration': 'Paramètres Globaux',
+        'ConfigurationTest': 'Configurations Test', 
+        'EmailNotification': 'Notifications Email'
+    }
+    for model_name, custom_name in config_models_custom.items():
+        model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
+        if model:
+            config_section['models'].append({
+                'name': custom_name,
+                'object_name': model_name,
+                'admin_url': f'/admin/core/{model_name.lower()}/',
+                'view_only': False
+            })
+    
+    if config_section['models']:
+        reordered_app_list.append(config_section)
+    
+    
+    
+# 🧩 4. Gestion des Projets & Structure
+    projects_section = {
+        'name': 'Gestion des Projets & Structure',
+        'app_label': 'projects_section',
+        'models': []
+    }
+
+    # Utilisez les noms EXACTS des classes Python de vos modèles
+    projects_models_custom = {
+        'Projet': 'Projets',
+        'Axe': 'Axes',
+        'SousAxe': 'Sous-Axes'
+    }  # Noms exacts des classes
+
+    for model_name, custom_name in projects_models_custom.items():
+        # Recherchez le modèle dans la liste des apps
+        for app in app_list:
+            if app['app_label'] == 'core':
+                for model in app['models']:
+                    if model['object_name'] == model_name:
+                        projects_section['models'].append({
+                            'name': custom_name,
+                            'object_name': model_name,
+                            'admin_url': model['admin_url'],  # Utilisez l'URL existante
+                            'view_only': False
+                        })
+                        break
+
+    if projects_section['models']:
+        reordered_app_list.append(projects_section)
+    
+    # 🛠️ 5. Exécution & Scripts
+    scripts_section = {
+        'name': 'Exécution & Scripts',
+        'app_label': 'scripts_section',
+        'models': []
+    }
+    
+    scripts_models_custom = {
+        'Script': 'Scripts',
+        'ExecutionTest': 'Tests d\'Exécution'
+    }
+    for model_name, custom_name in scripts_models_custom.items():
+        model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
+        if model:
+            scripts_section['models'].append({
+                'name': custom_name,
+                'object_name': model_name,
+                'admin_url': f'/admin/core/{model_name.lower()}/',
+                'view_only': False
+            })
+    
+    if scripts_section['models']:
+        reordered_app_list.append(scripts_section)
+        
+    # 📊 3. Suivi & Reporting
+    reporting_section = {
+        'name': 'Suivi & Reporting',
+        'app_label': 'reporting_section',
+        'models': []
+    }
+    
+    reporting_models_custom = {
+        'Dashboard': 'Tableau de Bord',
+        'VueGlobale': 'Vue Globale',
+        'ExecutionResult': 'Résultats d\'Exécution'
+    }
+    for model_name, custom_name in reporting_models_custom.items():
+        model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
+        if model:
+            reporting_section['models'].append({
+                'name': custom_name,
+                'object_name': model_name,
+                'admin_url': f'/admin/core/{model_name.lower()}/',
+                'view_only': False
+            })
+    
+    if reporting_section['models']:
+        reordered_app_list.append(reporting_section)
+    
+    # Ajouter les autres apps (comme auth, etc.)
+    for app in app_list:
+        if app['app_label'] not in ['auth', 'core']:
+            reordered_app_list.append(app)
+    
+    return reordered_app_list
+
+# 🔹 3. Appliquer le monkey patch
+admin.AdminSite.get_app_list = custom_get_app_list
+
+# 🔹 4. Enregistrement des modèles Group (optionnel)
+# Si vous voulez customiser l'admin des Groupes
+from django.contrib.auth.models import Group as AuthGroup
+
+# @admin.register(AuthGroup)
+# class GroupAdmin(admin.ModelAdmin):
+#     list_display = ['name']
+#     search_fields = ['name']
 
 @admin.register(Axe)
 class AxeAdmin(admin.ModelAdmin):
@@ -626,6 +819,7 @@ class ExecutionResultAdmin(admin.ModelAdmin):
         if obj.log_fichier:
             return format_html('<a href="{}" target="_blank">📄 Voir</a>', obj.log_fichier.url)
         return "Aucun"
+    
     voir_log.short_description = "Log"
 
 
