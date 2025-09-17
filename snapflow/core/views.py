@@ -21,6 +21,10 @@ from reportlab.pdfgen import canvas
 from io import BytesIO
 from .models import ExecutionTest
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.views.decorators.http import require_POST
+
 from rest_framework.decorators import action
 from rest_framework import status
 
@@ -164,8 +168,7 @@ from django.shortcuts import render
 from core.models import Projet, ExecutionTest
 
 def dashboard_view(request):
-
-    # Récupération des paramètres avec debug détaillé
+        # Récupération des paramètres avec debug détaillé
     projet_id = request.GET.get("projet_id")
     periode = request.GET.get("periode", "mois")
     selected_periode = periode if periode in ["jour", "semaine", "mois", "annee"] else "mois"
@@ -651,3 +654,24 @@ def scripts_by_projet(request):
     else:
         data = []
     return JsonResponse(data, safe=False)
+
+
+@require_POST
+def sync_redmine_projects(request):
+    try:
+        config = Configuration.objects.first()
+        if not config:
+            messages.error(request, "Configuration non trouvée")
+            return redirect('admin:index')
+        
+        success, message = config.sync_redmine_projects()
+        
+        if success:
+            messages.success(request, message)
+        else:
+            messages.error(request, message)
+            
+    except Exception as e:
+        messages.error(request, f"Erreur: {e}")
+    
+    return redirect('admin:core_configuration_changelist')

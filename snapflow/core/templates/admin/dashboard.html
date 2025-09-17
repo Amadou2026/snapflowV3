@@ -2,26 +2,48 @@
 {% load static %}
 
 {% block extrahead %}
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userBtn = document.querySelector(".user-menu-btn");
+    const dropdown = document.querySelector(".user-menu-dropdown");
 
-  <!-- Plugins -->
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    if (userBtn) {
+      userBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle("show");
+      });
+    }
 
-  <!-- Ton script qui utilise Chart.js + plugins -->
-  <script src="{% static 'js/dashboard-charts.js' %}"></script>
+    // Fermer si clic ailleurs
+    document.addEventListener("click", function () {
+      if (dropdown) dropdown.classList.remove("show");
+    });
+  });
+</script>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-  <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+<!-- Plugins -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+<!-- Ton script qui utilise Chart.js + plugins -->
+<script src="{% static 'js/dashboard-charts.js' %}"></script>
+<script src="{% static 'js/bootstrap.js' %}"></script>
+<script src="{% static 'js/helper.js' %}"></script>
+<script src="{% static 'js/menu.js' %}"></script>
+
+<!-- CSS -->
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/core.css' %}">
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
 {% endblock %}
 
 
 {% block content %}
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1 class="dashboard-title">📊 Monitoring des Tests</h1>
+    <!-- <h1 class="dashboard-title">📊 Monitoring des Tests</h1> -->
 
     <form method="get" id="dashboard-form" class="dashboard-form">
       <label for="projet">Tous les projets :</label>
@@ -48,58 +70,70 @@
       </div>
     </div>
 
+    {% load static %}
+
 <div class="kpi-card">
   <div class="kpi-header-modern">
-    <div class="kpi-icon-modern-nbr-test"></div>
-     <h3 class="chart-title"> Nombre total des tests</h3>
+    <!-- Icône -->
+    <div class="">
+      <img src="{% static 'images/brown-logo.png' %}" alt="KPI global tests" width="40" height="40">
+    </div>
+    <h3 class="chart-title">Statistiques des tests</h3>
+    <span id="status-indicator" class="status-indicator"></span>
   </div>
+
   <div class="kpi-divider-nbr-test"></div>
+
+  <!-- Nombre total des tests -->
   <div id="kpi-taux-total-tests" class="kpi-value" data-total="{{ total_tests }}">
     <a id="total-tests-link" href="#">0</a> tests
   </div>
   <div class="kpi-label">Total des tests</div>
+
+  <hr class="kpi-divider">
+
+  <!-- Pourcentage des réussites -->
+  <div id="kpi-taux-reussite" class="kpi-value">0%</div>
+  <div id="kpi-detail-tests" class="kpi-detail">
+    <a id="kpi-succes-link" href="#"><b>0</b></a> succès / 
+    <span id="total-tests-succes">0</span> tests
+  </div>
+  <div class="kpi-label">Taux de réussite global</div>
+
+  <br>
+<hr class="kpi-divider">
+  <!-- Pourcentage des échecs -->
+  <div id="kpi-taux-echec" class="kpi-value">0%</div>
+  <div id="kpi-detail-echec" class="kpi-detail">
+    <a href="#" id="kpi-echec-link"><b>0</b></a> échecs / 
+    <span id="total-tests-echec">0</span> tests
+  </div>
+  <div class="kpi-label">Taux d'échecs global</div>
 </div>
 
-    <!-- KPI Taux de Réussite -->
-    <div class="kpi-card">
-      <div class="kpi-header-modern">
-        <div class="kpi-icon-modern-percent-test"></div>
-        <h3 class="chart-title"> Pourcentage des tests</h3>        
-        <span id="status-indicator" class="status-indicator"></span>
-
-      </div>
-      <div class="kpi-divider-percent-test"></div>
-      <div id="kpi-taux-reussite" class="kpi-value">0%</div>
-      <div id="kpi-detail-tests" class="kpi-detail">
-        <a id="kpi-succes-link" href="#"><b>0</b></a> succès / <span id="total-tests-succes">0</span> tests
-      </div>
-      <div class="kpi-label">Taux de réussite global</div>
-      <br>
-      <div id="kpi-taux-echec" class="kpi-value">0%</div>
-      <div id="kpi-detail-echec" class="kpi-detail">
-        <a href="#" id="kpi-echec-link"><b>0</b></a> échecs / <span id="total-tests-echec">0</span> tests
-      </div>
-      <div class="kpi-label">Taux d'échecs global</div>
-    </div>
 
 
 
     <!-- Bloc Alertes -->
     <div class="kpi-card-modern">
-      <div class="kpi-header-modern">
-        <div class="kpi-icon-modern warning"></div>
-        <div class="kpi-title">Les Tests échoués</div>
-      </div>
-      <div class="kpi-section">
-      </div>
-      <div class="kpi-divider"></div>
-      <div class="kpi-section">
-        <a href="/admin/core/executiontest/?statut__exact=error" class="kpi-number clickable">
-          <strong id="tests-en-echec-value">--</strong>
-          <span class="kpi-percent" id="percent-tests-echec"> tests échoués</span>          
-        </a>        
-      </div>
+  <div class="kpi-header-modern">
+    <!-- Icône avec image -->
+    <div class="">
+      <img src="{% static 'images/echec-logo3.png' %}" alt="Tests échoués" width="30" height="30">
     </div>
+    <div class="kpi-title">Les Tests échoués</div>
+  </div>
+
+  <div class="kpi-section"></div>
+  <div class="kpi-divider-nbr-test"></div>
+
+  <div class="kpi-section">
+    <a href="/admin/core/executiontest/?statut__exact=error" class="kpi-number clickable">
+      <strong id="tests-en-echec-value">--</strong>
+      <span class="kpi-percent" id="percent-tests-echec"> tests échoués</span>
+    </a>
+  </div>
+</div>
   </div>
 
   <!-- Graphique évolution -->
@@ -163,56 +197,56 @@
 
 <!-- Script pour initialiser les graphiques + injecter les KPI scripts/tests -->
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialiser les graphiques
-  initCharts(window.dashboardData);
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialiser les graphiques
+    initCharts(window.dashboardData);
 
-  // Récupérer le projet sélectionné depuis l'URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const projetId = urlParams.get('projet_id');
-  const queryParam = projetId ? `?projet_id=${projetId}` : '';
+    // Récupérer le projet sélectionné depuis l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const projetId = urlParams.get('projet_id');
+    const queryParam = projetId ? `?projet_id=${projetId}` : '';
 
-  // Fetch des KPIs scripts/tests filtrés par projet
-  fetch(`/api/stats/scripts-tests/${queryParam}`)
-    .then(response => response.json())
-    .then(data => {
-      // Tests en échec
-      const testsEchecDiv = document.getElementById('tests-en-echec-value');
-      const percentEchecDiv = document.getElementById('percent-tests-echec');
+    // Fetch des KPIs scripts/tests filtrés par projet
+    fetch(`/api/stats/scripts-tests/${queryParam}`)
+      .then(response => response.json())
+      .then(data => {
+        // Tests en échec
+        const testsEchecDiv = document.getElementById('tests-en-echec-value');
+        const percentEchecDiv = document.getElementById('percent-tests-echec');
 
-      if (testsEchecDiv && percentEchecDiv) {
-        // Construire URL filtrée pour les tests échoués
-        let echecUrl = `/admin/core/executiontest/?statut__exact=error`;
-        if (projetId) echecUrl += `&configuration__projet=${projetId}`;
+        if (testsEchecDiv && percentEchecDiv) {
+          // Construire URL filtrée pour les tests échoués
+          let echecUrl = `/admin/core/executiontest/?statut__exact=error`;
+          if (projetId) echecUrl += `&configuration__projet=${projetId}`;
 
-        // Chiffres cliquables
-        testsEchecDiv.innerHTML = `<a href="${echecUrl}">${data.tests_en_echec}</a>`;
-        // percentEchecDiv.textContent = `${data.percent_tests_echec}%`;
-      }
+          // Chiffres cliquables
+          testsEchecDiv.innerHTML = `<a href="${echecUrl}">${data.tests_en_echec}</a>`;
+          // percentEchecDiv.textContent = `${data.percent_tests_echec}%`;
+        }
 
-      // Total tests cliquables
-      const totalTestsDiv = document.getElementById('total-tests-value');
-      if (totalTestsDiv) {
-        let totalUrl = `/admin/core/executiontest/?`;
-        if (projetId) totalUrl += `configuration__projet=${projetId}`;
-        totalTestsDiv.innerHTML = `<a href="${totalUrl}">${data.total_tests}</a>`;
-      }
+        // Total tests cliquables
+        const totalTestsDiv = document.getElementById('total-tests-value');
+        if (totalTestsDiv) {
+          let totalUrl = `/admin/core/executiontest/?`;
+          if (projetId) totalUrl += `configuration__projet=${projetId}`;
+          totalTestsDiv.innerHTML = `<a href="${totalUrl}">${data.total_tests}</a>`;
+        }
 
-      // Scripts non exécutés (optionnel)
-      const scriptsNonExecDiv = document.getElementById('scripts-non-executes-value');
-      if (scriptsNonExecDiv) {
-        scriptsNonExecDiv.textContent = data.scripts_non_executes;
-      }
+        // Scripts non exécutés (optionnel)
+        const scriptsNonExecDiv = document.getElementById('scripts-non-executes-value');
+        if (scriptsNonExecDiv) {
+          scriptsNonExecDiv.textContent = data.scripts_non_executes;
+        }
 
-      const percentScriptsNonExecDiv = document.getElementById('percent-scripts-non-executes');
-      if (percentScriptsNonExecDiv) {
-        percentScriptsNonExecDiv.textContent = `${data.percent_scripts_non_executes}%`;
-      }
-    })
-    .catch(error => {
-      console.error("Erreur lors du fetch des KPIs scripts/tests :", error);
-    });
-});
+        const percentScriptsNonExecDiv = document.getElementById('percent-scripts-non-executes');
+        if (percentScriptsNonExecDiv) {
+          percentScriptsNonExecDiv.textContent = `${data.percent_scripts_non_executes}%`;
+        }
+      })
+      .catch(error => {
+        console.error("Erreur lors du fetch des KPIs scripts/tests :", error);
+      });
+  });
 </script>
 
 {% endblock %}

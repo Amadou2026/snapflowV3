@@ -2,22 +2,30 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     CustomUser, Axe, Dashboard, SousAxe, Script, Projet,
-    ConfigurationTest, ExecutionTest, EmailNotification, VueGlobale
+    ConfigurationTest, ExecutionTest, EmailNotification, VueGlobale, GroupePersonnalise, Configuration
 )
+from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.admin import GroupAdmin
 from .models import *
 from django.utils.html import format_html
 from io import BytesIO
-
+from django import forms
 import openpyxl
 from django.http import HttpResponse, HttpResponseForbidden
 import logging
 from core.utils.redmine import get_last_redmine_tickets
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.timezone import make_aware, now, localtime
+from django.contrib.auth.models import Group as AuthGroup
 
+from django.urls import path
+from django.http import HttpResponseRedirect
+from django.utils.html import format_html
 
 from django.conf import settings
 import requests
+
+from django.utils.html import format_html
 
 
 # admin.site.site_header = "Snapflow Software Monitoring"
@@ -91,10 +99,10 @@ class ProjetAdminWithRedmine(admin.ModelAdmin):
         return TemplateResponse(request, "admin/redmine_tickets.html", context)
 
     
-    def lien_tickets_redmine(self, obj):
-        url = reverse('admin:core_projet_redmine-tickets')
-        return format_html('<a href="{}">Voir Tickets Redmine</a>', url)
-    lien_tickets_redmine.short_description = "Tickets Redmine"
+    # def lien_tickets_redmine(self, obj):
+    #     url = reverse('admin:core_projet_redmine-tickets')
+    #     return format_html('<a href="{}">Voir Tickets Redmine</a>', url)
+    # lien_tickets_redmine.short_description = "Tickets Redmine"
 
 
 # On désenregistre Projet si déjà enregistré avec un autre admin
@@ -106,7 +114,7 @@ except admin.sites.NotRegistered:
 # === Admin classique pour Projet ===
 @admin.register(Projet)
 class ProjetAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'id_redmine', 'redmine_slug', 'url', 'charge_de_compte', 'lien_tickets_redmine')
+    list_display = ('nom', 'id_redmine', 'redmine_slug', 'url', 'charge_de_compte')
     search_fields = ('nom', 'id_redmine')
     list_filter = ('charge_de_compte',)
     
@@ -254,10 +262,7 @@ class ProjetAdmin(admin.ModelAdmin):
 
         return TemplateResponse(request, "admin/vue-globale.html", context)
 
-    def lien_tickets_redmine(self, obj):
-        url = reverse('admin:tickets-redmine')
-        return format_html('<a href="{}">Voir Tickets Redmine</a>', url)
-    lien_tickets_redmine.short_description = "Tickets Redmine"
+
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -266,25 +271,64 @@ class ProjetAdmin(admin.ModelAdmin):
         return qs.filter(charge_de_compte=request.user)
 
   
-# @admin.register(CustomUser)
-# class CustomUserAdmin(BaseUserAdmin):
-#     model = CustomUser
-#     list_display = ('email', 'first_name', 'last_name', 'is_staff')
-#     list_filter = ('is_staff', 'is_superuser')
-#     search_fields = ('email', 'first_name', 'last_name')
-#     ordering = ('email',)
-#     fieldsets = (
-#         (None, {'fields': ('email', 'password')}),
-#         ("Informations personnelles", {'fields': ('first_name', 'last_name')}),
-#         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-#         ("Dates importantes", {'fields': ('last_login', 'date_joined')}),
-#     )
-#     add_fieldsets = (
-#         (None, {
-#             'classes': ('wide',),
-#             'fields': ('email', 'password1', 'password2')}
-#         ),
-#     )
+
+
+# Groupe personnalisé
+class GroupePersonnaliseForm(forms.ModelForm):
+    class Meta:
+        model = GroupePersonnalise
+        fields = '__all__'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Organiser les permissions par app/model
+        self.fields['permissions'].queryset = Permission.objects.all()
+        self.fields['permissions'].widget.attrs['class'] = 'permission-selector'
+
+
+
+# Désenregistrer si déjà enregistré
+try:
+    admin.site.unregister(GroupePersonnalise)
+except admin.sites.NotRegistered:
+    pass
+
+# Admin personnalisé
+class GroupePersonnaliseAdmin(admin.ModelAdmin):
+    list_display = ("nom", "type_groupe", "role_predefini", "est_protege", "afficher_permissions")
+    list_filter = ("type_groupe", "role_predefini")
+    filter_horizontal = ("permissions",)
+    ordering = ('nom',)
+
+    fieldsets = (
+        ("Infos générales", {
+            "fields": ("nom", "type_groupe", "role_predefini", "description")
+        }),
+        ("Permissions", {
+            "fields": ("permissions",)
+        }),
+        ("Infos système", {
+            "fields": ("groupe_django", "est_protege"),
+            "classes": ("collapse",)
+        }),
+    )
+    def afficher_permissions(self, obj):
+        return ", ".join([p.name for p in obj.permissions.all()])
+    afficher_permissions.short_description = "Permissions"
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.est_protege:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.est_protege:
+            return False
+        return super().has_change_permission(request, obj)
+
+admin.site.register(GroupePersonnalise, GroupePersonnaliseAdmin)
+
+
 
 # core/admin.py
 from django.contrib import admin
@@ -317,8 +361,8 @@ class CustomUserAdmin(BaseUserAdmin):
 # 🔹 2. Override de la méthode get_app_list pour réorganiser le menu
 original_get_app_list = admin.AdminSite.get_app_list
 
-def custom_get_app_list(self, request):
-    app_list = original_get_app_list(self, request)
+def custom_get_app_list(self, request, app_label=None):
+    app_list = original_get_app_list(self, request, app_label)
     
     # Nouvelle organisation du menu
     reordered_app_list = []
@@ -336,7 +380,7 @@ def custom_get_app_list(self, request):
         auth_section['models'].append({
             'name': 'Groupes',
             'object_name': 'Group',
-            'admin_url': '/admin/auth/group/',
+            'admin_url': '/admin/core/groupepersonnalise/',
             'view_only': False
         })
     
@@ -462,32 +506,26 @@ def custom_get_app_list(self, request):
         reordered_app_list.append(reporting_section)
         
     # 👤 6. Gestion du Profil (section personnalisée)
-    profile_section = {
-        'name': 'Gestion du Profil',
-        'app_label': 'profile_section',
-        'models': [
-            {
-                'name': 'Gérer mon compte',
-                'object_name': 'CustomUser',
-                'admin_url': f'/admin/core/customuser/{request.user.id}/change/',
-                'view_only': False,
-            },
-            {
-                'name': 'Modifier mot de passe',
-                'object_name': 'PasswordChange',
-                'admin_url': '/admin/password_change/',
-                'view_only': False,
-            },
-            {
-                'name': 'Déconnexion',
-                'object_name': 'Logout',
-                'admin_url': '/admin/logout/',
-                'view_only': False,
-            }
-        ]
-    }
+    # profile_section = {
+    #     'name': 'Gestion du Profil',
+    #     'app_label': 'profile_section',
+    #     'models': [
+    #         {
+    #             'name': 'Gérer mon compte',
+    #             'object_name': 'CustomUser',
+    #             'admin_url': f'/admin/core/customuser/{request.user.id}/change/',
+    #             'view_only': False,
+    #         },
+    #         {
+    #             'name': 'Modifier mot de passe',
+    #             'object_name': 'PasswordChange',
+    #             'admin_url': '/admin/password_change/',
+    #             'view_only': False,
+    #         }
+    #     ]
+    # }
     
-    reordered_app_list.append(profile_section)
+    # reordered_app_list.append(profile_section)
     
     # Ajouter les autres apps (comme auth, etc.)
     for app in app_list:
@@ -500,13 +538,37 @@ def custom_get_app_list(self, request):
 admin.AdminSite.get_app_list = custom_get_app_list
 
 # 🔹 4. Enregistrement des modèles Group (optionnel)
-# Si vous voulez customiser l'admin des Groupes
-from django.contrib.auth.models import Group as AuthGroup
 
-# @admin.register(AuthGroup)
-# class GroupAdmin(admin.ModelAdmin):
-#     list_display = ['name']
-#     search_fields = ['name']
+# Group form
+from django import forms
+from django.contrib.auth.models import Permission
+
+class GroupForm(forms.ModelForm):
+    class Meta:
+        model = AuthGroup
+        fields = '__all__'
+        
+
+
+# Si vous voulez customiser l'admin des Groupes
+
+
+admin.site.unregister(AuthGroup)
+@admin.register(AuthGroup)
+class GroupAdmin(admin.ModelAdmin):
+    form = GroupForm
+    list_display = ['name', 'afficher_type','afficher_permissions']
+    search_fields = ['name']
+    
+    def afficher_type(self, obj):
+        if hasattr(obj, 'groupe_personnalise'):
+            return obj.groupe_personnalise.type_groupe
+        return "—"
+    afficher_type.short_description = "Type de groupe"
+
+    def afficher_permissions(self, obj):
+        return ", ".join([p.name for p in obj.permissions.all()])
+    afficher_permissions.short_description = "Permissions"
 
 @admin.register(Axe)
 class AxeAdmin(admin.ModelAdmin):
@@ -574,14 +636,7 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
         js = ('admin/js/configuration_test.js',)
         ordering = ['nom'] 
     
-    # def formfield_for_manytomany(self, db_field, request, **kwargs):
-    #     if db_field.name == "scripts":
-    #         projet_id = request.GET.get('projet')
-    #         if projet_id:
-    #             kwargs["queryset"] = Script.objects.filter(projet_id=projet_id)
-    #         else:
-    #             kwargs["queryset"] = Script.objects.none()  # Aucun projet sélectionné
-    #     return super().formfield_for_manytomany(db_field, request, **kwargs)
+
 
     def afficher_scripts_lies(self, obj):
         scripts = obj.scripts.all()
@@ -961,6 +1016,7 @@ from django.db.models.functions import TruncDate
 
 # Debut Dashboard avec période pour les blocs
 class DashboardAdmin(admin.ModelAdmin):
+    
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         user = request.user
@@ -1265,13 +1321,127 @@ class VueGlobaleAdmin(admin.ModelAdmin):
 #  config
 # core/admin.py
 
-from django.contrib import admin
-from .models import Configuration
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
+from django.urls import path, reverse
+from .models import Configuration, RedmineProject
+from django.utils.html import format_html, mark_safe
 
 @admin.register(Configuration)
 class ConfigurationAdmin(admin.ModelAdmin):
+    # change_form_template = "admin/configuration_change_form.html"  # optionnel si tu veux customiser
+    readonly_fields = ['sync_button_display', 'get_projects_table_html', 'last_sync']
+    fieldsets = (
+        ('Configuration Redmine', {
+            'fields': ('redmine_url', 'redmine_api_key'),'classes': ('collapse',)
+        }),
+        ('Configuration Email', {
+            'fields': ('email_host_user', 'email_host_password'),
+            'classes': ('collapse',)
+        }),
+        ('Synchronisation', {
+            'fields': ('last_sync', 'sync_button_display'),
+            'classes': ('wide',)
+        }),
+        ('Projets Redmine', {
+            'fields': ('get_projects_table_html',),
+            'classes': ('collapse', 'full-width')
+        }),
+    )
+
+    # Affiche le bouton de synchronisation
+    def sync_button_display(self, obj):
+        url = reverse('admin:configuration_sync', args=[obj.id])
+        return format_html(
+            '<a class="button" href="{}" style="padding: 6px 12px; background-color: #417690; color: white; text-decoration: none; border-radius: 4px;">🔄 Synchroniser les projets Redmine</a>',
+            url
+        )
+    sync_button_display.short_description = "Action"
+
+    # ---- Tableau HTML des projets ----
+    from django.utils.safestring import mark_safe
+
+    def get_projects_table_html(self, obj):
+        projects = RedmineProject.objects.all().order_by('name')
+        if not projects.exists():
+            return "<p>Aucun projet synchronisé</p>"
+
+        html = """
+        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+                <tr style="background:#f0f0f0;">
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Identifier</th>
+                    <th>Description</th>
+                    <th>Homepage</th>
+                    <th>Parent</th>
+                    <th>Statut</th>
+                    <th>Public</th>
+                    <th>Créé le</th>
+                    <th>Mis à jour le</th>
+                    <th>Manager</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+
+        for p in projects:
+            # Correction du homepage pour l'affichage
+            homepage = p.homepage
+            if homepage:  # Si homepage n'est pas vide
+                if not homepage.startswith(('http://', 'https://')):
+                    homepage = 'https://' + homepage
+            else:
+                homepage = "#"
+            
+            html += f"""
+            <tr>
+                <td>{p.project_id}</td>
+                <td>{p.name}</td>
+                <td>{p.identifier}</td>
+                <td>{p.description or 'Aucune description'}</td>
+                <td><a href="{homepage}" target="_blank" class="project-url">{p.homepage or 'N/A'}</a></td>
+                <td>{p.parent_name or 'N/A'}</td>
+                <td>{p.status}</td>
+                <td>{'Oui' if p.is_public else 'Non'}</td>
+                <td>{p.created_on.strftime('%d/%m/%Y') if p.created_on else 'N/A'}</td>
+                <td>{p.updated_on.strftime('%d/%m/%Y') if p.updated_on else 'N/A'}</td>
+                <td>{p.manager or 'Non défini'}</td>
+            </tr>
+            """
+
+        html += "</tbody></table>"
+        return mark_safe(html)
+
+    get_projects_table_html.short_description = "Projets synchronisés"
+
+
+
+    # ---- URL custom pour le bouton ----
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<path:object_id>/sync/',
+                self.admin_site.admin_view(self.sync_view),
+                name='configuration_sync',
+            ),
+        ]
+        return custom_urls + urls
+
+    def sync_view(self, request, object_id):
+        config = Configuration.objects.get(id=object_id)
+        success, message = config.sync_redmine_projects()
+        if success:
+            self.message_user(request, message, messages.SUCCESS)
+        else:
+            self.message_user(request, message, messages.ERROR)
+        return HttpResponseRedirect('../')
+
+    # ---- Permissions ----
     def has_module_permission(self, request):
-        return request.user.is_superuser  # Visible dans le menu que pour superadmin
+        return request.user.is_superuser
 
     def has_view_permission(self, request, obj=None):
         return request.user.is_superuser
@@ -1280,8 +1450,7 @@ class ConfigurationAdmin(admin.ModelAdmin):
         return request.user.is_superuser
 
     def has_add_permission(self, request):
-        # Empêche d'ajouter plusieurs entrées
         return Configuration.objects.count() == 0 and request.user.is_superuser
 
     def has_delete_permission(self, request, obj=None):
-        return False  # On empêche la suppression
+        return False

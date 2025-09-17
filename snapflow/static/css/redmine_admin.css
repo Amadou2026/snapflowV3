@@ -1,0 +1,24 @@
+/* Styles pour l'admin Redmine */
+.redmine-message {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Amélioration de l'affichage des champs */
+.field-redmine_info .readonly {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+/* Style pour le sélecteur de projet */
+#id_redmine_project_selector {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid #007bff;
+    border-radius: 4px;
+}
