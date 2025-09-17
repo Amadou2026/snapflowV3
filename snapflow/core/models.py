@@ -1,7 +1,15 @@
+# core/models.py
+from django.contrib.auth.models import Group, Permission
+from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from users.managers import CustomUserManager
 from django.utils.timezone import now
+from django.utils import timezone
+import requests
+import json
+from django.core.exceptions import ImproperlyConfigured
+from django.utils import timezone
 
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
@@ -14,6 +22,38 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+
+
+class GroupePersonnalise(models.Model):
+    TYPE_CHOICES = [
+        ('predéfini', 'Prédéfini'),
+        ('personnalisé', 'Personnalisé'),
+    ]
+    
+    ROLE_PREDEFINIS = [
+        ('administrateur', 'Administrateur'),
+        ('qa', 'Quality Assurance'),
+        ('developpeur', 'Développeur'),
+        ('manager', 'Manager'),
+        ('chef_projet', 'Chef de Projet'),
+    ]
+    
+    nom = models.CharField(max_length=100, unique=True)
+    type_groupe = models.CharField(max_length=20, choices=TYPE_CHOICES, default='personnalisé')
+    role_predefini = models.CharField(max_length=20, choices=ROLE_PREDEFINIS, null=True, blank=True)
+    description = models.TextField(blank=True)
+    permissions = models.ManyToManyField(Permission, blank=True)
+    groupe_django = models.OneToOneField(Group, on_delete=models.CASCADE, related_name='groupe_personnalise')
+    est_protege = models.BooleanField(default=False)  # Pour les groupes prédéfinis
+    
+    class Meta:
+        verbose_name = "Groupe personnalisé"
+        verbose_name_plural = "Groupes personnalisés"
+    
+    def __str__(self):
+        return f"{self.nom} ({self.get_type_groupe_display()})"
 
 
 class Axe(models.Model):
@@ -321,7 +361,9 @@ class Dashboard(models.Model):
     class Meta:
         verbose_name_plural = "Dashboard"
         verbose_name = "Dashboard"
-        managed = False  # Pas de table créée
+        managed = False  # toujours pas de table
+        default_permissions = ()  # désactive add/change/delete/view auto
+
    
 # core/models.py
 
@@ -336,12 +378,15 @@ class VueGlobale(models.Model):
 # core/models.py
 
 from django.db import models
+from django.utils import timezone
+from dateutil.parser import parse as parse_datetime
 
 class Configuration(models.Model):
     redmine_url = models.URLField("URL Redmine", blank=True, null=True)
     redmine_api_key = models.CharField("Clé API Redmine", max_length=255, blank=True, null=True)
     email_host_user = models.EmailField("Email Host User", blank=True, null=True)
     email_host_password = models.CharField("Mot de passe Email", max_length=255, blank=True, null=True)
+    last_sync = models.DateTimeField("Dernière synchronisation", null=True, blank=True, default=timezone.now)
 
     class Meta:
         verbose_name = "Paramètre global"
@@ -349,3 +394,82 @@ class Configuration(models.Model):
 
     def __str__(self):
         return "Paramètres globaux"
+    
+    def sync_redmine_projects(self):
+        """Synchronise tous les projets Redmine et les enregistre en base avec homepage corrigé"""
+        if not self.redmine_url or not self.redmine_api_key:
+            return False, "URL Redmine ou clé API manquante"
+
+        base_url = self.redmine_url.rstrip('/')
+        endpoint = f"{base_url}/projects.json"
+        headers = {'X-Redmine-API-Key': self.redmine_api_key}
+        params = {'limit': 100, 'offset': 0}
+
+        total_count = 0
+        now_naive = timezone.now().replace(tzinfo=None)
+
+        try:
+            while True:
+                response = requests.get(endpoint, headers=headers, params=params)
+                response.raise_for_status()
+                data = response.json()
+                projects = data.get('projects', [])
+                if not projects:
+                    break
+
+                for project in projects:
+                    parent_name = project.get('parent', {}).get('name', '') if project.get('parent') else ''
+                    created_on = parse_datetime(project['created_on']).replace(tzinfo=None) if project.get('created_on') else None
+                    updated_on = parse_datetime(project['updated_on']).replace(tzinfo=None) if project.get('updated_on') else None
+
+                    # Gestion du homepage
+                    homepage = project.get('homepage', '')
+                    if homepage and not homepage.startswith(('http://', 'https://')):
+                        homepage = 'https://' + homepage
+
+                    obj, created = RedmineProject.objects.update_or_create(
+                        project_id=project['id'],
+                        defaults={
+                            'name': project.get('name', ''),
+                            'identifier': project.get('identifier', ''),
+                            'description': project.get('description', ''),
+                            'homepage': homepage,
+                            'parent_name': parent_name,
+                            'status': project.get('status', 0),
+                            'is_public': project.get('is_public', False),
+                            'created_on': created_on,
+                            'updated_on': updated_on,
+                            'last_sync': now_naive
+                        }
+                    )
+                    total_count += 1
+
+                if len(projects) < params['limit']:
+                    break
+                params['offset'] += params['limit']
+
+            return True, f"{total_count} projets synchronisés avec succès"
+
+        except Exception as e:
+            return False, f"Erreur lors de la synchronisation : {e}"
+
+class RedmineProject(models.Model):
+    project_id = models.IntegerField("ID Redmine", unique=True)
+    name = models.CharField("Nom", max_length=255)
+    identifier = models.CharField("Identifiant", max_length=255)
+    description = models.TextField("Description", blank=True)
+    homepage = models.URLField("Homepage", blank=True)
+    parent_name = models.CharField("Parent", max_length=255, blank=True)
+    status = models.IntegerField("Statut")
+    is_public = models.BooleanField("Public", default=False)
+    created_on = models.DateTimeField("Créé le", null=True, blank=True)
+    updated_on = models.DateTimeField("Mis à jour le", null=True, blank=True)
+    manager = models.CharField("Manager", max_length=255, blank=True)
+    last_sync = models.DateTimeField("Dernière synchronisation", null=True, blank=True, default=timezone.now)
+
+    def __str__(self):
+        return f"{self.name} ({self.identifier})"
+
+    class Meta:
+        verbose_name = "Projet Redmine"
+        verbose_name_plural = "Projets Redmine"

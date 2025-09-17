@@ -1,0 +1,35 @@
+<!-- templates/admin/auth/group/change_form.html -->
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.permission-selector {
+    height: 400px;
+    width: 100%;
+}
+.permission-group {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+.permission-group h4 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+</style>
+{% endblock %}
+
+{% block field_sets %}
+{% if original and original.groupe_personnalise.est_protege %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    Ce groupe est prédéfini et protégé. Certaines modifications sont restreintes.
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

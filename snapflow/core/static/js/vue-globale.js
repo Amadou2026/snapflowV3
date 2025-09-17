@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 html += `</tbody></table>`;
                 container.innerHTML = html;
             } else {
-                container.innerHTML = "<p>Aucune configuration en retard 🎉</p>";
+                container.innerHTML = "<p>Aucune configuration en retard</p>";
             }
         });
 });

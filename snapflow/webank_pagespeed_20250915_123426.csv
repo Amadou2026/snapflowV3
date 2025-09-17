@@ -1,3 +1,0 @@
-device,performance_score,accessibility_score,best_practices_score,seo_score,first_contentful_paint,largest_contentful_paint,cumulative_layout_shift,speed_index,interactive,total_blocking_time
-desktop,74.0,80.0,100,83.0,901.6732199719155,2079.6181240468322,0.24543739859973623,1810.128280794825,2104.5937859789556,8.5
-mobile,66.0,75.0,96.0,83.0,3160.4224003363024,7348.118493142261,0.06503055935574008,4802.852664562302,10161.426391116382,16.5

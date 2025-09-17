@@ -135,7 +135,7 @@ div#user-tools {
 
 /* Valeur KPI */
 .kpi-value {
-  font-size: 2.5rem;
+  font-size: 2.0rem;
   font-weight: bold;
   color: var(--text-primary);
 }
@@ -258,6 +258,9 @@ html[data-theme="dark"] .kpi-link:hover {
 
 .margin-top-large {
   margin-top: 2rem;
+}
+.kpi-divider-nbr-test-red{
+  background-color: red;
 }
 
 /* KPI Grid responsive */

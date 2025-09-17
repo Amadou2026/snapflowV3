@@ -1,4 +1,4 @@
-{% extends "admin/base_site.html" %}
+<!-- {% extends "admin/base_site.html" %}
 {% load static %}
 {% load tz %}
 
@@ -35,6 +35,7 @@
                     <i class="fas fa-key"></i> Modifier mot de passe
                 </a>
                 <a href="{% url 'admin:logout' %}">
+                  {% csrf_token %}
                     <i class="fas fa-sign-out-alt"></i> Déconnexion
                 </a>
                 {% if user.is_superuser %}
@@ -61,4 +62,106 @@
   <div style="text-align: center; padding: 1rem; font-size: 0.85rem; color: #666;">
     Powered by <strong><a href="https://www.medianet.tn/fr/" target="_blank" rel="noopener noreferrer">MEDIANET</a></strong> &copy; {% now "Y" %}
   </div>
+{% endblock %} -->
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Snapflow Software Monitoring{% endblock %}
+
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/custom_admin.css' %}">
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userBtn = document.querySelector(".user-menu-btn");
+    const dropdown = document.querySelector(".user-menu-dropdown");
+
+    if (userBtn) {
+      userBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle("show");
+      });
+    }
+
+    // Fermer si clic ailleurs
+    document.addEventListener("click", function () {
+      if (dropdown) dropdown.classList.remove("show");
+    });
+  });
+</script>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">
+    <img src="{% static 'images/snapflow_B.png' %}" alt="Snapflow Logo"
+      style="height:40px; vertical-align: middle; margin-right: 10px;">
+    <span class="header_logo_name"><b>Software Monitoring</b></span>
+  </a>
+</h1>
+
+<div class="header-actions">
+  <div class="user-menu">
+    <div class="user-menu-wrapper">
+      <button class="user-menu-btn">
+        <img src="{% static 'images/user_icon.png' %}" alt="User" class="user-avatar">
+        <span class="username">
+          {{ request.user.get_full_name|default:request.user.username }}
+        </span>
+      </button>
+
+      {# Toggle thème #}
+      <button class="theme-toggle" title="Changer de thème">
+        <span class="visually-hidden theme-label-when-auto">Changer de thème (auto)</span>
+        <span class="visually-hidden theme-label-when-light">Changer de thème (clair)</span>
+        <span class="visually-hidden theme-label-when-dark">Changer de thème (sombre)</span>
+        <svg aria-hidden="true" class="theme-icon-when-auto">
+          <use xlink:href="#icon-auto"></use>
+        </svg>
+        <svg aria-hidden="true" class="theme-icon-when-dark">
+          <use xlink:href="#icon-moon"></use>
+        </svg>
+        <svg aria-hidden="true" class="theme-icon-when-light">
+          <use xlink:href="#icon-sun"></use>
+        </svg>
+      </button>
+    </div>
+
+    <div class="user-menu-dropdown">
+
+      <div class="profile-section">       
+
+        <!-- Gérer mon compte -->
+        <a href="{% url 'admin:core_customuser_change' request.user.id %}">Gérer mon compte</a>
+
+        <!-- Modifier mot de passe -->
+        <a href="{% url 'admin:password_change' %}">Modifier mot de passe</a>
+
+        <!-- Déconnexion via POST -->
+        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: block;">
+          {% csrf_token %}
+          <button type="submit" class="logout-btn">Déconnexion</button>
+        </form>
+      </div>
+
+    </div>
+
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block sidebar %}
+{{ block.super }}
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<div style="text-align: center; padding: 1rem; font-size: 0.85rem; color: #666;">
+  Powered by <strong><a href="https://www.medianet.tn/fr/" target="_blank"
+      rel="noopener noreferrer">MEDIANET</a></strong> &copy; {% now "Y" %}
+</div>
 {% endblock %}

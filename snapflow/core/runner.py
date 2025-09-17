@@ -59,8 +59,8 @@ def creer_ticket_redmine(projet_id, sujet, description, priority_id=2):
         response.raise_for_status()
         return response.json().get("issue", {}).get("id")
     except requests.exceptions.HTTPError as e:
-        print(f"❌ Échec création ticket Redmine : {e}")
-        print("➡️ Réponse Redmine :", response.text)
+        print(f"Échec création ticket Redmine : {e}")
+        print("Réponse Redmine :", response.text)
         raise
 
 
@@ -69,7 +69,7 @@ from django.core.mail import EmailMessage, get_connection
 def notifier_utilisateurs(execution):
     config = get_global_config()
     if not config:
-        print("❌ Pas de configuration globale trouvée")
+        print("Pas de configuration globale trouvée")
         return
 
     configuration = execution.configuration
@@ -96,9 +96,9 @@ def notifier_utilisateurs(execution):
     email = EmailMessage(subject, message, config.email_host_user, destinataires, connection=connection)
     try:
         email.send()
-        print("✅ E-mail envoyé avec succès")
+        print("E-mail envoyé avec succès")
     except Exception as e:
-        print(f"❌ Erreur envoi email: {e}")
+        print(f"Erreur envoi email: {e}")
 
 
 def lancer_scripts_pour_execution(execution_id):
@@ -120,7 +120,7 @@ def lancer_scripts_pour_execution(execution_id):
 
         for script in scripts:
             path = os.path.join(settings.MEDIA_ROOT, script.fichier.name)
-            logs.append(f"➡️ Execution du script: {script.nom}\n")
+            logs.append(f"Execution du script: {script.nom}\n")
 
             try:
                 result = subprocess.run(
@@ -148,7 +148,7 @@ def lancer_scripts_pour_execution(execution_id):
                 stdout = ""
                 stderr = str(e)
                 statut_resultat = "error"
-                logs.append(f"❌ Erreur pendant l'exécution du script: {e}")
+                logs.append(f"Erreur pendant l'exécution du script: {e}")
 
             # ✅ Mise à jour ou création d’un ExecutionResult
             execution_result, _ = ExecutionResult.objects.get_or_create(

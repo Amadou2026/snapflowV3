@@ -4,10 +4,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from core.views import HomeView
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
     path('', HomeView.as_view(), name='home'),
+    
     
 ]
 

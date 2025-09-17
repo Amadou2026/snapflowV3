@@ -63,10 +63,25 @@
     </div>
 
     <div class="user-menu-dropdown">
-      <a href="{% url 'admin:password_change' %}">Modifier mot de passe</a>
-      <a href="{% url 'admin:core_customuser_change' request.user.id %}">Gestion du profil</a>
-      <a href="{% url 'admin:logout' %}">Déconnexion</a>
+
+      <div class="profile-section">       
+
+        <!-- Gérer mon compte -->
+        <a href="{% url 'admin:core_customuser_change' request.user.id %}">Gérer mon compte</a>
+
+        <!-- Modifier mot de passe -->
+        <a href="{% url 'admin:password_change' %}">Modifier mot de passe</a>
+
+        <!-- Déconnexion via POST -->
+        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: block;">
+          {% csrf_token %}
+          <button type="submit" class="logout-btn">Déconnexion</button>
+        </form>
+      </div>
+
     </div>
+
+
   </div>
 </div>
 
@@ -79,8 +94,9 @@
 {% endblock %}
 
 {% block footer %}
-  {{ block.super }}
-  <div style="text-align: center; padding: 1rem; font-size: 0.85rem; color: #666;">
-    Powered by <strong><a href="https://www.medianet.tn/fr/" target="_blank" rel="noopener noreferrer">MEDIANET</a></strong> &copy; {% now "Y" %}
-  </div>
+{{ block.super }}
+<div style="text-align: center; padding: 1rem; font-size: 0.85rem; color: #666;">
+  Powered by <strong><a href="https://www.medianet.tn/fr/" target="_blank"
+      rel="noopener noreferrer">MEDIANET</a></strong> &copy; {% now "Y" %}
+</div>
 {% endblock %}

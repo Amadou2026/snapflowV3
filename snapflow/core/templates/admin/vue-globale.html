@@ -4,6 +4,24 @@
 {% block extrahead %}
 <link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
 <link rel="stylesheet" href="{% static 'css/vue_globale.css' %}">
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userBtn = document.querySelector(".user-menu-btn");
+    const dropdown = document.querySelector(".user-menu-dropdown");
+
+    if (userBtn) {
+      userBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle("show");
+      });
+    }
+
+    // Fermer si clic ailleurs
+    document.addEventListener("click", function () {
+      if (dropdown) dropdown.classList.remove("show");
+    });
+  });
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -25,29 +43,43 @@
         </form>
     </div>
 
-    <h3>📈 Vue Globale des Tests</h3>
+    <!-- <h3>📈 Vue Globale des Tests</h3> -->
 
     <!-- KPIs -->
     <div class="kpi-section">
         <div class="kpi-card" title="Nombre total de tests exécutés">
-            <div class="kpi-icon primary"></div>
-            <div class="kpi-value">
-                <a href="{% url 'admin:core_executiontest_changelist' %}" class="kpi-link">
-                    {{ total_tests }}
-                </a>
-            </div>
-            <div class="kpi-label">Total des tests exécutés</div>
-        </div>
+    <!-- Icône -->
+    <div class="">
+        <img src="{% static 'images/yellow-logo.png' %}" alt="Tests exécutés" width="40" height="40">
+    </div>
 
-        <div class="kpi-card" title="Nombre de tests non fonctionnels">
-            <div class="kpi-icon error"></div>
-            <div class="kpi-value">
-                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link">
-                    {{ non_fonctionnels }}
-                </a>
-            </div>
-            <div class="kpi-label">Tests non concluants</div>
-        </div>
+    <!-- Valeur -->
+    <div class="kpi-value">
+        <a href="{% url 'admin:core_executiontest_changelist' %}" class="kpi-link">
+            {{ total_tests }}
+        </a>
+    </div>
+
+    <!-- Label -->
+    <div class="kpi-label">Total des tests exécutés</div>
+</div>
+
+<div class="kpi-card" title="Nombre de tests non fonctionnels">
+    <!-- Icône -->
+    <div class="">
+        <img src="{% static 'images/red-logo.png' %}" alt="Tests non fonctionnels" width="40" height="40">
+    </div>
+
+    <!-- Valeur -->
+    <div class="kpi-value">
+        <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link">
+            {{ non_fonctionnels }}
+        </a>
+    </div>
+
+    <!-- Label -->
+    <div class="kpi-label">Tests non concluants</div>
+</div>
 
         <!-- Scripts en attente -->
         <!-- <div class="kpi-card" title="Nombre de scripts Planifié">
@@ -68,47 +100,63 @@
         </div> -->
 
         <!-- Tests concluants -->
-        <div class="kpi-card" title="Nombre de tests concluants">
-            <div class="kpi-icon success"></div>
-            <div class="kpi-value">
-                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=done" class="kpi-link">
-                    {{ tests_reussis }}
-                </a>
-            </div>
-            <div class="kpi-label">
-                {% if tests_reussis > 0 %}
-                Tests concluants
-                {% else %}
-                <span style="font-style: italic;">Aucun test concluant</span>
-                {% endif %}
-            </div>
-        </div>
+        {% load static %}
+
+<div class="kpi-card" title="Nombre de tests concluants">
+    <!-- Icône -->
+    <div class="">
+        <img src="{% static 'images/chart-success.png' %}" alt="Tests concluants" width="40" height="40">
+    </div>
+
+    <!-- Valeur -->
+    <div class="kpi-value">
+        <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=done" class="kpi-link">
+            {{ tests_reussis }}
+        </a>
+    </div>
+
+    <!-- Label -->
+    <div class="kpi-label">
+        {% if tests_reussis > 0 %}
+            Tests concluants
+        {% else %}
+            <span style="font-style: italic;">Aucun test concluant</span>
+        {% endif %}
+    </div>
+</div>
 
         <!-- Tests non exécutés -->
         <div class="kpi-card" title="Nombre de tests non exécutés">
-            <div class="kpi-icon nonexecute"></div>
-            <div class="kpi-value">
-                {% if non_executed > 0 %}
-                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=non_executed" class="kpi-link">
-                    {{ non_executed }}
-                </a>
-                {% else %}
-                <span class="kpi-link">0</span>
-                {% endif %}
-            </div>
-            <div class="kpi-label">
-                {% if non_executed > 0 %}
-                Tests non exécutés
-                {% else %}
-                <span style="font-style: italic;">Aucun test non exécuté détecté</span>
-                {% endif %}
-            </div>
-        </div>
+    <!-- Icône -->
+    <div class="">
+        <img src="{% static 'images/black-logo.png' %}" alt="Tests non exécutés" width="40" height="40">
+    </div>
+
+    <!-- Valeur -->
+    <div class="kpi-value">
+        {% if non_executed > 0 %}
+            <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=non_executed" class="kpi-link">
+                {{ non_executed }}
+            </a>
+        {% else %}
+            <span class="kpi-link">0</span>
+        {% endif %}
+    </div>
+
+    <!-- Label -->
+    <div class="kpi-label">
+        {% if non_executed > 0 %}
+            Tests non exécutés
+        {% else %}
+            <span style="font-style: italic;">Aucun test non exécuté détecté</span>
+        {% endif %}
+    </div>
+</div>
     </div>
 
     <!-- Scripts planifiés -->
     <div class="chart-card espace_top">
-        <h3>Prochains scripts planifiés (24h)</h3>
+        <h3>Prochaine execution planifée</h3>
         <div id="scheduled-scripts" class="table-container">
             <p>Chargement…</p>
         </div>
