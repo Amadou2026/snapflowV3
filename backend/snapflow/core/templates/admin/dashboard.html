@@ -1,0 +1,461 @@
+{% extends "admin/base_site.html" %}
+{% load static custom_filters %}
+{% load static %}
+
+{% block extrahead %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userBtn = document.querySelector(".user-menu-btn");
+    const dropdown = document.querySelector(".user-menu-dropdown");
+
+    if (userBtn) {
+      userBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle("show");
+      });
+    }
+
+    // Fermer si clic ailleurs
+    document.addEventListener("click", function () {
+      if (dropdown) dropdown.classList.remove("show");
+    });
+  });
+</script>
+
+<!-- Plugins -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+<!-- Ton script qui utilise Chart.js + plugins -->
+<script src="{% static 'js/dashboard-charts.js' %}"></script>
+<script src="{% static 'js/bootstrap.js' %}"></script>
+<script src="{% static 'js/helper.js' %}"></script>
+<script src="{% static 'js/menu.js' %}"></script>
+
+<!-- CSS -->
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/core.css' %}">
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+<link rel="stylesheet" href="{% static '/css/custom_admin.css' %}">
+{% endblock %}
+
+
+{% block content %}
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <!-- <h1 class="dashboard-title">📊 Monitoring des Tests</h1> -->
+
+    <form method="get" id="dashboard-form" class="dashboard-form">
+      <label for="projet">Tous les projets :</label>
+      <select name="projet_id" id="projet" onchange="this.form.submit();">
+        <option value="" {% if not selected_projet_id %}selected{% endif %}>-- Tous les projets --</option>
+        {% for projet in projets %}
+        <option value="{{ projet.id }}" {% if projet.id|stringformat:"s" == selected_projet_id %}selected{% endif %}>
+          {{ projet.nom }}
+        </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- KPI Grid responsive -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="chart-header">
+        <span class="chart-icon">🧩</span>
+        <h3 class="chart-title">Répartition par projet</h3>
+      </div>
+      <div class="chart-container pie">
+        <canvas id="projetChart"></canvas>
+      </div>
+    </div>
+
+    {% load static %}
+
+<div class="kpi-card">
+  <div class="kpi-header-modern">
+    <!-- Icône -->
+    <div class="">
+      <img src="{% static 'images/brown-logo.png' %}" alt="KPI global tests" width="40" height="40">
+    </div>
+    <h3 class="chart-title">Campagnes de test</h3>
+    <span id="status-indicator" class="status-indicator"></span>
+  </div>
+
+  <div class="kpi-divider-nbr-test"></div>
+
+  <!-- Nombre total des tests -->
+  <div id="kpi-taux-total-tests" class="kpi-value" data-total="{{ total_tests }}">
+    <a id="total-tests-link" href="#">0</a> tests
+  </div>
+  <div class="kpi-label">Total des tests</div>
+
+  <hr class="kpi-divider">
+
+  <!-- Pourcentage des réussites -->
+  <div id="kpi-taux-reussite" class="kpi-value">0%</div>
+  <div id="kpi-detail-tests" class="kpi-detail">
+    <a id="kpi-succes-link" href="#"><b>0</b></a> succès / 
+    <span id="total-tests-succes">0</span> tests
+  </div>
+  <div class="kpi-label">Taux de réussite global</div>
+
+  <br>
+<hr class="kpi-divider">
+  <!-- Pourcentage des échecs -->
+  <div id="kpi-taux-echec" class="kpi-value">0%</div>
+  <div id="kpi-detail-echec" class="kpi-detail">
+    <a href="#" id="kpi-echec-link"><b>0</b></a> échecs / 
+    <span id="total-tests-echec">0</span> tests
+  </div>
+  <div class="kpi-label">Taux d'échecs global</div>
+</div>
+
+<!-- Nouvelle carte KPI pour les tests concluants/non concluants -->
+<div class="kpi-card">
+  <div class="kpi-header-modern">
+    <!-- Icône -->
+    <div class="">
+      <img src="{% static 'images/script.png' %}" alt="Tests concluants" width="40" height="40">
+    </div>
+    <h3 class="chart-title">Scripts Exécutés</h3>
+    <span id="status-indicator-concluant" class="status-indicator"></span>
+  </div>
+
+  <div class="kpi-divider-nbr-test"></div>
+
+  <!-- Tests Concluants -->
+  <div id="kpi-tests-concluants" class="kpi-value">
+    <a href="#" id="tests-concluants-link" class="clickable">
+      <span id="tests-concluants-count">0</span> <span class="testd">tests</span>
+    </a>
+  </div>
+  <div class="kpi-label" style="color: #28a745;">Tests Concluants</div>
+
+  <hr class="kpi-divider">
+
+  <!-- Tests Non Concluants -->
+  <div id="kpi-tests-non-concluants" class="kpi-value">
+    <a href="#" id="tests-non-concluants-link" class="clickable">
+      <span id="tests-non-concluants-count">0</span> <span class="testd">tests</span>
+    </a>
+  </div>
+  <div class="kpi-label" style="color: #dc3545;">Tests Non Concluants</div>
+
+  <hr class="kpi-divider">
+
+  <!-- Pourcentage de réussite concluant -->
+  <div id="kpi-taux-concluant" class="kpi-value">0%</div>
+  <div id="kpi-detail-concluant" class="kpi-detail">
+    <b id="concluants-count-detail">0</b> concluants / 
+    <span id="total-tests-concluants">0</span> tests
+  </div>
+  <div class="kpi-label">Taux de tests concluants</div>
+</div>
+
+    <!-- Bloc Alertes -->
+    <div class="kpi-card-modern">
+  <div class="kpi-header-modern">
+    <!-- Icône avec image -->
+    <div class="">
+      <img src="{% static 'images/echec-logo3.png' %}" alt="Tests échoués" width="30" height="30">
+    </div>
+    <div class="kpi-title">Les Tests échoués</div>
+  </div>
+
+  <div class="kpi-section"></div>
+  <div class="kpi-divider-nbr-test"></div>
+
+  <div class="kpi-section">
+    <a href="/admin/core/executiontest/?statut__exact=error" class="kpi-number clickable">
+      <strong id="tests-en-echec-value">--</strong>
+      <span class="kpi-percent" id="percent-tests-echec"> tests échoués</span>
+    </a>
+  </div>
+</div>
+  </div>
+
+  <!-- Graphique pour les tests concluants/non concluants -->
+  <div class="chart-card withfull mt-5">
+    <div class="chart-header">
+      <span class="chart-icon">📊</span>
+      <h3 class="chart-title">Répartition Tests Concluants vs Non Concluants</h3>
+    </div>
+    <div class="chart-container">
+      <canvas id="concluantChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Graphique évolution -->
+  <div class="chart-card withfull mt-5">
+    <div class="chart-header">
+      <span class="chart-icon">⚖️</span>
+      <h3 class="chart-title">Évolution des tests par jour</h3>
+    </div>
+    <div class="chart-container">
+      <canvas id="sfChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Graphique projets avec erreurs -->
+  <div class="chart-card margin-top-large">
+    <div class="chart-header">
+      <span class="chart-icon">⚠️</span>
+      <h3 class="chart-title">Projet avec le plus et le moins d'erreurs</h3>
+    </div>
+
+    <div class="filters-container">
+      <div class="filters-row">
+        <div class="filter-group">
+          <label for="periodeSelect">Filtrer par :</label>
+          <select id="periodeSelect">
+            <option value="jour">Dernier jour</option>
+            <option value="semaine">Dernière semaine</option>
+            <option value="mois" selected>Dernier mois</option>
+            <option value="annee">Dernière année</option>
+          </select>
+        </div>
+      </div>
+      <div id="periodeIndicator" class="periode-indicator"></div>
+    </div>
+
+    <div class="chart-container" style="position: relative;">
+      <canvas id="projetErreurChart" width="600" height="300"></canvas>
+      <div id="chartLoader" class="chart-loader">
+        <div class="spinner"></div>
+        <p>Chargement...</p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- .dashboard-container -->
+
+<!-- JS Data -->
+<script>
+  window.dashboardData = {
+    labels: {{ labels | safe }},
+  values: { { values | safe } },
+  sf_labels: { { sf_labels | safe } },
+  sf_success: { { sf_success | safe } },
+  sf_fail: { { sf_fail | safe } },
+  projet_labels: { { projet_labels | safe } },
+  projet_counts: { { projet_counts | safe } },
+  erreurs_labels: { { erreurs_labels | safe } },
+  erreurs_counts: { { erreurs_counts | safe } }
+  };
+</script>
+
+<!-- Script pour initialiser les graphiques + injecter les KPI scripts/tests -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialiser les graphiques
+    initCharts(window.dashboardData);
+
+    // Récupérer le projet sélectionné depuis l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const projetId = urlParams.get('projet_id');
+    const queryParam = projetId ? `?projet_id=${projetId}` : '';
+
+    // Fetch des KPIs scripts/tests filtrés par projet
+    fetch(`/api/stats/scripts-tests/${queryParam}`)
+      .then(response => response.json())
+      .then(data => {
+        // Tests en échec
+        const testsEchecDiv = document.getElementById('tests-en-echec-value');
+        const percentEchecDiv = document.getElementById('percent-tests-echec');
+
+        if (testsEchecDiv && percentEchecDiv) {
+          // Construire URL filtrée pour les tests échoués
+          let echecUrl = `/admin/core/executiontest/?statut__exact=error`;
+          if (projetId) echecUrl += `&configuration__projet=${projetId}`;
+
+          // Chiffres cliquables
+          testsEchecDiv.innerHTML = `<a href="${echecUrl}">${data.tests_en_echec}</a>`;
+          // percentEchecDiv.textContent = `${data.percent_tests_echec}%`;
+        }
+
+        // Total tests cliquables
+        const totalTestsDiv = document.getElementById('total-tests-value');
+        if (totalTestsDiv) {
+          let totalUrl = `/admin/core/executiontest/?`;
+          if (projetId) totalUrl += `configuration__projet=${projetId}`;
+          totalTestsDiv.innerHTML = `<a href="${totalUrl}">${data.total_tests}</a>`;
+        }
+
+        // Scripts non exécutés (optionnel)
+        const scriptsNonExecDiv = document.getElementById('scripts-non-executes-value');
+        if (scriptsNonExecDiv) {
+          scriptsNonExecDiv.textContent = data.scripts_non_executes;
+        }
+
+        const percentScriptsNonExecDiv = document.getElementById('percent-scripts-non-executes');
+        if (percentScriptsNonExecDiv) {
+          percentScriptsNonExecDiv.textContent = `${data.percent_scripts_non_executes}%`;
+        }
+      })
+      .catch(error => {
+        console.error("Erreur lors du fetch des KPIs scripts/tests :", error);
+      });
+
+    // Nouveau fetch pour les tests concluants/non concluants
+    fetch(`http://127.0.0.1:8000/api/stats/execution-resultats-concluant-nonconcluant/`)
+      .then(response => response.json())
+      .then(data => {
+        // Compter les tests concluants et non concluants
+        let concluants = 0;
+        let nonConcluants = 0;
+        let configurationsConcluantes = [];
+        let configurationsNonConcluantes = [];
+
+        data.forEach(item => {
+          if (item.statut === 'Concluant') {
+            concluants++;
+            // Collecter les configurations pour les filtres
+            if (item.configuration && !configurationsConcluantes.includes(item.configuration)) {
+              configurationsConcluantes.push(item.configuration);
+            }
+          } else if (item.statut === 'Non concluant') {
+            nonConcluants++;
+            // Collecter les configurations pour les filtres
+            if (item.configuration && !configurationsNonConcluantes.includes(item.configuration)) {
+              configurationsNonConcluantes.push(item.configuration);
+            }
+          }
+        });
+
+        const total = concluants + nonConcluants;
+        const tauxConcluant = total > 0 ? Math.round((concluants / total) * 100) : 0;
+
+        // Construire les URLs de filtrage
+        let urlConcluants = '/admin/core/executionresult/?statut__exact=done';
+        let urlNonConcluants = '/admin/core/executionresult/?statut__exact=error';
+
+        // Si un projet est sélectionné, l'ajouter aux filtres
+        if (projetId) {
+          urlConcluants += `&configuration__projet=${projetId}`;
+          urlNonConcluants += `&configuration__projet=${projetId}`;
+        }
+
+        // Mettre à jour les éléments DOM avec liens
+        document.getElementById('tests-concluants-count').textContent = concluants;
+        document.getElementById('tests-non-concluants-count').textContent = nonConcluants;
+        document.getElementById('tests-concluants-link').href = urlConcluants;
+        document.getElementById('tests-non-concluants-link').href = urlNonConcluants;
+        
+        document.getElementById('kpi-taux-concluant').textContent = `${tauxConcluant}%`;
+        document.getElementById('concluants-count-detail').textContent = concluants;
+        document.getElementById('total-tests-concluants').textContent = total;
+
+        // Créer/Mettre à jour le graphique en camembert
+        createConcluantChart(concluants, nonConcluants, urlConcluants, urlNonConcluants);
+      })
+      .catch(error => {
+        console.error("Erreur lors du fetch des données concluants/non concluants :", error);
+        // Afficher des valeurs par défaut en cas d'erreur
+        document.getElementById('tests-concluants-count').textContent = '0';
+        document.getElementById('tests-non-concluants-count').textContent = '0';
+        document.getElementById('kpi-taux-concluant').textContent = '0%';
+        // Désactiver les liens en cas d'erreur
+        document.getElementById('tests-concluants-link').href = '#';
+        document.getElementById('tests-non-concluants-link').href = '#';
+      });
+  });
+
+  // Fonction pour créer le graphique des tests concluants/non concluants
+  function createConcluantChart(concluants, nonConcluants, urlConcluants, urlNonConcluants) {
+    const ctx = document.getElementById('concluantChart').getContext('2d');
+    
+    // Détruire le graphique existant s'il existe
+    if (window.concluantChartInstance) {
+      window.concluantChartInstance.destroy();
+    }
+
+    window.concluantChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Tests Concluants', 'Tests Non Concluants'],
+        datasets: [{
+          data: [concluants, nonConcluants],
+          backgroundColor: [
+            '#28a745', // Vert pour concluants
+            '#dc3545'  // Rouge pour non concluants
+          ],
+          borderColor: [
+            '#1e7e34',
+            '#bd2130'
+          ],
+          borderWidth: 2,
+          hoverBackgroundColor: [
+            '#34ce57',
+            '#e55368'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true,
+              font: {
+                size: 12
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = concluants + nonConcluants;
+                const percentage = total > 0 ? Math.round((context.raw / total) * 100) : 0;
+                return `${context.label}: ${context.raw} (${percentage}%)`;
+              }
+            }
+          },
+          datalabels: {
+            display: true,
+            color: 'white',
+            font: {
+              weight: 'bold',
+              size: 14
+            },
+            formatter: function(value, context) {
+              const total = concluants + nonConcluants;
+              const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+              return percentage > 5 ? `${percentage}%` : ''; // N'afficher que si > 5%
+            }
+          }
+        },
+        animation: {
+          animateRotate: true,
+          duration: 1500
+        },
+        onClick: function(event, elements) {
+          if (elements.length > 0) {
+            const elementIndex = elements[0].index;
+            // Rediriger vers la page appropriée selon l'élément cliqué
+            if (elementIndex === 0) {
+              // Tests concluants
+              window.open(urlConcluants, '_blank');
+            } else if (elementIndex === 1) {
+              // Tests non concluants
+              window.open(urlNonConcluants, '_blank');
+            }
+          }
+        },
+        // Changer le curseur sur hover
+        onHover: function(event, elements) {
+          event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+</script>
+
+{% endblock %}

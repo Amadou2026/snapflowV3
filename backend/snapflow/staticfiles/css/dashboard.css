@@ -1,0 +1,340 @@
+:root {
+  --primary-color: #3b82f6;
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  --bg-primary: #f8fafc;
+  --bg-card: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Mode sombre */
+html[data-theme='dark'] {
+  --bg-primary: #0f172a;
+  --bg-card: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+}
+
+body,
+.dashboard-container {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.custom-header {
+  padding: 20px 25px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  background: var(--bg-card);
+}
+
+.custom-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.custom-header p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+#header a:link,
+#header a:visited,
+#logout-form button,
+div#user-tools {
+  color: var(--text-primary) !important;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-title {
+  font-size: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary) !important;
+}
+
+.dashboard-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  font-weight: 400;
+  margin-top: 0.5rem;
+}
+
+/* KPI Section */
+.kpi-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.kpi-card {
+  background-color: var(--bg-card);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-md);
+  padding: 1.5rem;
+  flex: 1 1 300px;
+  text-align: center;
+  max-width: 350px;
+  transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+}
+
+.kpi-icon.success {
+  background: linear-gradient(135deg, var(--success-color), #059669);
+}
+
+.kpi-icon.primary {
+  background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+}
+
+.kpi-icon.error {
+  background: linear-gradient(135deg, var(--error-color), #f87171);
+}
+
+.kpi-icon.warning {
+  background: linear-gradient(135deg, var(--warning-color), #facc15);
+}
+
+.kpi-icon.neutral {
+  background: linear-gradient(135deg, #94a3b8, #cbd5e1);
+}
+
+/* Valeur KPI */
+.kpi-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+/* Lien dans KPI */
+.kpi-link {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.kpi-link:hover,
+.kpi-link:focus {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+html[data-theme="dark"] .kpi-value,
+html[data-theme="dark"] .kpi-label,
+html[data-theme="dark"] .kpi-link {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .kpi-link:hover {
+  color: #93c5fd;
+}
+
+.kpi-label {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+/* Chart Section */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+.chart-card.withfull {
+  grid-column: 1 / -1;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-md);
+  padding: 1rem 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chart-title {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+}
+
+
+
+.chart-container.pie {
+  height: 250px;
+}
+
+.chart-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-section {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* Statuts */
+.status-indicator {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.status-indicator.excellent {
+  color: #27ae60;
+}
+
+.status-indicator.good {
+  color: #f39c12;
+}
+
+.status-indicator.poor {
+  color: #e74c3c;
+}
+
+.margin-top-large {
+  margin-top: 2rem;
+}
+
+/* KPI Grid responsive */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+/* Formulaires */
+.dashboard-form {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filters-container {
+  margin: 1rem 0;
+  padding: 1rem;
+  /* border: 1px solid var(--border-color);
+  border-radius: 8px; */
+  background-color: var(--bg-card);
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.periode-indicator {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Chart loader spinner */
+.chart-loader {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.chart-loader .spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Utility */
+.mt-5 {
+  margin-top: 30px;
+}
+.kpi-detail a {
+  text-decoration: none !important;
+  cursor: pointer;
+  /* color: inherit; garde la couleur du texte */
+}
