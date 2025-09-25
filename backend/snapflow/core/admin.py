@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
-    CustomUser, Axe, Dashboard, SousAxe, Script, Projet,
+    CustomUser, Axe, Dashboard, SousAxe, Script, Projet,Societe, SecteurActivite,
     ConfigurationTest, ExecutionTest, EmailNotification, VueGlobale, GroupePersonnalise, Configuration
 )
 from django.contrib.auth.models import Group, Permission
@@ -463,6 +463,45 @@ def custom_get_app_list(self, request, app_label=None):
     
     # Debut
     
+    # 🔑 Nouvelle section : Gestion Société
+    societe_section = {
+        'name': 'Gestion Société',
+        'app_label': 'gestion_societe',
+        'models': []
+    }
+
+    # Ajouter Societe
+    societe_model = next(
+        (m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == 'Societe'),
+        None
+    )
+    if societe_model:
+        societe_section['models'].append({
+            'name': 'Sociétés',
+            'object_name': 'Societe',
+            'admin_url': '/admin/core/societe/',
+            'view_only': False
+        })
+
+    # Ajouter SecteurActivite
+    secteur_model = next(
+        (m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == 'SecteurActivite'),
+        None
+    )
+    if secteur_model:
+        societe_section['models'].append({
+            'name': "Secteurs d'activité",
+            'object_name': 'SecteurActivite',
+            'admin_url': '/admin/core/secteuractivite/',
+            'view_only': False
+        })
+
+    # Ajouter la section si elle contient des modèles
+    if societe_section['models']:
+        reordered_app_list.append(societe_section)
+
+        
+    # Fin
     
      # Debut
     
@@ -472,6 +511,8 @@ def custom_get_app_list(self, request, app_label=None):
         'app_label': 'auth_section',
         'models': []
     }
+    
+    
     
     # Ajouter Group
     group_model = next((m for m in app_list if m['app_label'] == 'auth' for model in m['models'] if model['object_name'] == 'Group'), None)
@@ -1451,4 +1492,25 @@ class ConfigurationAdmin(admin.ModelAdmin):
         return False
     
     
+@admin.register(SecteurActivite)
+class SecteurActiviteAdmin(admin.ModelAdmin):
+    list_display = ('nom',) 
     
+@admin.register(Societe)
+class SocieteAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'num_siret', 'secteur_activite', 'admin', 'projet')
+    filter_horizontal = ('employes',)
+    list_filter = ('secteur_activite',)
+    search_fields = ('nom', 'num_siret', 'admin__email', 'projet__nom')  # corrigé admin__username -> admin__email
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(admin=request.user)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "admin" and not request.user.is_superuser:
+            kwargs["queryset"] = kwargs["queryset"].filter(pk=request.user.pk)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+

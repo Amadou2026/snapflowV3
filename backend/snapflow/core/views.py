@@ -37,6 +37,9 @@ from django.contrib.auth.decorators import login_required
 
 from rest_framework import status
 
+
+
+
 CustomUser = get_user_model()
 
 
@@ -48,11 +51,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["email"] = user.email
         token["first_name"] = user.first_name
         token["last_name"] = user.last_name
+        token["groupes"] = list(user.groups.values_list('name', flat=True))
         return token
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    
 
 
 class AxeViewSet(viewsets.ModelViewSet):
@@ -834,3 +839,200 @@ def api_user_permissions (request):
         'permissions': perms,          # liste simple
         'permissions_dict': perms_dict # regroupé par app
     })
+
+# CRUD SOCIETE
+
+# ➤ Créer une société
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_societe(request):
+    serializer = SocieteSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# ➤ Liste toutes les sociétés
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_societes(request):
+    qs = Societe.objects.all()
+    if not request.user.is_superuser:
+        qs = qs.filter(admin=request.user)
+    serializer = SocieteSerializer(qs, many=True)
+    return Response(serializer.data)
+
+# ➤ Détail d'une société
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def detail_societe(request, pk):
+    try:
+        societe = Societe.objects.get(pk=pk)
+        if not request.user.is_superuser and societe.admin != request.user:
+            return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
+    except Societe.DoesNotExist:
+        return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+    serializer = SocieteSerializer(societe)
+    return Response(serializer.data)
+
+# ➤ Mettre à jour une société
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def update_societe(request, pk):
+    try:
+        societe = Societe.objects.get(pk=pk)
+        if not request.user.is_superuser and societe.admin != request.user:
+            return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
+    except Societe.DoesNotExist:
+        return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = SocieteSerializer(societe, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# ➤ Supprimer une société
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_societe(request, pk):
+    try:
+        societe = Societe.objects.get(pk=pk)
+        if not request.user.is_superuser and societe.admin != request.user:
+            return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
+    except Societe.DoesNotExist:
+        return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+
+    societe.delete()
+    return Response({"detail": "Supprimé"}, status=status.HTTP_204_NO_CONTENT)
+
+# user profil
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+
+    def get(self, request):
+        user = request.user
+        societes_data = SocieteSerializer(user.societes_employes.all(), many=True).data
+        data = {
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "societe": societes_data,            
+            "permissions": list(user.get_all_permissions()),  # toutes les permissions effectives
+            "groups": list(user.groups.values_list('name', flat=True)),  # noms des groupes
+            "is_superuser": user.is_superuser,  
+            "is_staff": user.is_staff,
+             "is_active": user.is_active
+        }
+        return Response(data)
+    
+#  Gestion utilisateur
+from rest_framework import generics, permissions
+from .models import CustomUser
+from .serializers import CustomUserSerializer
+
+# Liste + création d’utilisateurs (superadmin only)
+class IsSuperUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_superuser)
+    
+class UserListCreateView(generics.ListCreateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
+    permission_classes = [permissions.IsAdminUser]  # superuser dans Django
+
+    
+    
+
+
+# Détail d’un utilisateur
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
+    permission_classes = [permissions.IsAdminUser]
+    
+    
+# Crud User
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from .models import CustomUser
+from .serializers import CustomUserSerializer
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_user_profile(request, pk):
+    try:
+        user = CustomUser.objects.get(pk=pk)
+        
+        # Vérifier que l'utilisateur ne peut modifier que son propre profil
+        if request.user != user and not request.user.is_superuser:
+            return Response(
+                {'error': 'Vous ne pouvez modifier que votre propre profil'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = CustomUserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    except CustomUser.DoesNotExist:
+        return Response(
+            {'error': 'Utilisateur non trouvé'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    form = PasswordChangeForm(user=request.user, data=request.data)
+    if form.is_valid():
+        form.save()
+        # Mettre à jour la session pour éviter la déconnexion
+        update_session_auth_hash(request, form.user)
+        return Response({'success': 'Mot de passe modifié avec succès'})
+    return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Gestion Group / role
+from django.contrib.auth.models import Group
+
+class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
+    queryset = GroupePersonnalise.objects.all()
+    serializer_class = GroupePersonnaliseSerializer
+    
+    def list(self, request, *args, **kwargs):
+        groupes_data = []
+
+        for groupe_perso in self.get_queryset():
+            # Initialiser auth_group à None
+            auth_group = None
+            try:
+                # Essayer de récupérer le groupe Django par nom
+                auth_group = Group.objects.get(name=groupe_perso.nom)
+            except Group.DoesNotExist:
+                auth_group = None
+
+            auth_group_id = auth_group.id if auth_group else None
+
+            groupe_data = {
+                'id': auth_group_id,
+                'auth_group_id': auth_group_id,
+                'groupe_perso_id': groupe_perso.id,
+                'nom': groupe_perso.nom,
+                'type_groupe': groupe_perso.type_groupe,
+                'role_predefini': groupe_perso.role_predefini,
+                'description': groupe_perso.description,
+                'permissions': groupe_perso.permissions.values_list('id', flat=True),
+                'est_protege': groupe_perso.est_protege
+            }
+            groupes_data.append(groupe_data)
+
+        return Response(groupes_data)

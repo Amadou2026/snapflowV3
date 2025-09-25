@@ -14,14 +14,25 @@ from django.utils import timezone
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
     username = None
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    societe = models.ForeignKey(
+        'Societe',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users'
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
-
-    objects = CustomUserManager()  
+    objects = CustomUserManager()
 
     def __str__(self):
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
         return self.email
+
 
 
 
@@ -79,6 +90,7 @@ class SousAxe(models.Model):
 
 
 
+
 class Projet(models.Model):
     id_redmine = models.IntegerField(null=True, blank=True)
     nom = models.CharField(max_length=255)
@@ -93,9 +105,49 @@ class Projet(models.Model):
     def __str__(self):
         return self.nom
     
-    # class Meta:
-    #     verbose_name = "Projet"
-    #     verbose_name_plural = "Gestion des Projets"
+    
+#  Socité + secteur d'activité     
+from django.conf import settings
+
+class SecteurActivite(models.Model):
+    nom = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nom
+
+class Societe(models.Model):
+    nom = models.CharField(max_length=255)
+    num_siret = models.CharField(max_length=14, blank=True, null=True)
+    url = models.URLField(blank=True, null=True, help_text="URL du site web de la société")
+    secteur_activite = models.ForeignKey(
+        SecteurActivite,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'is_superuser': False},
+        related_name='societes_admin'
+    )
+    projet = models.ForeignKey(
+        Projet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='societes'
+    )
+    employes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='societes_employes'
+    )
+
+    def __str__(self):
+        return self.nom
         
 class Script(models.Model):
     PRIORITY_CHOICES = [
@@ -473,3 +525,5 @@ class RedmineProject(models.Model):
     class Meta:
         verbose_name = "Projet Redmine"
         verbose_name_plural = "Projets Redmine"
+        
+

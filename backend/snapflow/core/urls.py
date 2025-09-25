@@ -12,11 +12,17 @@ router.register(r"scripts", ScriptViewSet)
 router.register(r"projets", ProjetViewSet)
 router.register(r"configurations", ConfigurationTestViewSet)
 router.register(r"executions", ExecutionTestViewSet)
+router.register(r'groupes', GroupePersonnaliseViewSet, basename='groupepersonnalise')
 from .views import api_user_permissions
 
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("users/", UserListCreateView.as_view(), name="user-list"),
+    path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
+    path('users/<int:pk>/update-profile/', views.update_user_profile, name='update-user-profile'),
+    path('auth/change-password/', views.change_password, name='change-password'),
+    path("user/profile/", UserProfileView.as_view(), name="user-profile"),
     path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path(
@@ -69,5 +75,11 @@ urlpatterns = [
         path("admin-menu/", views.api_admin_menu, name="api_admin_menu"),  #Affiche le sidebar pareil que sur l'admin django
         path("scripts-par-projet/", views.scripts_par_projet, name="scripts-par-projet"), #retourne les scripts par projet
         path("user/permissions/", api_user_permissions, name="api_user_permissions"), #Gestion de permission
-
-]
+        
+        # Société
+        path('societe/', list_societes, name='list_societes'),
+        path('societe/create/', create_societe, name='create_societe'),
+        path('societe/<int:pk>/', detail_societe, name='detail_societe'),
+        path('societe/<int:pk>/update/', update_societe, name='update_societe'),
+        path('societe/<int:pk>/delete/', delete_societe, name='delete_societe'),
+    ]
