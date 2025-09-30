@@ -1,39 +1,107 @@
-// src/components/HeaderAdmin.jsx
-import React, { useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+// src/components/Header.jsx
+import React, { useContext, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-const HeaderAdmin = () => {
-  const navigate = useNavigate();
-  const { user, isAuthenticated, setUser, setIsAuthenticated } = useContext(AuthContext);
+const Header = () => {
+  const location = useLocation();
+  const { user, isAuthenticated } = useContext(AuthContext);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setUser(null);
-    setIsAuthenticated(false);
-    navigate('/login');
-  };
-
-  // Si l'utilisateur n'est pas encore chargé, afficher un header minimal
-  if (!user) {
-    return (
-      <header className="header">
+  return (
+    <header className="header">
+      <div className="header-container">
         <nav className="navbar">
+          {/* Brand Logo */}
           <div className="nav-brand">
-            <Link to="/">
-              <img src="/assets/logo.png" alt="Logo" className="logo" />
+            <Link to="/" className="brand-link">
+              <img src="/assets/img/snapflow.png" width="140" alt="SnapFlow Logo" className="logo" />
+              {/* <span className="brand-text">SnapFlow</span> */}
             </Link>
           </div>
-          <ul className="nav-menu">
-            <li><Link to="/">Accueil</Link></li>
-            <li><Link to="/login">Connexion</Link></li>
+
+          {/* Navigation Menu */}
+          <ul className={`nav-menu ${isMobileMenuOpen ? 'active' : ''}`}>
+            <li className="nav-item">
+              <Link 
+                to="/" 
+                className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Accueil
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link 
+                to="/features" 
+                className="nav-link"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Fonctionnalités
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link 
+                to="/pricing" 
+                className="nav-link"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Tarifs
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link 
+                to="/about" 
+                className="nav-link"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                À propos
+              </Link>
+            </li>
           </ul>
+
+          {/* Actions */}
+          <div className="nav-actions">
+            {isAuthenticated ? (
+              <>
+                <Link to="/dashboard" className="btn btn-outline">
+                  Tableau de bord
+                </Link>
+                <div className="user-avatar">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt={`${user.name}`} />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn btn-outline">
+                  Se connecter
+                </Link>
+                <Link to="/register" className="btn btn-primary">
+                  Commencer gratuitement
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Mobile Menu Toggle */}
+          <button 
+            className={`menu-toggle ${isMobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
         </nav>
-      </header>
-    );
-  }
-  
+      </div>
+    </header>
+  );
 };
 
-export default HeaderAdmin;
+export default Header;

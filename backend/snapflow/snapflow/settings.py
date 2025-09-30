@@ -79,6 +79,12 @@ INSTALLED_APPS = [
     # Vos apps
     'core',
 ]
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 
 MIDDLEWARE = [
@@ -94,7 +100,7 @@ MIDDLEWARE = [
 ]
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),  # durée de l'access token (ici 60 minutes)
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=300),  # durée de l'access token (ici 60 minutes)
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # durée du refresh token (ici 7 jours)
     "ROTATE_REFRESH_TOKENS": True,                  # génère un nouveau refresh token à chaque refresh
     "BLACKLIST_AFTER_ROTATION": True,               # pour invalider l'ancien refresh token

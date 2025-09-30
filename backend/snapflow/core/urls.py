@@ -22,6 +22,8 @@ urlpatterns = [
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
     path('users/<int:pk>/update-profile/', views.update_user_profile, name='update-user-profile'),
     path('auth/change-password/', views.change_password, name='change-password'),
+    # Admin chaange le mdp
+    path('users/<int:user_id>/admin-change-password/', views.admin_change_password, name='admin-change-password'),
     path("user/profile/", UserProfileView.as_view(), name="user-profile"),
     path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
@@ -75,6 +77,7 @@ urlpatterns = [
         path("admin-menu/", views.api_admin_menu, name="api_admin_menu"),  #Affiche le sidebar pareil que sur l'admin django
         path("scripts-par-projet/", views.scripts_par_projet, name="scripts-par-projet"), #retourne les scripts par projet
         path("user/permissions/", api_user_permissions, name="api_user_permissions"), #Gestion de permission
+        path('permissions/', list_all_permissions, name='all-permissions'),
         
         # Société
         path('societe/', list_societes, name='list_societes'),
@@ -82,4 +85,9 @@ urlpatterns = [
         path('societe/<int:pk>/', detail_societe, name='detail_societe'),
         path('societe/<int:pk>/update/', update_societe, name='update_societe'),
         path('societe/<int:pk>/delete/', delete_societe, name='delete_societe'),
+        
+        #Secteur Activité
+        path('secteurs/', SecteurActiviteListAPIView.as_view(), name='secteurs-list'),
+        path('secteurs/<int:pk>/', SecteurActiviteDetailAPIView.as_view(), name='secteurs-detail'),
+        # Employés 
     ]

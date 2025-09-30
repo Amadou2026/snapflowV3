@@ -106,7 +106,7 @@ class Projet(models.Model):
         return self.nom
     
     
-#  Socité + secteur d'activité     
+#  Société + secteur d'activité     
 from django.conf import settings
 
 class SecteurActivite(models.Model):

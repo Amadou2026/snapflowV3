@@ -22125,12 +22125,13 @@ select.form-control[data-multiselectsplitter-firstselect-selector], select.form-
   align-items: center;
 }
 .auth-main .auth-wrapper.v3 .auth-form {
+      background-position-x: -223px !important;
   flex-direction: column;
-  background: url("../img/authentication/img-auth-bg.svg");
+  background: url("../img/Snapflowicon.png");
   min-height: 100vh;
   padding: 24px;
   background-repeat: no-repeat;
-  background-size: auto 75%;
+  background-size: auto 62%;
   background-position: left center;
   position: relative;
   justify-content: space-between;

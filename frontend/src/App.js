@@ -8,6 +8,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import GestionUsers from './components/users/GestionUsers';
 import ProfilUtilisateur from './components/users/ProfilUtilisateur';
+import GestionSocietes from './components/societe/GestionSocietes';
+import GestionGroupe from './components/groupe/GestionGroupe';
+import GestionSecteur from './components/secteur/GestionSecteur';
+import GestionProjets from './components/projet/GestionProjets';
 import 'font-awesome/css/font-awesome.min.css';
 import { useContext } from 'react';
 
@@ -20,6 +24,23 @@ const AppRoutes = () => {
     localStorage.removeItem('refresh_token');
     setUser(null);
     setIsAuthenticated(false);
+  };
+
+  // Fonction pour vérifier les permissions d'accès admin
+  const hasAdminAccess = () => {
+    if (!user) return false;
+    
+    // Si l'utilisateur n'est pas staff, il n'a pas accès aux pages admin
+    if (!user.is_staff) return false;
+    
+    // Vérifier les permissions spécifiques
+    return user.is_superuser || 
+           user.groups?.some(g => g.toLowerCase() === "administrateur");
+  };
+
+  // Fonction pour vérifier l'accès super admin
+  const hasSuperAdminAccess = () => {
+    return user?.is_superuser;
   };
 
   return (
@@ -40,7 +61,13 @@ const AppRoutes = () => {
             !isAuthenticated ? (
               <Login />
             ) : (
-              <Navigate to="/dashboard" replace />
+              // Rediriger vers l'accueil si l'utilisateur n'est pas staff
+              // ou vers le dashboard s'il est staff
+              user?.is_staff ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/" replace />
+              )
             )
           }
         />
@@ -49,9 +76,12 @@ const AppRoutes = () => {
           path="/dashboard"
           element={
             isAuthenticated ? (
-              <Layout>
+              // Rediriger les utilisateurs non-staff vers l'accueil
+              user?.is_staff ? (
                 <Dashboard user={user} logout={logout} />
-              </Layout>
+              ) : (
+                <Navigate to="/" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -59,12 +89,76 @@ const AppRoutes = () => {
         />
 
         <Route
-          path="/users"
+          path="/admin/core/customuser/"
           element={
-            isAuthenticated && user?.is_superuser ? (
-              <Layout>
+            isAuthenticated ? (
+              // Vérifier si l'utilisateur a accès aux pages admin
+              hasAdminAccess() ? (
                 <GestionUsers user={user} logout={logout} />
-              </Layout>
+              ) : (
+                // Rediriger vers l'accueil si pas d'accès admin
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        
+        <Route
+          path="/admin/core/secteuractivite/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionSecteur user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/admin/core/groupepersonnalise/"
+          element={
+            isAuthenticated ? (
+              hasSuperAdminAccess() ? (
+                <GestionGroupe user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/admin/core/societe/"
+          element={
+            isAuthenticated ? (
+              hasSuperAdminAccess() ? (
+                <GestionSocietes user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/admin/core/projet/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionProjets user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -75,12 +169,18 @@ const AppRoutes = () => {
           path="/userprofile"
           element={
             isAuthenticated ? (
-              <Layout>
-                <ProfilUtilisateur user={user} logout={logout} setUser={setUser} />
-              </Layout>
+              <ProfilUtilisateur user={user} logout={logout} setUser={setUser} />
             ) : (
               <Navigate to="/login" replace />
             )
+          }
+        />
+
+        {/* Route de fallback pour les URLs non trouvées */}
+        <Route
+          path="*"
+          element={
+            <Navigate to={isAuthenticated ? (user?.is_staff ? "/dashboard" : "/") : "/login"} replace />
           }
         />
       </Routes>

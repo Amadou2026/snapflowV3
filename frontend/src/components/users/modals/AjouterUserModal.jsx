@@ -10,15 +10,18 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
         confirm_password: '',
         is_active: true,
         is_staff: false,
-        groups: []
+        groups: [],
+        societe: ''
     });
     const [groupes, setGroupes] = useState([]);
+    const [societes, setSocietes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (show) {
             fetchGroupes();
+            fetchSocietes();
         }
     }, [show]);
 
@@ -28,6 +31,15 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
             setGroupes(response.data);
         } catch (error) {
             console.error('Erreur lors du chargement des groupes:', error);
+        }
+    };
+
+    const fetchSocietes = async () => {
+        try {
+            const response = await api.get('societe/');
+            setSocietes(response.data);
+        } catch (error) {
+            console.error('Erreur lors du chargement des sociétés:', error);
         }
     };
 
@@ -73,7 +85,8 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                 password: formData.password,
                 is_active: formData.is_active,
                 is_staff: formData.is_staff,
-                groups: formData.groups // Les IDs sont déjà des integers
+                groups: formData.groups,
+                societe: formData.societe ? parseInt(formData.societe) : null
             };
 
             console.log('Données envoyées à l\'API:', userData);
@@ -84,17 +97,19 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
             onUserAdded(response.data);
             resetForm();
             onClose();
-            
+
         } catch (error) {
             console.error('Erreur lors de la création:', error);
-            
+
             if (error.response?.data) {
                 console.log('Détails de l\'erreur API:', error.response.data);
-                
+
                 if (error.response.data.email) {
                     setError('Cet email est déjà utilisé');
                 } else if (error.response.data.groups) {
                     setError('Erreur avec les groupes: ' + error.response.data.groups);
+                } else if (error.response.data.societe) {
+                    setError('Erreur avec la société: ' + error.response.data.societe);
                 } else if (error.response.data.non_field_errors) {
                     setError(error.response.data.non_field_errors.join(', '));
                 } else {
@@ -118,7 +133,8 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
             confirm_password: '',
             is_active: true,
             is_staff: false,
-            groups: []
+            groups: [],
+            societe: ''
         });
         setError('');
     };
@@ -161,6 +177,26 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                             required
                                         />
                                         <label htmlFor="email">Email *</label>
+                                    </div>
+                                </div>
+
+                                <div className="col-md-6">
+                                    <div className="form-floating mb-3">
+                                        <select
+                                            className="form-select"
+                                            id="societe"
+                                            name="societe"
+                                            value={formData.societe}
+                                            onChange={handleChange}
+                                        >
+                                            <option value="">Sélectionner une société</option>
+                                            {societes.map(societe => (
+                                                <option key={societe.id} value={societe.id}>
+                                                    {societe.nom}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <label htmlFor="societe">Société</label>
                                     </div>
                                 </div>
                             </div>
@@ -276,6 +312,10 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                             <label className="form-check-label" htmlFor="is_active">
                                                 Compte actif
                                             </label>
+                                            <br></br>
+                                            <small className="form-text text-muted">
+                                                Précise si l'utilisateur doit être considéré comme actif. Décochez ceci plutôt que de supprimer le compte.
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -292,8 +332,11 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                                 onChange={handleChange}
                                             />
                                             <label className="form-check-label" htmlFor="is_staff">
-                                                Accès administrateur
-                                            </label>
+                                                Statut équipe
+                                            </label> <br></br>
+                                            <small className="form-text text-muted">
+                                                Précise si l'utilisateur peut se connecter à ce site d'administration.
+                                            </small>
                                         </div>
                                     </div>
                                 </div>

@@ -327,6 +327,12 @@ class GroupePersonnaliseAdmin(admin.ModelAdmin):
         if obj and obj.est_protege:
             return False
         return super().has_change_permission(request, obj)
+    
+    # Dans votre serializer ou vue
+    def create(self, validated_data):
+        # est_protege est False par défaut pour les groupes créés via l'API
+        validated_data['est_protege'] = False
+        return super().create(validated_data)
 
 admin.site.register(GroupePersonnalise, GroupePersonnaliseAdmin)
 
@@ -339,26 +345,63 @@ from django.contrib.auth.models import Group
 from django.apps import apps
 from .models import CustomUser
 
-# 🔹 1. Configuration de CustomUser
 @admin.register(CustomUser)
 class CustomUserAdmin(BaseUserAdmin):
     model = CustomUser
-    list_display = ('email', 'first_name', 'last_name', 'is_staff')
-    list_filter = ('is_staff', 'is_superuser')
+    list_display = ('email', 'first_name', 'last_name', 'societe', 'is_staff')
+    list_filter = ('is_staff', 'is_superuser', 'societe')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ("Informations personnelles", {'fields': ('first_name', 'last_name')}),
+        ("Informations personnelles", {'fields': ('first_name', 'last_name', 'societe')}),
         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ("Dates importantes", {'fields': ('last_login', 'date_joined')}),
     )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password1', 'password2')}
+            'fields': ('email', 'password1', 'password2', 'societe')}
         ),
     )
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        if request.user.is_staff and request.user.societe:
+            return queryset.filter(societe=request.user.societe)
+        return queryset.none()
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:  # création uniquement
+            if not request.user.is_superuser and request.user.societe:
+                obj.societe = request.user.societe
+        super().save_model(request, obj, form, change)
+        # Ajouter aussi en employé
+        if obj.societe:
+            obj.societe.employes.add(obj)
+
+    # 🔹 Nouveau : masquer user_permissions pour les non-superadmins
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not request.user.is_superuser:
+            new_fieldsets = []
+            for name, options in fieldsets:
+                fields = list(options.get('fields', []))
+                if 'user_permissions' in fields:
+                    fields.remove('user_permissions')
+                new_fieldsets.append((name, {**options, 'fields': fields}))
+            return new_fieldsets
+        return fieldsets
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = super().get_readonly_fields(request, obj)
+        if not request.user.is_superuser:
+            readonly = readonly + ('is_superuser', 'groups', 'user_permissions')
+        return readonly
+
+
 
 # 🔹 2. Override de la méthode get_app_list pour réorganiser le menu
 original_get_app_list = admin.AdminSite.get_app_list
@@ -1501,7 +1544,7 @@ class SocieteAdmin(admin.ModelAdmin):
     list_display = ('nom', 'num_siret', 'secteur_activite', 'admin', 'projet')
     filter_horizontal = ('employes',)
     list_filter = ('secteur_activite',)
-    search_fields = ('nom', 'num_siret', 'admin__email', 'projet__nom')  # corrigé admin__username -> admin__email
+    search_fields = ('nom', 'num_siret', 'admin__email', 'projet__nom')
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -1511,6 +1554,28 @@ class SocieteAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "admin" and not request.user.is_superuser:
-            kwargs["queryset"] = kwargs["queryset"].filter(pk=request.user.pk)
+            kwargs["queryset"] = db_field.remote_field.model.objects.filter(pk=request.user.pk)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        """
+        Limite le champ employes aux utilisateurs de cette société.
+        """
+        if db_field.name == "employes" and not request.user.is_superuser:
+            # On récupère uniquement les utilisateurs liés à la société sélectionnée
+            # Si l'objet existe déjà (édition), on filtre sur sa société
+            if request.resolver_match.url_name.endswith('change'):  # édition
+                obj_id = request.resolver_match.kwargs.get('object_id')
+                if obj_id:
+                    try:
+                        societe = Societe.objects.get(pk=obj_id)
+                        kwargs["queryset"] = societe.users.all()
+                    except Societe.DoesNotExist:
+                        kwargs["queryset"] = CustomUser.objects.none()
+            else:
+                # Pour l'ajout, on ne montre que les utilisateurs de la même société que l'admin connecté
+                kwargs["queryset"] = CustomUser.objects.filter(societe=request.user.societe)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-
+import avatar2 from '../../assets/img/user/avatar-2.jpg'
 
 const HeaderAdmin = ({ user }) => {
   const [showMessageDropdown, setShowMessageDropdown] = useState(false);
@@ -125,7 +125,7 @@ const HeaderAdmin = ({ user }) => {
                         <div className="d-flex">
                           <div className="flex-shrink-0">
                             <img
-                              src="../assets/img/user/avatar-2.jpg"
+                              src={avatar2}
                               alt="user-image"
                               className="user-avtar"
                             />
@@ -206,7 +206,7 @@ const HeaderAdmin = ({ user }) => {
                 onClick={toggleProfileDropdown}
               >
                 <img
-                  src="../assets/img/user/avatar-2.jpg"
+                  src={avatar2}
                   alt="user-image"
                   className="user-avtar"
                 />
@@ -218,7 +218,7 @@ const HeaderAdmin = ({ user }) => {
                     <div className="d-flex mb-1">
                       <div className="flex-shrink-0">
                         <img
-                          src="../assets/img/user/avatar-2.jpg"
+                          src={avatar2}
                           alt="user-image"
                           className="user-avtar wid-35"
                         />

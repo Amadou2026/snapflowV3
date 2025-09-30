@@ -783,12 +783,28 @@ def execution_results_json(request):
     
     return JsonResponse(data, safe=False)
 
-
-@login_required
+# Sidebar
+from django.contrib.admin import site as admin_site
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def api_admin_menu(request):
     """Expose la structure du menu admin en JSON pour React"""
-    app_list = admin.site.get_app_list(request)
-    return JsonResponse(app_list, safe=False)
+    
+    # Vérifier si l'utilisateur a accès à l'admin
+    if not request.user.is_staff:
+        return JsonResponse({
+            'error': 'Access denied',
+            'message': 'Vous n\'avez pas les permissions pour accéder à l\'administration'
+        }, status=403)
+    
+    try:
+        app_list = admin_site.get_app_list(request)
+        return JsonResponse(app_list, safe=False)
+    except Exception as e:
+        return JsonResponse({
+            'error': 'Server error',
+            'message': f'Erreur lors de la récupération du menu: {str(e)}'
+        }, status=500)
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -815,11 +831,13 @@ def scripts_par_projet(request):
 
     return Response(result)
 
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-@login_required
-def api_user_permissions (request):
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_user_permissions(request):
     """
     Retourne les permissions de l'utilisateur courant
     """
@@ -834,11 +852,12 @@ def api_user_permissions (request):
         app_label, codename = perm.split('.')
         perms_dict.setdefault(app_label, []).append(codename)
 
-    return JsonResponse({
+    return Response({
         'username': user.username,
         'permissions': perms,          # liste simple
         'permissions_dict': perms_dict # regroupé par app
     })
+
 
 # CRUD SOCIETE
 
@@ -846,11 +865,27 @@ def api_user_permissions (request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_societe(request):
-    serializer = SocieteSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        print("Données reçues:", request.data)
+        
+        # Utiliser le sérialiseur de création
+        serializer = SocieteCreateSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            print("Données valides")
+            societe = serializer.save()
+            print("Société créée avec ID:", societe.id)
+            
+            # Retourner les données avec le sérialiseur de lecture
+            societe_data = SocieteSerializer(societe).data
+            return Response(societe_data, status=status.HTTP_201_CREATED)
+        else:
+            print("Erreurs de validation:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        print("💥 Erreur serveur:", str(e))
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ➤ Liste toutes les sociétés
 @api_view(['GET'])
@@ -886,7 +921,8 @@ def update_societe(request, pk):
     except Societe.DoesNotExist:
         return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = SocieteSerializer(societe, data=request.data, partial=True)
+    # Utiliser le serializer de mise à jour
+    serializer = SocieteUpdateSerializer(societe, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
@@ -905,6 +941,37 @@ def delete_societe(request, pk):
 
     societe.delete()
     return Response({"detail": "Supprimé"}, status=status.HTTP_204_NO_CONTENT)
+
+
+# Secteur d'activité
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import SecteurActivite
+from .serializers import SecteurActiviteSerializer
+from rest_framework import generics
+
+class SecteurActiviteListAPIView(APIView):
+    def get(self, request):
+        secteurs = SecteurActivite.objects.all()
+        serializer = SecteurActiviteSerializer(secteurs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        serializer = SecteurActiviteSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class SecteurActiviteListCreateAPIView(generics.ListCreateAPIView):
+    queryset = SecteurActivite.objects.all()
+    serializer_class = SecteurActiviteSerializer
+
+class SecteurActiviteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = SecteurActivite.objects.all()
+    serializer_class = SecteurActiviteSerializer
+
 
 # user profil
 class UserProfileView(APIView):
@@ -928,21 +995,48 @@ class UserProfileView(APIView):
         }
         return Response(data)
     
-#  Gestion utilisateur
+# Gestion utilisateur
 from rest_framework import generics, permissions
 from .models import CustomUser
 from .serializers import CustomUserSerializer
 
-# Liste + création d’utilisateurs (superadmin only)
 class IsSuperUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_superuser)
-    
-class UserListCreateView(generics.ListCreateAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = CustomUserSerializer
-    permission_classes = [permissions.IsAdminUser]  # superuser dans Django
 
+class IsAdminOfSameSociete(permissions.BasePermission):
+    """Permission pour admins qui peuvent voir leur société + superadmin tout"""
+    def has_permission(self, request, view):
+        return bool(request.user and (
+            request.user.is_superuser or 
+            (request.user.is_staff and request.user.societe)
+        ))
+
+class UserListCreateView(generics.ListCreateAPIView):
+    serializer_class = CustomUserSerializer
+    permission_classes = [IsAdminOfSameSociete]
+    
+    def get_queryset(self):
+        """Filtrer selon le rôle de l'utilisateur connecté"""
+        user = self.request.user
+        
+        # Superadmin voit tout
+        if user.is_superuser:
+            return CustomUser.objects.all()
+        
+        # Admin voit sa société
+        if user.is_staff and user.societe:
+            return CustomUser.objects.filter(societe=user.societe)
+        
+        # Autres cas : aucun utilisateur
+        return CustomUser.objects.none()
+    
+    def perform_create(self, serializer):
+        """Assigner automatiquement la société lors de la création"""
+        if not self.request.user.is_superuser and self.request.user.societe:
+            serializer.save(societe=self.request.user.societe)
+        else:
+            serializer.save()
     
     
 
@@ -1002,27 +1096,35 @@ def change_password(request):
     return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Gestion Group / role
-from django.contrib.auth.models import Group
+from rest_framework.response import Response
+from rest_framework import viewsets
+from django.contrib.auth.models import Group, Permission
+from django.db import transaction
+from .models import GroupePersonnalise
+from .serializers import GroupePersonnaliseSerializer
 
 class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
     queryset = GroupePersonnalise.objects.all()
     serializer_class = GroupePersonnaliseSerializer
-    
+
     def list(self, request, *args, **kwargs):
         groupes_data = []
 
         for groupe_perso in self.get_queryset():
-            # Initialiser auth_group à None
             auth_group = None
             try:
-                # Essayer de récupérer le groupe Django par nom
                 auth_group = Group.objects.get(name=groupe_perso.nom)
             except Group.DoesNotExist:
                 auth_group = None
 
             auth_group_id = auth_group.id if auth_group else None
 
-            groupe_data = {
+            if auth_group:
+                permissions = list(auth_group.permissions.values_list("codename", flat=True))
+            else:
+                permissions = list(groupe_perso.permissions.values_list("codename", flat=True))
+
+            groupes_data.append({
                 'id': auth_group_id,
                 'auth_group_id': auth_group_id,
                 'groupe_perso_id': groupe_perso.id,
@@ -1030,9 +1132,123 @@ class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
                 'type_groupe': groupe_perso.type_groupe,
                 'role_predefini': groupe_perso.role_predefini,
                 'description': groupe_perso.description,
-                'permissions': groupe_perso.permissions.values_list('id', flat=True),
+                'permissions': permissions,
                 'est_protege': groupe_perso.est_protege
-            }
-            groupes_data.append(groupe_data)
+            })
 
         return Response(groupes_data)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        perms = data.pop('permissions', [])
+
+        # Vérifier si le groupe Django existe déjà
+        groupe_django, created = Group.objects.get_or_create(name=data['nom'])
+
+        # Assigner les permissions
+        permission_objs = []
+        for p in perms:
+            try:
+                app_label, codename = p.split('.')
+                perm = Permission.objects.get(content_type__app_label=app_label, codename=codename)
+                permission_objs.append(perm)
+            except ValueError:
+                print(f"Permission malformée ignorée: {p}")
+            except Permission.DoesNotExist:
+                print(f"Permission introuvable ignorée: {p}")
+
+        # Mettre les IDs de permission pour le serializer
+        data['permissions'] = [perm.id for perm in permission_objs]
+
+        # Créer le GroupePersonnalise
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        groupe_perso = serializer.save(groupe_django=groupe_django)
+
+        # Assigner les permissions sur le groupe Django et le groupe perso
+        groupe_django.permissions.set(permission_objs)
+        groupe_perso.permissions.set(permission_objs)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+# Dans votre views.py
+from django.contrib.auth.models import Permission
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(['GET'])
+def list_all_permissions(request):
+    permissions = Permission.objects.select_related('content_type').values(
+        'id',
+        'codename',
+        'content_type__app_label'
+    )
+    return Response(list(permissions))
+
+# Changer MDP pour l'admin
+
+from django.contrib.auth import get_user_model
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
+from rest_framework import status
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdminUser])  # Seulement pour les admins
+def admin_change_password(request, user_id):
+    """
+    Endpoint pour permettre aux administrateurs de changer le mot de passe
+    d'un utilisateur sans connaître l'ancien mot de passe
+    """
+    try:
+        # Récupérer l'utilisateur cible
+        target_user = get_user_model().objects.get(id=user_id)
+        
+        # Récupérer les données
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+        
+        # Validation
+        if not new_password:
+            return Response(
+                {"new_password": "Le nouveau mot de passe est requis"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not confirm_password:
+            return Response(
+                {"confirm_password": "La confirmation du mot de passe est requise"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if new_password != confirm_password:
+            return Response(
+                {"confirm_password": "Les mots de passe ne correspondent pas"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(new_password) < 8:
+            return Response(
+                {"new_password": "Le mot de passe doit contenir au moins 8 caractères"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Changer le mot de passe
+        target_user.set_password(new_password)
+        target_user.save()
+        
+        return Response({
+            "success": f"Mot de passe de {target_user.email} modifié avec succès"
+        })
+        
+    except get_user_model().DoesNotExist:
+        return Response(
+            {"detail": "Utilisateur non trouvé"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"detail": "Erreur lors du changement de mot de passe"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
