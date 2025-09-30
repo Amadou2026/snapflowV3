@@ -1,0 +1,157 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Connexion - Snapflow</title>
+    <!-- <link rel="stylesheet" href="{% static 'css/login.css' %}"> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<style>
+
+    body {
+    font-family: 'Arial', sans-serif;
+    background: #f5f7fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+}
+
+.login-box {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    text-align: center;
+}
+
+.login-logo {
+    width: 120px;
+    margin-bottom: 15px;
+}
+
+.login-box h1 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.input-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.input-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+.input-group input[type="email"],
+.input-group input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-login {
+    width: 100%;
+    padding: 12px;
+    background-color: #417690;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-login:hover {
+    background-color: #365f74;
+}
+
+.error-message {
+    color: #d9534f;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.login-footer {
+    margin-top: 15px;
+    font-size: 13px;
+}
+
+.login-footer a {
+    color: #417690;
+    text-decoration: none;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media screen and (max-width: 480px) {
+    .login-box {
+        padding: 20px;
+    }
+
+    .login-logo {
+        width: 100px;
+    }
+}
+
+</style>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <img src="{% static 'images/snapflow_B.png' %}" alt="Snapflow Logo" class="login-logo">
+
+                        <form method="post" action="">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="error-message">
+                        Veuillez vérifier vos identifiants.
+                    </div>
+                {% endif %}
+
+                <div class="input-group">
+                    <label for="id_username">Email</label>
+                    <input type="email" name="username" id="id_username" placeholder="Votre email" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="id_password">Mot de passe</label>
+                    <input type="password" name="password" id="id_password" placeholder="Votre mot de passe" required>
+                </div>
+
+                <!-- <div class="input-group remember-me">
+                    <input type="checkbox" name="remember" id="id_remember">
+                    <label for="id_remember">Se souvenir de moi</label>
+                </div> -->
+
+                <button type="submit" class="btn-login">Se connecter</button>
+            </form>
+
+        </div>
+    </div>
+</body>
+</html>

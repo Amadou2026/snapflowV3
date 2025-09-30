@@ -1,0 +1,455 @@
+{% extends "admin/base_site.html" %}
+{% load static custom_filters %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'css/custom_admin.css' %}">
+<link rel="stylesheet" href="{% static 'css/vue_globale.css' %}">
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userBtn = document.querySelector(".user-menu-btn");
+    const dropdown = document.querySelector(".user-menu-dropdown");
+
+    if (userBtn) {
+      userBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle("show");
+      });
+    }
+
+    // Fermer si clic ailleurs
+    document.addEventListener("click", function () {
+      if (dropdown) dropdown.classList.remove("show");
+    });
+  });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Filtres -->
+    <div class="filter-section">
+        <form method="get" id="periode-form" class="periode-form">
+            <label for="periode">Filtrer par période :</label>
+            <select name="periode" id="periode" onchange="this.form.submit()">
+                <option value="jour" {% if periode == 'jour' %}selected{% endif %}>Jour</option>
+                <option value="semaine" {% if periode == 'semaine' %}selected{% endif %}>Semaine</option>
+                <option value="mois" {% if periode == 'mois' %}selected{% endif %}>Mois</option>
+                <option value="annee" {% if periode == 'annee' %}selected{% endif %}>Année</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-section">
+        <div class="kpi-card" title="Nombre total de tests exécutés">
+            <div class="">
+                <img src="{% static 'images/yellow-logo.png' %}" alt="Tests exécutés" width="40" height="40">
+            </div>
+            <div class="kpi-value">
+                <a href="{% url 'admin:core_executiontest_changelist' %}" class="kpi-link">
+                    {{ total_tests }}
+                </a>
+            </div>
+            <div class="kpi-label">Total des campagnes de test exécutées</div>
+        </div>
+
+        <div class="kpi-card" title="Nombre de tests non fonctionnels">
+            <div class="">
+                <img src="{% static 'images/red-logo.png' %}" alt="Tests non fonctionnels" width="40" height="40">
+            </div>
+            <div class="kpi-value">
+                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=error" class="kpi-link">
+                    {{ non_fonctionnels }}
+                </a>
+            </div>
+            <div class="kpi-label">Campagne de tests non concluantes</div>
+        </div>
+
+        <div class="kpi-card" title="Nombre de tests concluants">
+            <div class="">
+                <img src="{% static 'images/chart-success.png' %}" alt="Tests concluants" width="40" height="40">
+            </div>
+            <div class="kpi-value">
+                <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=done" class="kpi-link">
+                    {{ tests_reussis }}
+                </a>
+            </div>
+            <div class="kpi-label">
+                {% if tests_reussis > 0 %}
+                    Campagne de tests concluantes
+                {% else %}
+                    <span style="font-style: italic;">Aucune Battéie de test concluant</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="kpi-card" title="Nombre de tests non exécutés">
+            <div class="">
+                <img src="{% static 'images/black-logo.png' %}" alt="Tests non exécutés" width="40" height="40">
+            </div>
+            <div class="kpi-value">
+                {% if non_executed > 0 %}
+                    <a href="{% url 'admin:core_executiontest_changelist' %}?statut__exact=non_executed" class="kpi-link">
+                        {{ non_executed }}
+                    </a>
+                {% else %}
+                    <span class="kpi-link">0</span>
+                {% endif %}
+            </div>
+            <div class="kpi-label">
+                {% if non_executed > 0 %}
+                    Campagnes de Tests non exécutées
+                {% else %}
+                    <span style="font-style: italic;">Aucune Campagne de test non exécutée détectée</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Scripts planifiés -->
+    <div class="chart-card espace_top">
+        <h3>Prochaine execution planifée</h3>
+        <div id="scheduled-scripts" class="table-container">
+            <p>Chargement…</p>
+        </div>
+    </div>
+
+    <!-- Configurations en retard -->
+    <div class="chart-card espace_top">
+        <h3>Campagnes en retard</h3>
+        <div id="overdue-configurations" class="table-container">
+            <p>Chargement…</p>
+        </div>
+    </div>
+
+    <!-- Projets affectés -->
+     <div class="chart-card">
+    <h3 class="espace_top">Tests réalisés par projets</h3>
+    <table class="admin-table" role="grid">
+        <thead>
+            <tr>
+                <th>Projet</th>
+                <th>Tests exécutés</th>
+                <th>Concluants ✅</th>
+                <th>Non concluants ❌</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for projet in projets_utilisateur %}
+            {% with execution_tests_by_projet|get_item:projet.id as stats %}
+            <tr>
+                <td>{{ projet.nom }}</td>
+                <td>
+                    <a href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}"
+                        class="kpi-link">
+                        {{ stats.total|default:0 }}
+                    </a>
+                </td>
+                <td>
+                    <a
+                        href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=done">
+                        {{ stats.success|default:0 }}
+                    </a>
+                </td>
+                <td>
+                    <a
+                        href="{% url 'admin:core_executiontest_changelist' %}?configuration__projet={{ projet.id }}&statut__exact=error">
+                        {{ stats.fail|default:0 }}
+                    </a>
+                </td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align:center; font-style: italic;">Aucun projet affecté.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+        <!-- Nouveau bloc pour afficher les logs d'exécution -->
+<div class="chart-card espace_top">
+    <h3>Derniers logs d'exécution</h3>
+
+    <!-- Zone de filtrage -->
+    <div class="logs-filter">
+        <label for="log-filter">Filtrer par statut :</label>
+        <select id="log-filter" onchange="filterLogs()">
+            <option value="all">Tous</option>
+            <option value="Concluant">Concluant</option>
+            <option value="Non concluant">Non concluant</option>
+            <option value="En attente">En attente</option>
+            <option value="En cours">En cours</option>
+        </select>
+    </div>
+
+    <!-- Conteneur des logs -->
+    <div id="execution-logs" class="logs-content">
+        <p>Chargement des logs en cours...</p>
+    </div>
+</div>
+
+
+    <!-- Graphiques -->
+    <!-- <div class="chart-card espace_top" aria-label="Graphique du taux d'erreur par script">
+        <h3 class="chart-title">Taux de bugs par script</h3>
+        <div class="chart-container">
+            <canvas id="erreursScriptChart" role="img" aria-label="Graphique des erreurs par script"></canvas>
+        </div>
+    </div> -->
+
+    <div class="chart-card espace_top">
+        <div class="chart-header">
+            <span class="chart-icon"></span>
+            <h3 class="chart-title">Scripts concluants / non concluants</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="testsconcluantnonconcluant" role="img"
+                aria-label="Graphique en barres des scripts concluants et non concluants"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script src="{% static 'js/dashboard-charts.js' %}" defer></script>
+<script src="{% static 'js/vue-globale-chart.js' %}" defer></script>
+<script src="{% static 'js/vue-globale.js' %}" defer></script>
+
+<!-- Script pour charger les logs d'exécution -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Charger les logs d'exécution
+        fetch('/api/stats/execution-results/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('API non disponible');
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayExecutionLogs(data);
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des logs:', error);
+                document.getElementById('execution-logs').innerHTML = 
+                    '<div class="api-error">' +
+                    '<p>L\'API des logs n\'est pas disponible.</p>' +
+                    '<p>Veuillez vérifier que l\'URL <code>/stats/execution-results/</code> est configurée.</p>' +
+                    '</div>';
+            });
+    });
+
+    function displayExecutionLogs(logs) {
+        const logsContainer = document.getElementById('execution-logs');
+        
+        if (!logs || logs.length === 0) {
+            logsContainer.innerHTML = '<p class="no-logs">Aucun log d\'exécution disponible.</p>';
+            return;
+        }
+
+        let html = '<div class="logs-list">';
+        
+        logs.forEach(log => {
+            const statusClass = getStatusClass(log.statut);
+            const resultat = getResultatInterprete(log.statut);
+            
+            html += `
+                <div class="log-item ${statusClass}" data-status="${resultat}">
+                    <div class="log-header">
+                        <span class="log-script">${log.script_nom || 'Script inconnu'}</span>
+                        <span class="log-status ${statusClass}">${resultat}</span>
+                    </div>
+                    <div class="log-details">
+                        <div class="log-configuration">Configuration: ${log.configuration_nom || 'Non spécifiée'}</div>
+                        <div class="log-date">Exécuté le: ${log.date_execution || 'Date inconnue'}</div>
+                    </div>
+                    <div class="log-content">
+                        <h4>Contenu du log:</h4>
+                        <pre class="log-text">${log.log_contenu || 'Aucun log disponible'}</pre>
+                    </div>
+                    ${log.commentaire ? `
+                    <div class="log-comment">
+                        <h4>Commentaire:</h4>
+                        <p>${log.commentaire}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        logsContainer.innerHTML = html;
+    }
+
+    function getStatusClass(statut) {
+        switch(statut) {
+            case 'done': return 'status-success';
+            case 'error': return 'status-error';
+            case 'pending': return 'status-pending';
+            case 'running': return 'status-running';
+            default: return 'status-unknown';
+        }
+    }
+
+    function getResultatInterprete(statut) {
+        switch(statut) {
+            case 'done': return 'Concluant';
+            case 'error': return 'Non concluant';
+            case 'pending': return 'En attente';
+            case 'running': return 'En cours';
+            default: return 'Statut inconnu';
+        }
+    }
+
+    function filterLogs() {
+        const filterValue = document.getElementById('log-filter').value;
+        const logItems = document.querySelectorAll('.log-item');
+        
+        logItems.forEach(item => {
+            if (filterValue === 'all' || item.getAttribute('data-status') === filterValue) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+<style>
+    .logs-container {
+        margin-top: 15px;
+    }
+    
+    .logs-filter {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .logs-filter label {
+        font-weight: bold;
+    }
+    
+    .logs-content {
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+        padding: 10px;
+        background-color: #f9f9f9;
+    }
+    
+    .log-item {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: white;
+    }
+    
+    .log-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .log-script {
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    .log-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .status-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-running {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    
+    .status-unknown {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+    
+    .log-details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .log-content h4, .log-comment h4 {
+        margin: 10px 0 5px 0;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .log-text {
+        background-color: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .no-logs, .error-message {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .error-message {
+        color: #dc3545;
+    }
+    
+    .api-error {
+        text-align: center;
+        padding: 20px;
+        background-color: #f8d7da;
+        color: #721c24;
+        border-radius: 5px;
+    }
+    
+    .api-error code {
+        background-color: #f1f1f1;
+        padding: 2px 5px;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
