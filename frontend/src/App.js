@@ -12,6 +12,12 @@ import GestionSocietes from './components/societe/GestionSocietes';
 import GestionGroupe from './components/groupe/GestionGroupe';
 import GestionSecteur from './components/secteur/GestionSecteur';
 import GestionProjets from './components/projet/GestionProjets';
+import GestionSousAxe from './components/sousaxe/GestionSousAxe';
+import GestionAxe from './components/axe/GestionAxe';
+import GestionScripts from './components/script/GestionScripts';
+import GestionMail from './components/email/GestionMail';
+import GestionParametres from './components/parametre/GestionParametres';
+import GestionConfigurationTest from './components/configurationtest/GestionConfigurationTest';
 import 'font-awesome/css/font-awesome.min.css';
 import { useContext } from 'react';
 
@@ -29,13 +35,13 @@ const AppRoutes = () => {
   // Fonction pour vérifier les permissions d'accès admin
   const hasAdminAccess = () => {
     if (!user) return false;
-    
+
     // Si l'utilisateur n'est pas staff, il n'a pas accès aux pages admin
     if (!user.is_staff) return false;
-    
+
     // Vérifier les permissions spécifiques
-    return user.is_superuser || 
-           user.groups?.some(g => g.toLowerCase() === "administrateur");
+    return user.is_superuser ||
+      user.groups?.some(g => g.toLowerCase() === "administrateur");
   };
 
   // Fonction pour vérifier l'accès super admin
@@ -104,7 +110,7 @@ const AppRoutes = () => {
             )
           }
         />
-        
+
         <Route
           path="/admin/core/secteuractivite/"
           element={
@@ -139,7 +145,7 @@ const AppRoutes = () => {
           path="/admin/core/societe/"
           element={
             isAuthenticated ? (
-              hasSuperAdminAccess() ? (
+              hasAdminAccess() ? (
                 <GestionSocietes user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -156,6 +162,93 @@ const AppRoutes = () => {
             isAuthenticated ? (
               hasAdminAccess() ? (
                 <GestionProjets user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/core/axe/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionAxe user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/core/sousaxe/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionSousAxe user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/core/script/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionScripts user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/core/emailnotification/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionMail user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/core/configuration/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionParametres user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        
+
+        <Route
+          path="/admin/core/configurationtest/"
+          element={
+            isAuthenticated ? (
+              // Rediriger les utilisateurs non-staff vers l'accueil
+              user?.is_staff ? (
+                <GestionConfigurationTest user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
               )

@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
-import avatar2 from '../../assets/img/user/avatar-2.jpg'
+import React, { useState, useContext, useEffect } from 'react';
+import avatar2 from '../../assets/img/user/avatar-2.jpg';
+import { AuthContext } from '../../context/AuthContext';
+import { useSidebar } from '../../hooks/useSidebar'; // Import du hook
 
 const HeaderAdmin = ({ user }) => {
+  const { isAuthenticated } = useContext(AuthContext);
   const [showMessageDropdown, setShowMessageDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [activeProfileTab, setActiveProfileTab] = useState('profile');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Utilisation du hook useSidebar
+  const {
+    isSidebarHidden,
+    isMobileSidebarActive,
+    toggleSidebar,
+    toggleMobileSidebar
+  } = useSidebar();
 
   const toggleMessageDropdown = () => {
     setShowMessageDropdown(!showMessageDropdown);
@@ -17,19 +28,30 @@ const HeaderAdmin = ({ user }) => {
     setShowMessageDropdown(false);
   };
 
-  // console.log('HeaderAdmin user:', user);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Fermer les dropdowns quand on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.dropdown')) {
+        setShowMessageDropdown(false);
+        setShowProfileDropdown(false);
+      }
+    };
 
-  const toggleSidebar = (e) => {
-    e.preventDefault();
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    console.log('Searching for:', searchQuery);
-  };
+  // Fermer la sidebar mobile quand on redimensionne la fenêtre
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 1024) {
+        // Le hook gère déjà cet état, mais on peut forcer la fermeture si nécessaire
+      }
+    };
 
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <header className="pc-header">
@@ -37,17 +59,37 @@ const HeaderAdmin = ({ user }) => {
         {/* Mobile Media Block start */}
         <div className="me-auto pc-mob-drp">
           <ul className="list-unstyled">
-            {/* Menu collapse Icon */}
+            {/* Bouton DESKTOP - Cache la sidebar */}
             <li className="pc-h-item pc-sidebar-collapse">
-              <a href="#" className="pc-head-link ms-0" id="sidebar-hide" onClick={toggleSidebar}>
+              <a 
+                href="#" 
+                className="pc-head-link ms-0" 
+                id="sidebar-hide" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleSidebar();
+                }}
+              >
                 <i className="ti ti-menu-2"></i>
               </a>
             </li>
+            
+            {/* Bouton MOBILE - Ouvre la sidebar en overlay */}
             <li className="pc-h-item pc-sidebar-popup">
-              <a href="#" className="pc-head-link ms-0" id="mobile-collapse">
+              <a 
+                href="#" 
+                className="pc-head-link ms-0" 
+                id="mobile-collapse"
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleMobileSidebar();
+                }}
+              >
                 <i className="ti ti-menu-2"></i>
               </a>
             </li>
+            
+            {/* Recherche mobile */}
             <li className="dropdown pc-h-item d-inline-flex d-md-none">
               <a
                 className="pc-head-link dropdown-toggle arrow-none m-0"
@@ -73,6 +115,8 @@ const HeaderAdmin = ({ user }) => {
                 </div>
               </div>
             </li>
+            
+            {/* Recherche desktop */}
             <li className="pc-h-item d-none d-md-inline-flex">
               <div className="header-search">
                 <i className="feather feather-search icon-search"></i>
@@ -99,7 +143,10 @@ const HeaderAdmin = ({ user }) => {
                 role="button"
                 aria-haspopup="false"
                 aria-expanded={showMessageDropdown}
-                onClick={toggleMessageDropdown}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMessageDropdown();
+                }}
               >
                 <i className="ti ti-mail"></i>
               </a>
@@ -110,7 +157,10 @@ const HeaderAdmin = ({ user }) => {
                     <a
                       href="#!"
                       className="pc-head-link bg-transparent"
-                      onClick={() => setShowMessageDropdown(false)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowMessageDropdown(false);
+                      }}
                     >
                       <i className="ti ti-x text-danger"></i>
                     </a>
@@ -124,64 +174,12 @@ const HeaderAdmin = ({ user }) => {
                       <a className="list-group-item list-group-item-action">
                         <div className="d-flex">
                           <div className="flex-shrink-0">
-                            <img
-                              src={avatar2}
-                              alt="user-image"
-                              className="user-avtar"
-                            />
+                            <img src={avatar2} alt="user-image" className="user-avtar" />
                           </div>
                           <div className="flex-grow-1 ms-1">
                             <span className="float-end text-muted">3:00 AM</span>
                             <p className="text-body mb-1">It's <b>Cristina danny's</b> birthday today.</p>
                             <span className="text-muted">2 min ago</span>
-                          </div>
-                        </div>
-                      </a>
-                      <a className="list-group-item list-group-item-action">
-                        <div className="d-flex">
-                          <div className="flex-shrink-0">
-                            <img
-                              src="../assets/img/user/avatar-1.jpg"
-                              alt="user-image"
-                              className="user-avtar"
-                            />
-                          </div>
-                          <div className="flex-grow-1 ms-1">
-                            <span className="float-end text-muted">6:00 PM</span>
-                            <p className="text-body mb-1"><b>Aida Burg</b> commented your post.</p>
-                            <span className="text-muted">5 August</span>
-                          </div>
-                        </div>
-                      </a>
-                      <a className="list-group-item list-group-item-action">
-                        <div className="d-flex">
-                          <div className="flex-shrink-0">
-                            <img
-                              src="../assets/img/user/avatar-3.jpg"
-                              alt="user-image"
-                              className="user-avtar"
-                            />
-                          </div>
-                          <div className="flex-grow-1 ms-1">
-                            <span className="float-end text-muted">2:45 PM</span>
-                            <p className="text-body mb-1"><b>There was a failure to your setup.</b></p>
-                            <span className="text-muted">7 hours ago</span>
-                          </div>
-                        </div>
-                      </a>
-                      <a className="list-group-item list-group-item-action">
-                        <div className="d-flex">
-                          <div className="flex-shrink-0">
-                            <img
-                              src="../assets/img/user/avatar-4.jpg"
-                              alt="user-image"
-                              className="user-avtar"
-                            />
-                          </div>
-                          <div className="flex-grow-1 ms-1">
-                            <span className="float-end text-muted">9:10 PM</span>
-                            <p className="text-body mb-1"><b>Cristina Danny </b> invited to join <b> Meeting.</b></p>
-                            <span className="text-muted">Daily scrum meeting time</span>
                           </div>
                         </div>
                       </a>
@@ -203,13 +201,12 @@ const HeaderAdmin = ({ user }) => {
                 role="button"
                 aria-haspopup="false"
                 aria-expanded={showProfileDropdown}
-                onClick={toggleProfileDropdown}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleProfileDropdown();
+                }}
               >
-                <img
-                  src={avatar2}
-                  alt="user-image"
-                  className="user-avtar"
-                />
+                <img src={avatar2} alt="user-image" className="user-avtar" />
                 <span>{user?.first_name} {user?.last_name}</span>
               </a>
               {showProfileDropdown && (
@@ -217,43 +214,34 @@ const HeaderAdmin = ({ user }) => {
                   <div className="dropdown-header">
                     <div className="d-flex mb-1">
                       <div className="flex-shrink-0">
-                        <img
-                          src={avatar2}
-                          alt="user-image"
-                          className="user-avtar wid-35"
-                        />
+                        <img src={avatar2} alt="user-image" className="user-avtar wid-35" />
                       </div>
                       <div className="flex-grow-1 ms-3">
                         <h6 className="mb-1">{user?.first_name} {user?.last_name}</h6>
                         <div className="mb-2">
-                          {user.groups && user.groups.length > 0
+                          {user?.groups && user.groups.length > 0
                             ? user.groups.map((g, idx) => (
-                              <span key={idx} className="badge bg-info me-1">{g}</span>
-                            ))
+                                <span key={idx} className="badge bg-info me-1">{g}</span>
+                              ))
                             : <span className="badge bg-light text-dark">Aucun rôle</span>
                           }
                         </div>
                       </div>
-
                       <a
                         href="#!"
                         className="pc-head-link bg-transparent"
-                        onClick={() => {
-                          // Fermer le dropdown
+                        onClick={(e) => {
+                          e.preventDefault();
                           setShowProfileDropdown(false);
-
-                          // Supprimer le token
                           localStorage.removeItem('access_token');
-
-                          // Rediriger vers login
                           window.location.href = '/login';
                         }}
                       >
                         <i className="ti ti-power text-danger"></i>
                       </a>
-
                     </div>
                   </div>
+                  
                   <ul className="nav drp-tabs nav-fill nav-tabs" role="tablist">
                     <li className="nav-item" role="presentation">
                       <button
@@ -276,6 +264,7 @@ const HeaderAdmin = ({ user }) => {
                       </button>
                     </li>
                   </ul>
+                  
                   <div className="tab-content">
                     <div
                       className={`tab-pane fade ${activeProfileTab === 'profile' ? 'show active' : ''}`}
@@ -285,19 +274,39 @@ const HeaderAdmin = ({ user }) => {
                         <i className="ti ti-user"></i>
                         <span>Voir le Profile</span>
                       </a>
-                      <a href="#!" className="dropdown-item">
-                        <i className="ti ti-clipboard-list"></i>
-                        <span>Social Profile</span>
-                      </a>
+                      {isAuthenticated && user && (
+                        <>
+                          {user.is_superuser ? (
+                            <a href="/admin/core/societe" className="dropdown-item">
+                              <i className="ti ti-clipboard-list"></i>
+                              <span>Les sociétés</span>
+                            </a>
+                          ) : user.groups?.some(g => g.toLowerCase() === "administrateur") ? (
+                            <a href="/admin/core/societe" className="dropdown-item">
+                              <i className="ti ti-clipboard-list"></i>
+                              <span>Ma société</span>
+                            </a>
+                          ) : null}
+                        </>
+                      )}
                       <a href="#!" className="dropdown-item">
                         <i className="ti ti-wallet"></i>
                         <span>Billing</span>
                       </a>
-                      <a href="#!" className="dropdown-item">
+                      <a 
+                        href="#!" 
+                        className="dropdown-item"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          localStorage.removeItem('access_token');
+                          window.location.href = '/login';
+                        }}
+                      >
                         <i className="ti ti-power"></i>
                         <span>Logout</span>
                       </a>
                     </div>
+                    
                     <div
                       className={`tab-pane fade ${activeProfileTab === 'setting' ? 'show active' : ''}`}
                       role="tabpanel"

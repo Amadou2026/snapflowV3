@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
 import api from '../../services/api';
 import AjouterProjetModal from './modals/AjouterProjetModal';
 import ModifierProjetModal from './modals/ModifierProjetModal';
 import ViewProjetModal from './modals/ViewProjetModal';
+import IntegrationExterne from './IntegrationExterne';
 import HeaderAdmin from '../admin/HeaderAdmin';
 import SidebarAdmin from '../admin/SidebarAdmin';
 import FooterAdmin from '../admin/FooterAdmin';
+
+const MySwal = withReactContent(Swal);
 
 const GestionProjets = ({ user, logout }) => {
     const [projets, setProjets] = useState([]);
@@ -17,6 +22,8 @@ const GestionProjets = ({ user, logout }) => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+
+    const isSuperAdmin = user?.is_superuser;
 
     useEffect(() => {
         fetchProjets();
@@ -52,15 +59,69 @@ const GestionProjets = ({ user, logout }) => {
     };
 
     const handleDeleteProjet = async (projetId) => {
-        if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-            try {
-                await api.delete(`projets/${projetId}/`);
-                const updatedProjets = projets.filter(projet => projet.id !== projetId);
-                setProjets(updatedProjets);
-            } catch (error) {
-                console.error('Erreur lors de la suppression:', error);
-                alert('Erreur lors de la suppression du projet');
+        const projetToDelete = projets.find(p => p.id === projetId);
+        
+        const result = await MySwal.fire({
+            title: 'Êtes-vous sûr ?',
+            html: `
+                <div class="text-start">
+                    <p>Vous êtes sur le point de supprimer le projet :</p>
+                    <div class="alert alert-warning mt-2">
+                        <strong>${projetToDelete.nom}</strong><br/>
+                        <small class="text-muted">
+                            ${projetToDelete.id_redmine ? `ID Redmine: ${projetToDelete.id_redmine}` : 'Aucun ID Redmine'}
+                        </small>
+                    </div>
+                    <p class="text-danger mt-3">
+                        <i class="ti ti-alert-triangle me-1"></i>
+                        Cette action est irréversible et supprimera toutes les données associées !
+                    </p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Oui, supprimer !',
+            cancelButtonText: 'Annuler',
+            reverseButtons: true,
+            customClass: {
+                confirmButton: 'btn btn-danger',
+                cancelButton: 'btn btn-secondary'
+            },
+            buttonsStyling: false,
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                try {
+                    await api.delete(`projets/${projetId}/`);
+                    return true;
+                } catch (error) {
+                    MySwal.showValidationMessage(
+                        `Erreur: ${error.response?.data?.detail || 'Erreur de suppression'}`
+                    );
+                    return false;
+                }
             }
+        });
+
+        if (result.isConfirmed) {
+            // Mettre à jour la liste des projets
+            const updatedProjets = projets.filter(projet => projet.id !== projetId);
+            setProjets(updatedProjets);
+            setFilteredProjets(updatedProjets);
+            
+            // Afficher un message de succès
+            MySwal.fire({
+                title: 'Supprimé !',
+                text: 'Le projet a été supprimé avec succès.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6',
+                confirmButtonText: 'OK',
+                customClass: {
+                    confirmButton: 'btn btn-success'
+                },
+                buttonsStyling: false
+            });
         }
     };
 
@@ -79,6 +140,18 @@ const GestionProjets = ({ user, logout }) => {
         setProjets(updatedProjets);
         setFilteredProjets(updatedProjets);
         setShowAddModal(false);
+        
+        // Message de succès
+        MySwal.fire({
+            title: 'Succès !',
+            text: 'Projet créé avec succès',
+            icon: 'success',
+            confirmButtonText: 'OK',
+            customClass: {
+                confirmButton: 'btn btn-success'
+            },
+            buttonsStyling: false
+        });
     };
 
     const handleProjetUpdated = (updatedProjet) => {
@@ -89,6 +162,23 @@ const GestionProjets = ({ user, logout }) => {
         setFilteredProjets(updatedProjets);
         setShowEditModal(false);
         setSelectedProjet(null);
+        
+        // Message de succès
+        MySwal.fire({
+            title: 'Succès !',
+            text: 'Projet modifié avec succès',
+            icon: 'success',
+            confirmButtonText: 'OK',
+            customClass: {
+                confirmButton: 'btn btn-success'
+            },
+            buttonsStyling: false
+        });
+    };
+
+    // NOUVELLE FONCTION : Recharger les projets après import
+    const handleProjetImported = () => {
+        fetchProjets(); // Recharge la liste des projets
     };
 
     const formatUrl = (url) => {
@@ -153,12 +243,27 @@ const GestionProjets = ({ user, logout }) => {
                                         <div className="col-md-12">
                                             <div className="page-header-title">
                                                 <h2 className="mb-0">Gestion des projets</h2>
+                                                {isSuperAdmin && (
+                                                    <p className="text-muted mb-0">
+                                                        <i className="ti ti-crown me-1 text-warning"></i>
+                                                        Mode Super Administrateur - Accès complet aux intégrations externes
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
+                            {/* AJOUT DU COMPOSANT D'INTÉGRATION EXTERNE */}
+                            {isSuperAdmin && (
+                                <IntegrationExterne 
+                                    user={user}
+                                    onProjetImported={handleProjetImported}
+                                />
+                            )}
+
+                            {/* Section recherche (après l'intégration externe) */}
                             <div className="row mb-3">
                                 <div className="col-sm-12">
                                     <div className="card">
@@ -225,7 +330,7 @@ const GestionProjets = ({ user, logout }) => {
                                                                                 <img
                                                                                     src={projet.logo}
                                                                                     alt={projet.nom}
-                                                                                    className="wid-40 hei-40 rounded"
+                                                                                    className="wid-80 hei-40 rounded"
                                                                                 />
                                                                             ) : (
                                                                                 <div className="wid-40 hei-40 rounded bg-primary d-flex align-items-center justify-content-center">
@@ -260,10 +365,15 @@ const GestionProjets = ({ user, logout }) => {
                                                                     )}
                                                                 </td>
                                                                 <td>
-                                                                    {projet.charge_de_compte_name ? (
+                                                                    {projet.charge_de_compte_nom ? (
                                                                         <div className="d-flex align-items-center">
                                                                             <i className="ti ti-user me-1 text-muted"></i>
-                                                                            <span>{projet.charge_de_compte_name}</span>
+                                                                            <div>
+                                                                                <div>{projet.charge_de_compte_nom}</div>
+                                                                                {projet.charge_de_compte_email && (
+                                                                                    <small className="text-muted">{projet.charge_de_compte_email}</small>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     ) : (
                                                                         <span className="text-muted">Non assigné</span>

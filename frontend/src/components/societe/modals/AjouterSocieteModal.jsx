@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
+import { toast } from 'react-toastify';
 
 const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
     const [formData, setFormData] = useState({
         nom: '',
         num_siret: '',
         url: '',
-        secteur_activite: '', // Ce sera maintenant l'ID du secteur
-        admin: '', // ID de l'administrateur
-        projet: '', // ID du projet
-        // employes: [] // Tableau d'IDs des employés
+        secteur_activite: '',
+        admin: '',
+        projets: [], // Changé de 'projet' à 'projets' (array)
+        employes: []
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
@@ -19,6 +20,14 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
     const [utilisateurs, setUtilisateurs] = useState([]);
     const [projets, setProjets] = useState([]);
     const [loadingReferences, setLoadingReferences] = useState(false);
+
+    // États pour les employés (séparés)
+    const [employesDisponibles, setEmployesDisponibles] = useState([]);
+    const [employesSelectionnes, setEmployesSelectionnes] = useState([]);
+
+    // États pour les projets (séparés)
+    const [projetsDisponibles, setProjetsDisponibles] = useState([]);
+    const [projetsSelectionnes, setProjetsSelectionnes] = useState([]);
 
     // Charger les données de référence
     useEffect(() => {
@@ -37,13 +46,15 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             // Charger les utilisateurs (non superusers pour l'admin)
             const usersResponse = await api.get('users/?exclude_superadmin=true');
             setUtilisateurs(usersResponse.data);
+            setEmployesDisponibles(usersResponse.data);
 
             // Charger les projets
             const projetsResponse = await api.get('projets/');
-            // console.log('Projets:', projetsResponse.data);
             setProjets(projetsResponse.data);
+            setProjetsDisponibles(projetsResponse.data); // Tous les projets sont disponibles initialement
         } catch (error) {
             console.error('Erreur lors du chargement des données de référence:', error);
+            toast.error('Erreur lors du chargement des données de référence');
         } finally {
             setLoadingReferences(false);
         }
@@ -56,7 +67,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             ...prev,
             [name]:
                 name === 'secteur_activite' || name === 'admin'
-                    ? parseInt(value) || null
+                    ? parseInt(value) || ''
                     : value
         }));
 
@@ -69,13 +80,122 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
         }
     };
 
+    // Gestion des projets (ManyToMany)
+    const ajouterProjet = (projetId) => {
+        const projetIdInt = parseInt(projetId);
+        const projet = projets.find(p => p.id === projetIdInt);
+        
+        if (projet && !formData.projets.includes(projetIdInt)) {
+            const nouveauxProjets = [...formData.projets, projetIdInt];
+            setFormData(prev => ({
+                ...prev,
+                projets: nouveauxProjets
+            }));
+            
+            // Mettre à jour les listes
+            setProjetsSelectionnes(prev => [...prev, projet]);
+            setProjetsDisponibles(prev => prev.filter(p => p.id !== projetIdInt));
+        }
+    };
 
-    const handleEmployesChange = (e) => {
-        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    const retirerProjet = (projetId) => {
+        const projetIdInt = parseInt(projetId);
+        const projet = projets.find(p => p.id === projetIdInt);
+        
+        const nouveauxProjets = formData.projets.filter(id => id !== projetIdInt);
         setFormData(prev => ({
             ...prev,
-            employes: selectedOptions
+            projets: nouveauxProjets
         }));
+        
+        // Mettre à jour les listes
+        setProjetsSelectionnes(prev => prev.filter(p => p.id !== projetIdInt));
+        if (projet) {
+            setProjetsDisponibles(prev => [...prev, projet]);
+        }
+    };
+
+    const ajouterTousProjets = () => {
+        const tousProjetsIds = projetsDisponibles.map(proj => proj.id);
+        const nouveauxProjets = [...formData.projets, ...tousProjetsIds];
+        setFormData(prev => ({
+            ...prev,
+            projets: nouveauxProjets
+        }));
+        
+        // Mettre à jour les listes
+        setProjetsSelectionnes(prev => [...prev, ...projetsDisponibles]);
+        setProjetsDisponibles([]);
+    };
+
+    const retirerTousProjets = () => {
+        setFormData(prev => ({
+            ...prev,
+            projets: []
+        }));
+        
+        // Mettre à jour les listes
+        setProjetsDisponibles(prev => [...prev, ...projetsSelectionnes]);
+        setProjetsSelectionnes([]);
+    };
+
+    // Gestion des employés (ManyToMany)
+    const ajouterEmploye = (employeId) => {
+        const employeIdInt = parseInt(employeId);
+        const employe = utilisateurs.find(u => u.id === employeIdInt);
+        
+        if (employe && !formData.employes.includes(employeIdInt)) {
+            const nouveauxEmployes = [...formData.employes, employeIdInt];
+            setFormData(prev => ({
+                ...prev,
+                employes: nouveauxEmployes
+            }));
+            
+            // Mettre à jour les listes
+            setEmployesSelectionnes(prev => [...prev, employe]);
+            setEmployesDisponibles(prev => prev.filter(e => e.id !== employeIdInt));
+        }
+    };
+
+    const retirerEmploye = (employeId) => {
+        const employeIdInt = parseInt(employeId);
+        const employe = utilisateurs.find(u => u.id === employeIdInt);
+        
+        const nouveauxEmployes = formData.employes.filter(id => id !== employeIdInt);
+        setFormData(prev => ({
+            ...prev,
+            employes: nouveauxEmployes
+        }));
+        
+        // Mettre à jour les listes
+        setEmployesSelectionnes(prev => prev.filter(e => e.id !== employeIdInt));
+        if (employe) {
+            setEmployesDisponibles(prev => [...prev, employe]);
+        }
+    };
+
+    const ajouterTousEmployes = () => {
+        const tousEmployesIds = employesDisponibles.map(emp => emp.id);
+        const nouveauxEmployes = [...formData.employes, ...tousEmployesIds];
+        setFormData(prev => ({
+            ...prev,
+            employes: nouveauxEmployes
+        }));
+        
+        // Mettre à jour les listes
+        setEmployesSelectionnes(prev => [...prev, ...employesDisponibles]);
+        setEmployesDisponibles([]);
+    };
+
+    const retirerTousEmployes = () => {
+        setFormData(prev => ({
+            ...prev,
+            employes: []
+        }));
+        
+        // Mettre à jour les listes
+        setEmployesDisponibles(prev => [...prev, ...employesSelectionnes]);
+        setEmployesSelectionnes([]);
     };
 
     const validateForm = () => {
@@ -122,11 +242,12 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             // Format exact pour le sérialiseur de création
             const dataToSend = {
                 nom: formData.nom,
-                num_siret: formData.num_siret,
-                url: formData.url,
-                secteur_activite: parseInt(formData.secteur_activite), // ID seulement
-                admin: parseInt(formData.admin) || null, // ID ou null
-                projet: formData.projet, // Pour l'instant null si vous n'avez pas de champ projet
+                num_siret: formData.num_siret || '',
+                url: formData.url || '',
+                secteur_activite: formData.secteur_activite ? parseInt(formData.secteur_activite) : null,
+                admin: formData.admin ? parseInt(formData.admin) : null,
+                projets: formData.projets, // Array d'IDs de projets
+                employes: formData.employes
             };
 
             console.log('📤 Données envoyées:', dataToSend);
@@ -134,6 +255,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             const response = await api.post('societe/create/', dataToSend);
             console.log('✅ Réponse API:', response.data);
 
+            toast.success('Société créée avec succès');
             onSocieteAdded(response.data);
             resetForm();
         } catch (error) {
@@ -141,6 +263,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             if (error.response?.data) {
                 console.log('📋 Détails erreur:', error.response.data);
                 setErrors(error.response.data);
+                toast.error('Erreur lors de la création de la société');
             }
         } finally {
             setLoading(false);
@@ -154,9 +277,13 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             url: '',
             secteur_activite: '',
             admin: '',
-            projet: '',
+            projets: [],
             employes: []
         });
+        setEmployesDisponibles(utilisateurs);
+        setEmployesSelectionnes([]);
+        setProjetsDisponibles(projets);
+        setProjetsSelectionnes([]);
         setErrors({});
     };
 
@@ -169,7 +296,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
 
     return (
         <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-lg">
+            <div className="modal-dialog modal-xl">
                 <div className="modal-content">
                     <div className="modal-header">
                         <h5 className="modal-title">
@@ -307,66 +434,265 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="col-md-6">
+                            </div>
+
+                            {/* Section Projets (ManyToMany) */}
+                            <div className="row">
+                                <div className="col-12">
                                     <div className="mb-3">
-                                        <label htmlFor="projet" className="form-label">
-                                            Projet associé
+                                        <label className="form-label">
+                                            Projets Associés
                                         </label>
-                                        <select
-                                            className={`form-control ${errors.projet ? 'is-invalid' : ''}`}
-                                            id="projet"
-                                            name="projet"
-                                            value={formData.projet}
-                                            onChange={handleInputChange}
-                                        >
-                                            <option value="">Sélectionner un projet</option>
-                                            {projets.map(projet => (
-                                                <option key={projet.id} value={projet.id}>
-                                                    {projet.nom}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.projet && (
-                                            <div className="invalid-feedback">
-                                                {errors.projet}
+                                        
+                                        <div className="row">
+                                            {/* Projets disponibles */}
+                                            <div className="col-md-5">
+                                                <div className="card">
+                                                    <div className="card-header d-flex justify-content-between align-items-center">
+                                                        <span>Projets disponibles ({projetsDisponibles.length})</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-primary"
+                                                            onClick={ajouterTousProjets}
+                                                            disabled={projetsDisponibles.length === 0}
+                                                        >
+                                                            Tout ajouter →
+                                                        </button>
+                                                    </div>
+                                                    <div className="card-body p-0">
+                                                        <div 
+                                                            className="list-group list-group-flush"
+                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                        >
+                                                            {projetsDisponibles.map(projet => (
+                                                                <div 
+                                                                    key={projet.id}
+                                                                    className="list-group-item d-flex justify-content-between align-items-center"
+                                                                >
+                                                                    <div>
+                                                                        <strong>{projet.nom}</strong>
+                                                                        <br />
+                                                                        <small className="text-muted">
+                                                                            {projet.charge_de_compte_nom && (
+                                                                                <>Chargé: {projet.charge_de_compte_nom}</>
+                                                                            )}
+                                                                        </small>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-success"
+                                                                        onClick={() => ajouterProjet(projet.id)}
+                                                                    >
+                                                                        <i className="ti ti-plus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            {projetsDisponibles.length === 0 && (
+                                                                <div className="list-group-item text-center text-muted">
+                                                                    Aucun projet disponible
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Boutons de transfert */}
+                                            <div className="col-md-2 d-flex align-items-center justify-content-center">
+                                                <div className="text-center">
+                                                    <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
+                                                </div>
+                                            </div>
+
+                                            {/* Projets sélectionnés */}
+                                            <div className="col-md-5">
+                                                <div className="card">
+                                                    <div className="card-header d-flex justify-content-between align-items-center">
+                                                        <span>Projets sélectionnés ({projetsSelectionnes.length})</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={retirerTousProjets}
+                                                            disabled={projetsSelectionnes.length === 0}
+                                                        >
+                                                            ← Tout retirer
+                                                        </button>
+                                                    </div>
+                                                    <div className="card-body p-0">
+                                                        <div 
+                                                            className="list-group list-group-flush"
+                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                        >
+                                                            {projetsSelectionnes.map(projet => (
+                                                                <div 
+                                                                    key={projet.id}
+                                                                    className="list-group-item d-flex justify-content-between align-items-center"
+                                                                >
+                                                                    <div>
+                                                                        <strong>{projet.nom}</strong>
+                                                                        <br />
+                                                                        <small className="text-muted">
+                                                                            {projet.charge_de_compte_nom && (
+                                                                                <>Chargé: {projet.charge_de_compte_nom}</>
+                                                                            )}
+                                                                        </small>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-danger"
+                                                                        onClick={() => retirerProjet(projet.id)}
+                                                                    >
+                                                                        <i className="ti ti-minus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            {projetsSelectionnes.length === 0 && (
+                                                                <div className="list-group-item text-center text-muted">
+                                                                    Aucun projet sélectionné
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <small className="form-text text-muted">
+                                            {projetsSelectionnes.length} projet(s) sélectionné(s) pour cette société
+                                        </small>
+                                        {errors.projets && (
+                                            <div className="invalid-feedback d-block">
+                                                {errors.projets}
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* <div className="row">
+                            {/* Section employés avec deux listes */}
+                            <div className="row">
                                 <div className="col-12">
                                     <div className="mb-3">
-                                        <label htmlFor="employes" className="form-label">
-                                            Employés
+                                        <label className="form-label">
+                                            Gestion des Employés
                                         </label>
-                                        <select
-                                            multiple
-                                            className={`form-control ${errors.employes ? 'is-invalid' : ''}`}
-                                            id="employes"
-                                            name="employes"
-                                            value={formData.employes}
-                                            onChange={handleEmployesChange}
-                                            size="4"
-                                        >
-                                            {utilisateurs.map(user => (
-                                                <option key={user.id} value={user.id}>
-                                                    {user.nom} {user.prenom} ({user.email})
-                                                </option>
-                                            ))}
-                                        </select>
+                                        
+                                        <div className="row">
+                                            {/* Employés disponibles */}
+                                            <div className="col-md-5">
+                                                <div className="card">
+                                                    <div className="card-header d-flex justify-content-between align-items-center">
+                                                        <span>Employés disponibles ({employesDisponibles.length})</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-primary"
+                                                            onClick={ajouterTousEmployes}
+                                                            disabled={employesDisponibles.length === 0}
+                                                        >
+                                                            Tout ajouter →
+                                                        </button>
+                                                    </div>
+                                                    <div className="card-body p-0">
+                                                        <div 
+                                                            className="list-group list-group-flush"
+                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                        >
+                                                            {employesDisponibles.map(employe => (
+                                                                <div 
+                                                                    key={employe.id}
+                                                                    className="list-group-item d-flex justify-content-between align-items-center"
+                                                                >
+                                                                    <div>
+                                                                        <strong>{employe.first_name} {employe.last_name}</strong>
+                                                                        <br />
+                                                                        <small className="text-muted">{employe.email}</small>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-success"
+                                                                        onClick={() => ajouterEmploye(employe.id)}
+                                                                    >
+                                                                        <i className="ti ti-plus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            {employesDisponibles.length === 0 && (
+                                                                <div className="list-group-item text-center text-muted">
+                                                                    Aucun employé disponible
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Boutons de transfert */}
+                                            <div className="col-md-2 d-flex align-items-center justify-content-center">
+                                                <div className="text-center">
+                                                    <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
+                                                </div>
+                                            </div>
+
+                                            {/* Employés sélectionnés */}
+                                            <div className="col-md-5">
+                                                <div className="card">
+                                                    <div className="card-header d-flex justify-content-between align-items-center">
+                                                        <span>Employés sélectionnés ({employesSelectionnes.length})</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={retirerTousEmployes}
+                                                            disabled={employesSelectionnes.length === 0}
+                                                        >
+                                                            ← Tout retirer
+                                                        </button>
+                                                    </div>
+                                                    <div className="card-body p-0">
+                                                        <div 
+                                                            className="list-group list-group-flush"
+                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                        >
+                                                            {employesSelectionnes.map(employe => (
+                                                                <div 
+                                                                    key={employe.id}
+                                                                    className="list-group-item d-flex justify-content-between align-items-center"
+                                                                >
+                                                                    <div>
+                                                                        <strong>{employe.first_name} {employe.last_name}</strong>
+                                                                        <br />
+                                                                        <small className="text-muted">{employe.email}</small>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-danger"
+                                                                        onClick={() => retirerEmploye(employe.id)}
+                                                                    >
+                                                                        <i className="ti ti-minus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            {employesSelectionnes.length === 0 && (
+                                                                <div className="list-group-item text-center text-muted">
+                                                                    Aucun employé sélectionné
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
                                         <small className="form-text text-muted">
-                                            Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs employés
+                                            {employesSelectionnes.length} employé(s) sélectionné(s) pour cette société
                                         </small>
                                         {errors.employes && (
-                                            <div className="invalid-feedback">
+                                            <div className="invalid-feedback d-block">
                                                 {errors.employes}
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                            </div> */}
+                            </div>
                         </div>
                         <div className="modal-footer">
                             <button

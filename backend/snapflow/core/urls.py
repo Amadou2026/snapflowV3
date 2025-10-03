@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import *
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import stats_views, views
+from .views import api_user_permissions
 
 
 router = DefaultRouter()
@@ -10,10 +11,14 @@ router.register(r"axes", AxeViewSet)
 router.register(r"sous-axes", SousAxeViewSet)
 router.register(r"scripts", ScriptViewSet)
 router.register(r"projets", ProjetViewSet)
-router.register(r"configurations", ConfigurationTestViewSet)
+router.register(r"configuration-tests", ConfigurationTestViewSet)
 router.register(r"executions", ExecutionTestViewSet)
 router.register(r'groupes', GroupePersonnaliseViewSet, basename='groupepersonnalise')
-from .views import api_user_permissions
+router.register(r'email-notifications', views.EmailNotificationViewSet, basename='emailnotification')
+router.register(r'parametres', views.ConfigurationViewSet, basename='configuration')  # Changé
+
+
+
 
 
 urlpatterns = [
@@ -79,12 +84,12 @@ urlpatterns = [
         path("user/permissions/", api_user_permissions, name="api_user_permissions"), #Gestion de permission
         path('permissions/', list_all_permissions, name='all-permissions'),
         
-        # Société
-        path('societe/', list_societes, name='list_societes'),
-        path('societe/create/', create_societe, name='create_societe'),
-        path('societe/<int:pk>/', detail_societe, name='detail_societe'),
-        path('societe/<int:pk>/update/', update_societe, name='update_societe'),
-        path('societe/<int:pk>/delete/', delete_societe, name='delete_societe'),
+        # Société - URLs CRUD
+        path('societe/', views.list_societes, name='list_societes'),
+        path('societe/create/', views.create_societe, name='create_societe'),
+        path('societe/<int:pk>/', views.detail_societe, name='detail_societe'),
+        path('societe/<int:pk>/update/', views.update_societe, name='update_societe'),
+        path('societe/<int:pk>/delete/', views.delete_societe, name='delete_societe'),
         
         #Secteur Activité
         path('secteurs/', SecteurActiviteListAPIView.as_view(), name='secteurs-list'),

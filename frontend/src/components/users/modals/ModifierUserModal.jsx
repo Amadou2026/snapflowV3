@@ -97,6 +97,12 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
     };
 
     const validateForm = () => {
+        // Validation de la société (maintenant obligatoire)
+        if (!formData.societe) {
+            setError('Veuillez sélectionner une société');
+            return false;
+        }
+
         // Validation des mots de passe si les champs sont visibles et remplis
         if (showPasswordFields && formData.password) {
             if (formData.password.length < 8) {
@@ -188,7 +194,7 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
                 is_active: formData.is_active,
                 is_staff: formData.is_staff,
                 groups: formData.groups,
-                societe: formData.societe ? parseInt(formData.societe) : null
+                societe: parseInt(formData.societe)  // Maintenant obligatoire
             };
 
             // console.log('Données de mise à jour envoyées:', userData);
@@ -262,6 +268,40 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
                                 </div>
                             )}
 
+                            {/* Section Société - Mise en avant comme obligatoire */}
+                            <div className="card bg-light mb-4">
+                                <div className="card-body">
+                                    <div className="row">
+                                        <div className="col-12">
+                                            <div className="form-floating mb-3">
+                                                <select
+                                                    className={`form-control ${error && !formData.societe ? 'is-invalid' : ''}`}
+                                                    id="societe"
+                                                    name="societe"
+                                                    value={formData.societe}
+                                                    onChange={handleChange}
+                                                    required
+                                                >
+                                                    <option value="">Sélectionner une société *</option>
+                                                    {societes.map(societe => (
+                                                        <option key={societe.id} value={societe.id}>
+                                                            {societe.nom}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <label htmlFor="societe" className="text-primary">
+                                                    Société <span className="text-danger">*</span>
+                                                </label>
+                                                <div className="form-text text-primary">
+                                                    <i className="ti ti-info-circle me-1"></i>
+                                                    L'association à une société est obligatoire pour cet utilisateur.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="row">
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
@@ -282,28 +322,6 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
 
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
-                                        <select
-                                            className="form-select"
-                                            id="societe"
-                                            name="societe"
-                                            value={formData.societe}
-                                            onChange={handleChange}
-                                        >
-                                            <option value="">Sélectionner une société</option>
-                                            {societes.map(societe => (
-                                                <option key={societe.id} value={societe.id}>
-                                                    {societe.nom}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <label htmlFor="societe">Société</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="row">
-                                <div className="col-md-6">
-                                    <div className="form-floating mb-3">
                                         <input
                                             type="text"
                                             className="form-control"
@@ -318,7 +336,9 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
                                         <label htmlFor="first_name">Prénom *</label>
                                     </div>
                                 </div>
+                            </div>
 
+                            <div className="row">
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
                                         <input
@@ -492,7 +512,11 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
                             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
                                 Annuler
                             </button>
-                            <button type="submit" className="btn btn-primary" disabled={loading || passwordLoading}>
+                            <button 
+                                type="submit" 
+                                className="btn btn-primary" 
+                                disabled={loading || passwordLoading || !formData.societe}
+                            >
                                 {loading ? (
                                     <>
                                         <span className="spinner-border spinner-border-sm me-2" role="status"></span>

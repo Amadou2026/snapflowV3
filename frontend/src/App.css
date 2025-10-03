@@ -6,6 +6,9 @@
   height: 40vmin;
   pointer-events: none;
 }
+.rounded-nocircle {
+    border-radius: 0% !important;
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {

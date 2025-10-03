@@ -3,6 +3,22 @@ import React from 'react';
 const ViewUserModal = ({ show, onClose, user }) => {
     if (!show || !user) return null;
 
+    // Fonction pour obtenir le nom de la société
+    const getSocieteName = (userItem) => {
+        // Le serializer renvoie la société sous 'societes' (au pluriel)
+        if (userItem.societes && typeof userItem.societes === 'object') {
+            return userItem.societes.nom || 'Société sans nom';
+        }
+        // Fallback vers societe si disponible (au cas où)
+        else if (userItem.societe && typeof userItem.societe === 'object') {
+            return userItem.societe.nom || 'Société sans nom';
+        }
+        else if (userItem.societe && typeof userItem.societe === 'number') {
+            return `Société ID: ${userItem.societe}`;
+        }
+        return 'Non assigné';
+    };
+
     return (
         <div className="modal fade show" style={{ display: 'block' }} tabIndex="-1">
             <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -43,25 +59,19 @@ const ViewUserModal = ({ show, onClose, user }) => {
                                                 {user.is_active ? 'Actif' : 'Inactif'}
                                             </span>
                                         </div>
-                                        <hr className="my-3" />
+                                        {/* <hr className="my-3" />
                                         <div className="text-start">
                                             <div className="mb-2 d-flex align-items-center">
                                                 <i className="ti ti-mail me-2"></i>
                                                 <p className="mb-0">{user.email}</p>
                                             </div>
-                                            {user.societes && user.societes.length > 0 &&
-                                                <div className="mb-2 d-flex align-items-center">
-                                                    <i className="ti ti-building me-2"></i>
-                                                    <p className="mb-0">
-                                                        {user.societes.map((s, idx) => (
-                                                            <span key={s.id}>
-                                                                {s.nom}{idx < user.societes.length - 1 ? ', ' : ''}
-                                                            </span>
-                                                        ))}
-                                                    </p>
-                                                </div>
-                                            }
-                                        </div>
+                                            <div className="mb-2 d-flex align-items-center">
+                                                <i className="ti ti-building me-2"></i>
+                                                <p className="mb-0">
+                                                    {getSocieteName(user)}
+                                                </p>
+                                            </div>
+                                        </div> */}
                                     </div>
                                 </div>
                             </div>
@@ -93,15 +103,35 @@ const ViewUserModal = ({ show, onClose, user }) => {
                                             <li className="list-group-item px-0">
                                                 <p className="mb-1 text-muted">Société</p>
                                                 <h6 className="mb-0">
-                                                    {user.societes && user.societes.length > 0
-                                                        ? user.societes.map((s, idx) => (
-                                                            <span key={s.id}>
-                                                                {s.nom}{idx < user.societes.length - 1 ? ', ' : ''}
+                                                    {getSocieteName(user)}
+                                                </h6>
+                                            </li>
+                                            <li className="list-group-item px-0">
+                                                <p className="mb-1 text-muted">Statut</p>
+                                                <h6 className="mb-0">
+                                                    <span className={`badge ${user.is_active ? 'bg-success' : 'bg-danger'}`}>
+                                                        {user.is_active ? 'Actif' : 'Inactif'}
+                                                    </span>
+                                                    {user.is_staff && (
+                                                        <span className="badge bg-warning ms-1">Staff</span>
+                                                    )}
+                                                    {user.is_superuser && (
+                                                        <span className="badge bg-danger ms-1">Super Admin</span>
+                                                    )}
+                                                </h6>
+                                            </li>
+                                            <li className="list-group-item px-0">
+                                                <p className="mb-1 text-muted">Groupes/Rôles</p>
+                                                <div className="mb-0">
+                                                    {user.groupes && user.groupes.length > 0
+                                                        ? user.groupes.map((g) => (
+                                                            <span key={g.id} className="badge bg-info me-1 mb-1">
+                                                                {g.nom} {g.role_predefini && `(${g.role_predefini})`}
                                                             </span>
                                                         ))
-                                                        : 'Non assigné'
+                                                        : <span className="badge bg-light text-dark">Aucun groupe assigné</span>
                                                     }
-                                                </h6>
+                                                </div>
                                             </li>
                                             <li className="list-group-item px-0 pb-0">
                                                 <p className="mb-1 text-muted">Date de création</p>
