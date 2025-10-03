@@ -1,44 +1,56 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from .models import *
-from .serializers import *
-
-from django.db.models.functions import TruncDate
-from django.db.models import Count, Q
-from django.shortcuts import render
-from core.models import Projet, ExecutionTest
-
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth import get_user_model
-
+from warnings import filters
+from rest_framework import viewsets, status, generics, permissions
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.http import FileResponse, Http404
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.decorators import login_required
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
+from rest_framework.filters import OrderingFilter
+from django.db.models import Q
+from rest_framework.exceptions import ValidationError, PermissionDenied
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, FileResponse, Http404
+from django.contrib import messages, admin
+from django.views.decorators.http import require_POST, require_http_methods
+from django.views.generic import ListView, TemplateView
+from django.utils.decorators import method_decorator
+from django.contrib.admin.views.decorators import staff_member_required  # CORRECTION ICI
+from django.contrib.auth.models import Group, Permission
+from django.contrib.auth import get_user_model, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+
+from django.db import transaction
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
+
+from datetime import datetime, timedelta
+from django.utils import timezone
+from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from io import BytesIO
-from .models import ExecutionTest
+import os
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
+# Import des modèles
+from .models import (
+    Configuration, CustomUser, Societe, SecteurActivite, GroupePersonnalise,
+    Axe, SousAxe, Script, Projet, EmailNotification, 
+    ConfigurationTest, ExecutionTest, ExecutionResult
+)
 
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.views.decorators.http import require_POST
-
-from rest_framework.decorators import action
-from django.utils.decorators import method_decorator
-
-from django.contrib import admin
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-
-from rest_framework import status
-
-
-
+# Import des serializers (sélectifs pour éviter les circularités)
+from .serializers import (
+    AxeSerializer, ConfigurationSerializer, SousAxeSerializer, ScriptSerializer, ProjetSerializer,
+    ConfigurationTestSerializer, ExecutionTestSerializer, ExecutionTestExportSerializer,
+    EmailNotificationSerializer, GroupePersonnaliseSerializer, SecteurActiviteSerializer,
+    CustomUserSerializer, SocieteSerializer, SocieteListSerializer, SocieteDetailSerializer,
+    SocieteCreateSerializer, SocieteUpdateSerializer
+)
 
 CustomUser = get_user_model()
 
@@ -47,7 +59,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # Ajoute les infos personnalisées au token
         token["email"] = user.email
         token["first_name"] = user.first_name
         token["last_name"] = user.last_name
@@ -57,7 +68,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
-    
 
 
 class AxeViewSet(viewsets.ModelViewSet):
@@ -73,9 +83,22 @@ class SousAxeViewSet(viewsets.ModelViewSet):
 
 
 class ScriptViewSet(viewsets.ModelViewSet):
-    queryset = Script.objects.all()
     serializer_class = ScriptSerializer
     permission_classes = [IsAuthenticated]
+    
+    # Garder l'attribut queryset pour le router
+    queryset = Script.objects.all()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        # Superadmin voit tout
+        if user.is_superuser:
+            return queryset
+
+        # Les autres utilisateurs ne voient que les scripts de leurs projets
+        return queryset.filter(projet__societes=user.societe)
 
 
 class ProjetViewSet(viewsets.ModelViewSet):
@@ -98,24 +121,92 @@ class ProjetViewSet(viewsets.ModelViewSet):
 
 
 class ConfigurationTestViewSet(viewsets.ModelViewSet):
-    queryset = ConfigurationTest.objects.all()
+    queryset = ConfigurationTest.objects.all()  # ✅ obligatoire pour DRF
     serializer_class = ConfigurationTestSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['societe', 'projet', 'is_active', 'periodicite']
+    search_fields = ['nom', 'projet__nom', 'societe__nom']
+    ordering_fields = ['nom', 'date_creation', 'date_activation', 'is_active']
+    ordering = ['-date_creation']
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = ConfigurationTest.objects.all().select_related(
+            'societe', 'projet'
+        ).prefetch_related('scripts', 'emails_notification')
+        
+        if user.is_superuser:
+            return queryset
+        
+        if hasattr(user, 'societe') and user.societe:
+            return queryset.filter(societe=user.societe)
+        
+        projets_acces = Projet.objects.filter(
+            Q(charge_de_compte=user) |
+            Q(societe__admin=user) |
+            Q(societe__employes=user)
+        ).distinct()
+        
+        return queryset.filter(projet__in=projets_acces)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        
+        # Déterminer la société automatiquement
+        if user.is_superuser:
+            # Les superadmins doivent spécifier une société
+            if not serializer.validated_data.get('societe'):
+                raise ValidationError({"societe": "La société est requise pour les superadmins."})
+        else:
+            # Pour les autres utilisateurs, assigner automatiquement leur société
+            if hasattr(user, 'societe') and user.societe:
+                serializer.save(societe=user.societe)
+            else:
+                raise PermissionDenied("Vous n'êtes associé à aucune société.")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
 
     @action(detail=True, methods=["post"], url_path="activate")
     def activate(self, request, pk=None):
         config = self.get_object()
+        self.check_object_permissions(request, config)
+        
         config.is_active = True
+        config.date_activation = timezone.now()
         config.save()
-        return Response({"status": "activated"}, status=status.HTTP_200_OK)
+        
+        return Response({"status": "activated", "date_activation": config.date_activation}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="deactivate")
     def deactivate(self, request, pk=None):
         config = self.get_object()
+        self.check_object_permissions(request, config)
+        
         config.is_active = False
+        config.date_desactivation = timezone.now()
         config.save()
-        return Response({"status": "deactivated"}, status=status.HTTP_200_OK)
+        
+        return Response({"status": "deactivated", "date_desactivation": config.date_desactivation}, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["post"], url_path="execute-now")
+    def execute_now(self, request, pk=None):
+        """Exécuter la configuration immédiatement"""
+        config = self.get_object()
+        self.check_object_permissions(request, config)
+        
+        # Ici vous ajouterez la logique d'exécution
+        # Pour l'instant, on met juste à jour last_execution
+        config.last_execution = timezone.now()
+        config.save()
+        
+        return Response({
+            "status": "executed", 
+            "last_execution": config.last_execution
+        }, status=status.HTTP_200_OK)
 
 
 class ExecutionTestViewSet(viewsets.ModelViewSet):
@@ -158,7 +249,7 @@ class RapportPDFView(APIView):
                 p.showPage()
                 y = height - 40
                 p.setFont("Helvetica", 10)
-            p.drawString(30, y, line[:110])  # tronque au besoin
+            p.drawString(30, y, line[:110])
             y -= 15
 
         p.save()
@@ -168,35 +259,17 @@ class RapportPDFView(APIView):
         )
 
 
-# Debut
-# core/views.py - Version avec debug complet
-
-from datetime import datetime, timedelta
-from django.shortcuts import render
-from django.db.models import Count, Q
-from django.db.models.functions import TruncDate
-from core.models import Projet, ExecutionTest
-
-from datetime import datetime, timedelta
-from django.shortcuts import render
-from core.models import Projet, ExecutionTest
-
+# Dashboard
 def dashboard_view(request):
-        # Récupération des paramètres avec debug détaillé
     projet_id = request.GET.get("projet_id")
     periode = request.GET.get("periode", "mois")
     selected_periode = periode if periode in ["jour", "semaine", "mois", "annee"] else "mois"
        
-    # Vérification des valeurs vides ou None
     if not selected_periode or selected_periode.strip() == "":
         selected_periode = "mois"
-        print(f"⚠️ Période vide, fallback vers: '{selected_periode}'")
     
     if not projet_id or projet_id.strip() == "":
         projet_id = None
-        print(f"⚠️ Projet ID vide, fallback vers: {projet_id}")
-    
-    print(f"🔧 Valeurs finales: projet_id='{projet_id}', periode='{selected_periode}'")
     
     # Initialiser toutes les variables
     labels = []
@@ -230,41 +303,29 @@ def dashboard_view(request):
             projet_id_int = int(projet_id)
             if projets_utilisateur.filter(id=projet_id_int).exists():
                 projet_selectionne = projets_utilisateur.get(id=projet_id_int)
-                print(f"✅ Projet sélectionné: {projet_selectionne.nom}")
-            else:
-                print("❌ Accès refusé à ce projet")
-        except (Projet.DoesNotExist, ValueError) as e:
+        except (Projet.DoesNotExist, ValueError):
             projet_selectionne = None
-            print(f"❌ Erreur projet: {e}")
 
     # Filtrage de base
     if projet_selectionne:
         execution_tests = ExecutionTest.objects.filter(configuration__projet=projet_selectionne)
-        print(f"🔍 Tests pour projet {projet_selectionne.nom}: {execution_tests.count()}")
     else:
         execution_tests = ExecutionTest.objects.filter(configuration__projet__in=projets_utilisateur)
-        print(f"🔍 Tests pour tous les projets: {execution_tests.count()}")
 
-    # Application du filtre temporel avec debug détaillé
+    # Application du filtre temporel
     aujourd_hui = datetime.now()
 
     if selected_periode == "jour":
         date_debut = aujourd_hui.replace(hour=0, minute=0, second=0, microsecond=0)
-        print(f"✅ Filtre JOUR - depuis: {date_debut}")
     elif selected_periode == "semaine":
         date_debut = aujourd_hui - timedelta(days=7)
-        print(f"✅ Filtre SEMAINE - depuis: {date_debut}")
     elif selected_periode == "mois":
         date_debut = aujourd_hui - timedelta(days=30)
-        print(f"✅ Filtre MOIS - depuis: {date_debut}")
     elif selected_periode == "annee":
         date_debut = aujourd_hui - timedelta(days=365)
-        print(f"✅ Filtre ANNÉE - depuis: {date_debut}")
     else:
         date_debut = aujourd_hui - timedelta(days=30)
-        print(f"❌ Période inconnue '{selected_periode}', défaut MOIS - depuis: {date_debut}")
 
-    # Application du filtre et comptage
     execution_tests_avant_filtre = execution_tests.count()
     execution_tests_filtrees = execution_tests.filter(started_at__gte=date_debut)
     execution_tests_apres_filtre = execution_tests_filtrees.count()
@@ -292,9 +353,7 @@ def dashboard_view(request):
     ).values('configuration__script').distinct().count()
     scripts_non_executes = total_scripts - scripts_executed
     percent_scripts_non_executes = round((scripts_non_executes / total_scripts * 100), 1) if total_scripts else 0
-    print(f"🔍 Scripts non exécutés: {scripts_non_executes} ({percent_scripts_non_executes}%)")
 
-    # Comptage des tests en échec déjà calculé
     percent_tests_echec = round((tests_en_echec / total_tests * 100), 1) if total_tests else 0
 
     # Résumé par projet
@@ -335,7 +394,6 @@ def dashboard_view(request):
         "tests_en_echec": tests_en_echec,
         "percent_tests_echec": percent_tests_echec,
 
-        # Debug info pour le template
         "debug_info": {
             "url_complete": request.get_full_path(),
             "get_params": dict(request.GET),
@@ -348,14 +406,6 @@ def dashboard_view(request):
     return render(request, "admin/dashboard.html", context)
 
 
-# core/views.py Les tests échoués
-
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from datetime import datetime, timedelta
-from core.models import Projet, ExecutionTest, Script
-
 class ScriptsTestsStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -364,17 +414,14 @@ class ScriptsTestsStatsView(APIView):
         periode = request.GET.get("periode", "mois")
         user = request.user
 
-        # Gestion des projets accessibles par l'utilisateur
         if user.is_superuser:
             projets = Projet.objects.all()
         else:
             projets = Projet.objects.filter(charge_de_compte=user)
 
-        # Filtrer par projet si demandé
         if projet_id:
             projets = projets.filter(id=projet_id)
 
-        # Calcul de la date de début selon la période choisie
         aujourd_hui = datetime.now()
         if periode == "jour":
             date_debut = aujourd_hui.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -387,15 +434,10 @@ class ScriptsTestsStatsView(APIView):
         else:
             date_debut = aujourd_hui - timedelta(days=30)
 
-        # Récupération des tests filtrés par projets et date
         tests = ExecutionTest.objects.filter(configuration__projet__in=projets, started_at__gte=date_debut)
-
         test_ids = tests.values_list('id', flat=True)
 
-        # Comptage des scripts distincts liés aux tests
         total_scripts = Script.objects.filter(configurationtest__executiontest__in=test_ids).distinct().count()
-
-        # Scripts exécutés avec succès
         tests_success = tests.filter(statut__in=['done', 'succès', 'success'])
         success_test_ids = tests_success.values_list('id', flat=True)
         scripts_executed = Script.objects.filter(configurationtest__executiontest__in=success_test_ids).distinct().count()
@@ -418,9 +460,6 @@ class ScriptsTestsStatsView(APIView):
 
         return Response(data)
 
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
-from .models import ExecutionResult
 
 @staff_member_required
 def execution_resultats_view(request):
@@ -428,23 +467,9 @@ def execution_resultats_view(request):
     return render(request, 'admin/execution_resultats.html', {'resultats': resultats})
 
 
-# views.py
-from datetime import timedelta
-from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
-from django.views.decorators.http import require_http_methods
-from django.views.generic import ListView
-from django.utils import timezone
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-from .models import ConfigurationTest, Projet, Script
-
-
-# ========== VUES API (JSON) ==========
-
+# API Scripts
 @require_http_methods(["GET"])
 def api_next_scheduled_scripts(request):
-    """API pour obtenir les prochains scripts planifiés"""
     hours_ahead = int(request.GET.get('hours', 24))
     project_id = request.GET.get('project_id')
     
@@ -484,7 +509,6 @@ def api_next_scheduled_scripts(request):
 
 @require_http_methods(["GET"])
 def api_configurations_to_execute(request):
-    """API pour obtenir les configurations à exécuter maintenant"""
     configurations = ConfigurationTest.get_configurations_to_execute()
     
     data = [{
@@ -507,7 +531,6 @@ def api_configurations_to_execute(request):
 
 @require_http_methods(["GET"])
 def api_overdue_configurations(request):
-    """API pour obtenir les configurations en retard"""
     overdue = ConfigurationTest.get_overdue_configurations()
     
     data = [{
@@ -525,11 +548,8 @@ def api_overdue_configurations(request):
     })
 
 
-# ========== VUES HTML ==========
-
 @login_required
 def dashboard_scheduled_scripts(request):
-    """Tableau de bord des scripts planifiés"""
     hours_ahead = int(request.GET.get('hours', 24))
     
     context = {
@@ -545,7 +565,6 @@ def dashboard_scheduled_scripts(request):
 
 @method_decorator(login_required, name='dispatch')
 class ScheduledScriptsListView(ListView):
-    """Vue liste des scripts planifiés"""
     model = ConfigurationTest
     template_name = 'configurations/scheduled_list.html'
     context_object_name = 'configurations'
@@ -565,7 +584,6 @@ class ScheduledScriptsListView(ListView):
         context['projects'] = Projet.objects.all()
         context['selected_project'] = self.request.GET.get('project', '')
         
-        # Ajouter les prochaines exécutions pour chaque configuration
         for config in context['configurations']:
             config.next_execution = config.get_next_execution_time()
             config.is_overdue = False
@@ -578,7 +596,6 @@ class ScheduledScriptsListView(ListView):
 
 @login_required
 def configuration_detail_scheduled(request, config_id):
-    """Détail d'une configuration avec ses scripts planifiés"""
     configuration = get_object_or_404(ConfigurationTest, id=config_id)
     
     context = {
@@ -589,7 +606,6 @@ def configuration_detail_scheduled(request, config_id):
         'periodicite_display': configuration.get_periodicite_display(),
     }
     
-    # Calculer si en retard
     if configuration.last_execution:
         expected_next = configuration.last_execution + configuration.get_periodicite_timedelta()
         if timezone.now() > expected_next:
@@ -599,10 +615,7 @@ def configuration_detail_scheduled(request, config_id):
     return render(request, 'configurations/detail_scheduled.html', context)
 
 
-# ========== FONCTIONS UTILITAIRES ==========
-
 def get_dashboard_data():
-    """Fonction utilitaire pour récupérer les données du tableau de bord"""
     return {
         'configurations_to_execute_now': ConfigurationTest.get_configurations_to_execute(),
         'next_24h_schedule': ConfigurationTest.get_next_scheduled_configurations(24),
@@ -612,7 +625,6 @@ def get_dashboard_data():
 
 
 def get_next_scripts_for_project(project_id, hours_ahead=24):
-    """Obtenir les prochains scripts pour un projet spécifique"""
     configurations = ConfigurationTest.objects.filter(
         projet_id=project_id, 
         is_active=True
@@ -633,26 +645,17 @@ def get_next_scripts_for_project(project_id, hours_ahead=24):
                     'time_until': next_time - now
                 })
     
-    # Trier par heure d'exécution
     next_scripts.sort(key=lambda x: x['execution_time'])
     return next_scripts
 
 
-#  Vue page d'accueille
-# core/views.py
-from django.shortcuts import render
-from django.views.generic import TemplateView
-
+# Vue page d'accueil
 class HomeView(TemplateView):
     template_name = 'home/index.html'
 
 def home_view(request):
     return render(request, 'home/index.html')
 
-# JS Script Dynamique
-from django.http import JsonResponse
-from django.contrib.admin.views.decorators import staff_member_required
-from .models import Script
 
 @staff_member_required
 def scripts_by_projet(request):
@@ -673,7 +676,7 @@ def scripts_by_projet(request):
 @require_POST
 def sync_redmine_projects(request):
     try:
-        config = Configuration.objects.first()
+        config = ConfigurationTest.objects.first()
         if not config:
             messages.error(request, "Configuration non trouvée")
             return redirect('admin:index')
@@ -691,18 +694,8 @@ def sync_redmine_projects(request):
     return redirect('admin:core_configuration_changelist')
 
 
-
-# Voir les logs
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.http import JsonResponse
-from .models import ExecutionResult
-import os
-
 @api_view(['GET'])
 def execution_results_api(request):
-    # Récupérer les 20 derniers résultats d'exécution
     results = ExecutionResult.objects.select_related(
         'script', 
         'execution', 
@@ -711,7 +704,6 @@ def execution_results_api(request):
     
     data = []
     for result in results:
-        # Lire le contenu du fichier log s'il existe
         log_contenu = ""
         if result.log_fichier and os.path.exists(result.log_fichier.path):
             try:
@@ -743,7 +735,6 @@ def execution_results_api(request):
     return Response(data)
 
 
-# Vue de secours si vous n'utilisez pas DRF
 def execution_results_json(request):
     results = ExecutionResult.objects.select_related(
         'script', 
@@ -783,14 +774,10 @@ def execution_results_json(request):
     
     return JsonResponse(data, safe=False)
 
-# Sidebar
-from django.contrib.admin import site as admin_site
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_admin_menu(request):
-    """Expose la structure du menu admin en JSON pour React"""
-    
-    # Vérifier si l'utilisateur a accès à l'admin
     if not request.user.is_staff:
         return JsonResponse({
             'error': 'Access denied',
@@ -798,13 +785,14 @@ def api_admin_menu(request):
         }, status=403)
     
     try:
-        app_list = admin_site.get_app_list(request)
+        app_list = admin.site.get_app_list(request)
         return JsonResponse(app_list, safe=False)
     except Exception as e:
         return JsonResponse({
             'error': 'Server error',
             'message': f'Erreur lors de la récupération du menu: {str(e)}'
         }, status=500)
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -813,10 +801,8 @@ def scripts_par_projet(request):
     if not projet_id:
         return Response({"error": "Le paramètre projet_id est requis"}, status=400)
 
-    # Filtrer les scripts associés à ce projet
     scripts = Script.objects.filter(projet_id=projet_id)
     
-    # Sérialiser simplement
     result = [
         {
             "id": s.id,
@@ -831,22 +817,14 @@ def scripts_par_projet(request):
 
     return Response(result)
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_user_permissions(request):
-    """
-    Retourne les permissions de l'utilisateur courant
-    """
     user = request.user
 
-    # Permissions sous forme 'app_label.codename'
     perms = list(user.get_all_permissions())
 
-    # Ou en dictionnaire plus détaillé
     perms_dict = {}
     for perm in perms:
         app_label, codename = perm.split('.')
@@ -854,103 +832,160 @@ def api_user_permissions(request):
 
     return Response({
         'username': user.username,
-        'permissions': perms,          # liste simple
-        'permissions_dict': perms_dict # regroupé par app
+        'permissions': perms,
+        'permissions_dict': perms_dict
     })
 
 
 # CRUD SOCIETE
-
-# ➤ Créer une société
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_societe(request):
     try:
-        print("Données reçues:", request.data)
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Vous n'avez pas la permission de créer une société"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         
-        # Utiliser le sérialiseur de création
-        serializer = SocieteCreateSerializer(data=request.data)
+        serializer = SocieteCreateSerializer(data=request.data, context={'request': request})
         
         if serializer.is_valid():
-            print("Données valides")
             societe = serializer.save()
-            print("Société créée avec ID:", societe.id)
-            
-            # Retourner les données avec le sérialiseur de lecture
-            societe_data = SocieteSerializer(societe).data
+            societe_data = SocieteDetailSerializer(societe).data
             return Response(societe_data, status=status.HTTP_201_CREATED)
         else:
-            print("Erreurs de validation:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
     except Exception as e:
-        print("💥 Erreur serveur:", str(e))
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ➤ Liste toutes les sociétés
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_societes(request):
-    qs = Societe.objects.all()
-    if not request.user.is_superuser:
-        qs = qs.filter(admin=request.user)
-    serializer = SocieteSerializer(qs, many=True)
-    return Response(serializer.data)
+    try:
+        qs = Societe.objects.all().prefetch_related('projets', 'employes')
+        if not request.user.is_superuser:
+            qs = qs.filter(admin=request.user)
+        serializer = SocieteDetailSerializer(qs, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ➤ Détail d'une société
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def detail_societe(request, pk):
     try:
-        societe = Societe.objects.get(pk=pk)
+        societe = Societe.objects.prefetch_related('projets', 'employes').get(pk=pk)
         if not request.user.is_superuser and societe.admin != request.user:
             return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
     except Societe.DoesNotExist:
         return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
-    serializer = SocieteSerializer(societe)
+    
+    # CORRECTION : Utiliser SocieteDetailSerializer au lieu de SocieteSerializer
+    serializer = SocieteDetailSerializer(societe)
     return Response(serializer.data)
 
-# ➤ Mettre à jour une société
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def update_societe(request, pk):
     try:
         societe = Societe.objects.get(pk=pk)
+        
         if not request.user.is_superuser and societe.admin != request.user:
             return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
+            
     except Societe.DoesNotExist:
         return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
 
-    # Utiliser le serializer de mise à jour
-    serializer = SocieteUpdateSerializer(societe, data=request.data, partial=True)
+    if request.method == 'PUT':
+        serializer = SocieteUpdateSerializer(societe, data=request.data)
+    else:
+        serializer = SocieteUpdateSerializer(societe, data=request.data, partial=True)
+        
     if serializer.is_valid():
         serializer.save()
-        return Response(serializer.data)
+        societe_data = SocieteDetailSerializer(societe).data
+        return Response(societe_data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# ➤ Supprimer une société
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_societe(request, pk):
     try:
         societe = Societe.objects.get(pk=pk)
-        if not request.user.is_superuser and societe.admin != request.user:
-            return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Vous n'avez pas la permission de supprimer une société"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
     except Societe.DoesNotExist:
         return Response({"detail": "Non trouvé"}, status=status.HTTP_404_NOT_FOUND)
 
     societe.delete()
-    return Response({"detail": "Supprimé"}, status=status.HTTP_204_NO_CONTENT)
+    return Response({"detail": "Société supprimée avec succès"}, status=status.HTTP_204_NO_CONTENT)
 
+# Email Notification
+class EmailNotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = EmailNotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['societe', 'est_actif']
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = EmailNotification.objects.all().select_related('societe', 'created_by')
+        
+        if user.is_superuser:
+            return queryset
+        
+        # Pour les admins de société, ne retourner que les emails de leurs sociétés
+        return queryset.filter(societe__admin=user)
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def by_societe(self, request):
+        """Récupérer tous les emails d'une société spécifique"""
+        societe_id = request.query_params.get('societe_id')
+        if not societe_id:
+            return Response(
+                {"detail": "Le paramètre societe_id est requis"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            societe = Societe.objects.get(id=societe_id)
+            
+            # Vérifier les permissions
+            if not request.user.is_superuser and societe.admin != request.user:
+                return Response({"detail": "Accès refusé"}, status=status.HTTP_403_FORBIDDEN)
+                
+            emails = EmailNotification.objects.filter(societe=societe, est_actif=True)
+            serializer = self.get_serializer(emails, many=True)
+            return Response(serializer.data)
+            
+        except Societe.DoesNotExist:
+            return Response({"detail": "Société non trouvée"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'])
+    def toggle_activation(self, request, pk=None):
+        """Activer/désactiver un email de notification"""
+        email_notification = self.get_object()
+        email_notification.est_actif = not email_notification.est_actif
+        email_notification.save()
+        
+        serializer = self.get_serializer(email_notification)
+        return Response(serializer.data)
 
 # Secteur d'activité
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import SecteurActivite
-from .serializers import SecteurActiviteSerializer
-from rest_framework import generics
-
 class SecteurActiviteListAPIView(APIView):
     def get(self, request):
         secteurs = SecteurActivite.objects.all()
@@ -964,19 +999,20 @@ class SecteurActiviteListAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class SecteurActiviteListCreateAPIView(generics.ListCreateAPIView):
     queryset = SecteurActivite.objects.all()
     serializer_class = SecteurActiviteSerializer
+
 
 class SecteurActiviteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = SecteurActivite.objects.all()
     serializer_class = SecteurActiviteSerializer
 
 
-# user profil
+# User profil
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    
 
     def get(self, request):
         user = request.user
@@ -987,85 +1023,64 @@ class UserProfileView(APIView):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "societe": societes_data,            
-            "permissions": list(user.get_all_permissions()),  # toutes les permissions effectives
-            "groups": list(user.groups.values_list('name', flat=True)),  # noms des groupes
+            "permissions": list(user.get_all_permissions()),
+            "groups": list(user.groups.values_list('name', flat=True)),
             "is_superuser": user.is_superuser,  
             "is_staff": user.is_staff,
              "is_active": user.is_active
         }
         return Response(data)
-    
-# Gestion utilisateur
-from rest_framework import generics, permissions
-from .models import CustomUser
-from .serializers import CustomUserSerializer
 
+
+# Gestion utilisateur
 class IsSuperUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_superuser)
 
+
 class IsAdminOfSameSociete(permissions.BasePermission):
-    """Permission pour admins qui peuvent voir leur société + superadmin tout"""
     def has_permission(self, request, view):
         return bool(request.user and (
             request.user.is_superuser or 
             (request.user.is_staff and request.user.societe)
         ))
 
+
 class UserListCreateView(generics.ListCreateAPIView):
     serializer_class = CustomUserSerializer
     permission_classes = [IsAdminOfSameSociete]
     
     def get_queryset(self):
-        """Filtrer selon le rôle de l'utilisateur connecté"""
         user = self.request.user
         
-        # Superadmin voit tout
         if user.is_superuser:
             return CustomUser.objects.all()
         
-        # Admin voit sa société
         if user.is_staff and user.societe:
             return CustomUser.objects.filter(societe=user.societe)
         
-        # Autres cas : aucun utilisateur
         return CustomUser.objects.none()
     
     def perform_create(self, serializer):
-        """Assigner automatiquement la société lors de la création"""
         if not self.request.user.is_superuser and self.request.user.societe:
             serializer.save(societe=self.request.user.societe)
         else:
             serializer.save()
-    
-    
 
 
-# Détail d’un utilisateur
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = [permissions.IsAdminUser]
-    
-    
-# Crud User
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.forms import PasswordChangeForm
-from .models import CustomUser
-from .serializers import CustomUserSerializer
 
+# CRUD User
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_user_profile(request, pk):
     try:
         user = CustomUser.objects.get(pk=pk)
         
-        # Vérifier que l'utilisateur ne peut modifier que son propre profil
         if request.user != user and not request.user.is_superuser:
             return Response(
                 {'error': 'Vous ne pouvez modifier que votre propre profil'},
@@ -1084,25 +1099,19 @@ def update_user_profile(request, pk):
             status=status.HTTP_404_NOT_FOUND
         )
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_password(request):
     form = PasswordChangeForm(user=request.user, data=request.data)
     if form.is_valid():
         form.save()
-        # Mettre à jour la session pour éviter la déconnexion
         update_session_auth_hash(request, form.user)
         return Response({'success': 'Mot de passe modifié avec succès'})
     return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# Gestion Group / role
-from rest_framework.response import Response
-from rest_framework import viewsets
-from django.contrib.auth.models import Group, Permission
-from django.db import transaction
-from .models import GroupePersonnalise
-from .serializers import GroupePersonnaliseSerializer
 
+# Gestion Group / role
 class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
     queryset = GroupePersonnalise.objects.all()
     serializer_class = GroupePersonnaliseSerializer
@@ -1143,10 +1152,8 @@ class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
         data = request.data.copy()
         perms = data.pop('permissions', [])
 
-        # Vérifier si le groupe Django existe déjà
         groupe_django, created = Group.objects.get_or_create(name=data['nom'])
 
-        # Assigner les permissions
         permission_objs = []
         for p in perms:
             try:
@@ -1158,24 +1165,17 @@ class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
             except Permission.DoesNotExist:
                 print(f"Permission introuvable ignorée: {p}")
 
-        # Mettre les IDs de permission pour le serializer
         data['permissions'] = [perm.id for perm in permission_objs]
 
-        # Créer le GroupePersonnalise
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         groupe_perso = serializer.save(groupe_django=groupe_django)
 
-        # Assigner les permissions sur le groupe Django et le groupe perso
         groupe_django.permissions.set(permission_objs)
         groupe_perso.permissions.set(permission_objs)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-# Dans votre views.py
-from django.contrib.auth.models import Permission
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 
 @api_view(['GET'])
 def list_all_permissions(request):
@@ -1186,30 +1186,17 @@ def list_all_permissions(request):
     )
     return Response(list(permissions))
 
+
 # Changer MDP pour l'admin
-
-from django.contrib.auth import get_user_model
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.response import Response
-from rest_framework import status
-
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])  # Seulement pour les admins
+@permission_classes([IsAuthenticated, IsAdminUser])
 def admin_change_password(request, user_id):
-    """
-    Endpoint pour permettre aux administrateurs de changer le mot de passe
-    d'un utilisateur sans connaître l'ancien mot de passe
-    """
     try:
-        # Récupérer l'utilisateur cible
         target_user = get_user_model().objects.get(id=user_id)
         
-        # Récupérer les données
         new_password = request.data.get('new_password')
         confirm_password = request.data.get('confirm_password')
         
-        # Validation
         if not new_password:
             return Response(
                 {"new_password": "Le nouveau mot de passe est requis"}, 
@@ -1234,7 +1221,6 @@ def admin_change_password(request, user_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Changer le mot de passe
         target_user.set_password(new_password)
         target_user.save()
         
@@ -1252,3 +1238,76 @@ def admin_change_password(request, user_id):
             {"detail": "Erreur lors du changement de mot de passe"}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+# Paramètre
+class ConfigurationViewSet(viewsets.ModelViewSet):
+    serializer_class = ConfigurationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['societe']
+    search_fields = ['societe__nom']
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Configuration.objects.all().select_related('societe')
+        
+        if user.is_superuser:
+            return queryset
+        
+        # Pour les administrateurs, retourner les configurations de leurs sociétés
+        # Vérifier d'abord si l'utilisateur a une société assignée
+        if hasattr(user, 'societe') and user.societe:
+            return queryset.filter(societe=user.societe)
+        
+        # Fallback : si pas de société assignée, retourner vide
+        return queryset.none()
+
+    def perform_create(self, serializer):
+        # Pour les administrateurs, assigner automatiquement leur société
+        if not self.request.user.is_superuser and hasattr(self.request.user, 'societe'):
+            serializer.save(societe=self.request.user.societe)
+        else:
+            serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def sync_redmine(self, request, pk=None):
+        """Synchroniser les projets Redmine pour cette configuration"""
+        configuration = self.get_object()
+        
+        # Vérifier les permissions
+        if not request.user.is_superuser and configuration.societe != request.user.societe:
+            return Response(
+                {"detail": "Vous n'avez pas accès à cette configuration."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        success, message = configuration.sync_redmine_projects()
+        
+        if success:
+            return Response({"detail": message}, status=status.HTTP_200_OK)
+        else:
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def my_configuration(self, request):
+        """Récupérer la configuration de la société de l'utilisateur connecté"""
+        if request.user.is_superuser:
+            return Response(
+                {"detail": "Les superadmins n'ont pas de configuration spécifique."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not hasattr(request.user, 'societe') or not request.user.societe:
+            return Response(
+                {"detail": "Aucune société assignée à votre compte."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            configuration = Configuration.objects.get(societe=request.user.societe)
+            serializer = self.get_serializer(configuration)
+            return Response(serializer.data)
+        except Configuration.DoesNotExist:
+            return Response(
+                {"detail": "Aucune configuration trouvée pour votre société."},
+                status=status.HTTP_404_NOT_FOUND
+            )

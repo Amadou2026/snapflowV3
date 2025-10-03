@@ -382,7 +382,6 @@ class CustomUserAdmin(BaseUserAdmin):
         if obj.societe:
             obj.societe.employes.add(obj)
 
-    # 🔹 Nouveau : masquer user_permissions pour les non-superadmins
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
         if not request.user.is_superuser:
@@ -395,11 +394,27 @@ class CustomUserAdmin(BaseUserAdmin):
             return new_fieldsets
         return fieldsets
 
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.is_superuser:
+            return False
+        return super().has_delete_permission(request, obj)
+
     def get_readonly_fields(self, request, obj=None):
         readonly = super().get_readonly_fields(request, obj)
+
+        # 🔒 Superadmin → seul prénom et nom modifiables
+        if obj and obj.is_superuser:
+            return readonly + (
+                'email', 'password', 'societe', 'is_active', 'is_staff',
+                'is_superuser', 'groups', 'user_permissions', 'last_login', 'date_joined'
+            )
+
+        # 🔹 Pour les autres (cas classiques)
         if not request.user.is_superuser:
             readonly = readonly + ('is_superuser', 'groups', 'user_permissions')
+
         return readonly
+
 
 
 
@@ -660,6 +675,32 @@ class SousAxeAdmin(admin.ModelAdmin):
     list_display = ('nom', 'description', 'axe')
     list_filter = ('axe',)
     search_fields = ('nom', 'description')
+# 
+from django.contrib import admin
+
+class SocieteProjetFilter(admin.SimpleListFilter):
+    """Filtre personnalisé pour n'afficher que les projets de la société de l'utilisateur"""
+    title = 'Projet'
+    parameter_name = 'projet'
+
+    def lookups(self, request, model_admin):
+        user = request.user
+        
+        # Superadmin voit tous les projets
+        if user.is_superuser:
+            projets = Projet.objects.all()
+        else:
+            # Les autres utilisateurs ne voient que les projets de leur société
+            projets = Projet.objects.filter(societes=user.societe)
+        
+        return [(projet.id, projet.nom) for projet in projets.order_by('nom')]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(projet_id=self.value())
+        return queryset
+
+# 
 
 
 @admin.register(Script)
@@ -667,8 +708,8 @@ class ScriptAdmin(admin.ModelAdmin):
     # Affichage des colonnes dans la liste
     list_display = ('projet', 'axe', 'sous_axe', 'nom', 'afficher_fichier', 'priorite')
     
-    # Filtres dans la sidebar
-    list_filter = ('projet', 'axe', 'sous_axe', 'priorite')
+    # Filtres dans la sidebar - REMPLACER par le filtre personnalisé
+    list_filter = (SocieteProjetFilter, 'axe', 'sous_axe', 'priorite')
     
     # Champs recherchables
     search_fields = ('nom', 'axe__nom', 'sous_axe__nom', 'projet__nom')
@@ -683,6 +724,53 @@ class ScriptAdmin(admin.ModelAdmin):
         return '-'
     afficher_fichier.short_description = 'Fichier'
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        user = request.user
+
+        # Superadmin voit tout
+        if user.is_superuser:
+            return queryset
+
+        # Les autres utilisateurs ne voient que les scripts de leurs projets
+        return queryset.filter(projet__societes=user.societe)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        user = request.user
+
+        # Limiter les choix de projets selon la société de l'utilisateur
+        if not user.is_superuser:
+            form.base_fields['projet'].queryset = Projet.objects.filter(societes=user.societe)
+
+        return form
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return obj.projet.societes.filter(id=request.user.societe.id).exists()
+        return request.user.has_perm('core.view_script')
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return obj.projet.societes.filter(id=request.user.societe.id).exists()
+        return request.user.has_perm('core.change_script')
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return obj.projet.societes.filter(id=request.user.societe.id).exists()
+        return request.user.has_perm('core.delete_script')
+
+    def has_add_permission(self, request):
+        if request.user.is_superuser:
+            return True
+        return request.user.has_perm('core.add_script')
+
 
 from django.utils.html import format_html
 from django.contrib import admin
@@ -690,19 +778,19 @@ from .models import ConfigurationTest, Projet
 
 @admin.register(ConfigurationTest)
 class ConfigurationTestAdmin(admin.ModelAdmin):
-    
     change_list_template = "admin/ConfigurationTestAdmin.html" 
-    list_display = ('nom', 'projet', 'periodicite', 'is_active', 'afficher_scripts_lies', 'date_activation', 'date_desactivation')
-    list_filter = ('projet','is_active', 'periodicite', 'date_activation', 'date_desactivation')
-    search_fields = ('nom',)
+    list_display = ('nom', 'societe', 'projet', 'periodicite', 'is_active', 'scripts_count', 'emails_count', 'date_activation', 'date_desactivation')
+    list_filter = ('societe', 'projet', 'is_active', 'periodicite', 'date_activation', 'date_desactivation')
+    search_fields = ('nom', 'societe__nom', 'projet__nom')
     filter_horizontal = ('scripts', 'emails_notification')
     actions = ['activer_configurations', 'desactiver_configurations']
     actions_on_top = True
-    autocomplete_fields = ['projet']
+    autocomplete_fields = ['projet', 'societe']
+    readonly_fields = ['date_creation', 'date_modification']
 
     fieldsets = (
         ("Informations générales", {
-            'fields': ('nom', 'projet', 'is_active', 'periodicite', 'date_activation', 'date_desactivation')
+            'fields': ('societe', 'nom', 'projet', 'is_active', 'periodicite', 'date_activation', 'date_desactivation')
         }),
         ("Sélection des scripts", {
             'fields': ('scripts',)
@@ -710,12 +798,19 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
         ("Notification", {
             'fields': ('emails_notification',),
         }),
+        ("Dates", {
+            'fields': ('date_creation', 'date_modification'),
+            'classes': ('collapse',)
+        }),
     )
-    class Media:
-        js = ('admin/js/configuration_test.js',)
-        ordering = ['nom'] 
-    
 
+    def scripts_count(self, obj):
+        return obj.scripts.count()
+    scripts_count.short_description = "Nb Scripts"
+
+    def emails_count(self, obj):
+        return obj.emails_notification.count()
+    emails_count.short_description = "Nb Emails"
 
     def afficher_scripts_lies(self, obj):
         scripts = obj.scripts.all()
@@ -726,12 +821,12 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
     afficher_scripts_lies.short_description = "Scripts liés"
 
     def activer_configurations(self, request, queryset):
-        updated = queryset.update(is_active=True)
+        updated = queryset.update(is_active=True, date_activation=timezone.now())
         self.message_user(request, f"{updated} configuration(s) activée(s).")
     activer_configurations.short_description = "✅ Activer les configurations sélectionnées"
 
     def desactiver_configurations(self, request, queryset):
-        updated = queryset.update(is_active=False)
+        updated = queryset.update(is_active=False, date_desactivation=timezone.now())
         self.message_user(request, f"{updated} configuration(s) désactivée(s).")
     desactiver_configurations.short_description = "❌ Désactiver les configurations sélectionnées"
     
@@ -741,10 +836,14 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
 
         if user.is_superuser:
             projets = Projet.objects.all()
+            societes = Societe.objects.all()
         else:
-            projets = Projet.objects.filter(charge_de_compte=user)
+            # CORRECTION : Pas besoin de hasattr puisque societe est obligatoire
+            societes = Societe.objects.filter(id=user.societe.id)
+            projets = Projet.objects.filter(societes=user.societe)
 
         extra_context['projets'] = projets
+        extra_context['societes'] = societes
         return super().changelist_view(request, extra_context=extra_context)
 
     def get_queryset(self, request):
@@ -752,13 +851,47 @@ class ConfigurationTestAdmin(admin.ModelAdmin):
         user = request.user
 
         if not user.is_superuser:
-            queryset = queryset.filter(projet__charge_de_compte=user)
+            # CORRECTION : Pas besoin de hasattr puisque societe est obligatoire
+            queryset = queryset.filter(societe=user.societe)
+
+        societe_id = request.GET.get("societe")
+        if societe_id:
+            queryset = queryset.filter(societe_id=societe_id)
 
         projet_id = request.GET.get("projet")
         if projet_id:
             queryset = queryset.filter(projet_id=projet_id)
 
         return queryset
+
+    def has_module_permission(self, request):
+        return request.user.has_perm('core.view_configurationtest')
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return obj.societe == request.user.societe  # CORRECTION : Pas de hasattr
+        return request.user.has_perm('core.view_configurationtest')
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return obj.societe == request.user.societe  # CORRECTION : Pas de hasattr
+        return request.user.has_perm('core.change_configurationtest')
+
+    def has_add_permission(self, request):
+        if request.user.is_superuser:
+            return True
+        return request.user.has_perm('core.add_configurationtest')  # CORRECTION : Pas de hasattr
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return obj.societe == request.user.societe  # CORRECTION : Pas de hasattr
+        return request.user.has_perm('core.delete_configurationtest')
 
 
 
@@ -1008,12 +1141,31 @@ class ExecutionResultAdmin(admin.ModelAdmin):
     voir_log.short_description = "Log"
 
 
-
-
 @admin.register(EmailNotification)
 class EmailNotificationAdmin(admin.ModelAdmin):
-    list_display = ('email',)
-    search_fields = ('email',)
+    list_display = ('email', 'societe', 'created_by', 'est_actif', 'date_creation')
+    list_filter = ('societe', 'created_by', 'est_actif', 'date_creation')
+    search_fields = ('email', 'societe__nom')
+    list_editable = ('est_actif',)
+    readonly_fields = ('created_by', 'date_creation')
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        # Pour les admins de société, ne montrer que les emails de leurs sociétés
+        return qs.filter(societe__admin=request.user)
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:  # Si c'est une création
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "societe" and not request.user.is_superuser:
+            # Limiter les sociétés à celles dont l'utilisateur est admin
+            kwargs["queryset"] = Societe.objects.filter(admin=request.user)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 logger = logging.getLogger(__name__)
 
@@ -1408,40 +1560,44 @@ from django.utils.html import format_html, mark_safe
 
 @admin.register(Configuration)
 class ConfigurationAdmin(admin.ModelAdmin):
-    # change_form_template = "admin/configuration_change_form.html"  # optionnel si tu veux customiser
-    readonly_fields = ['sync_button_display', 'get_projects_table_html', 'last_sync']
+    list_display = ['societe', 'redmine_url', 'email_host_user', 'last_sync']
+    list_filter = ['societe']
+    readonly_fields = ['sync_button_display', 'get_projects_table_html', 'last_sync', 'date_creation', 'date_modification']
     fieldsets = (
+        ('Informations Société', {
+            'fields': ('societe',)
+        }),
         ('Configuration Redmine', {
-            'fields': ('redmine_url', 'redmine_api_key'),'classes': ('collapse',)
+            'fields': ('redmine_url', 'redmine_api_key', 'sync_button_display', 'last_sync'),
+            'classes': ('collapse',)
         }),
         ('Configuration Email', {
             'fields': ('email_host_user', 'email_host_password'),
             'classes': ('collapse',)
         }),
-        ('Synchronisation', {
-            'fields': ('last_sync', 'sync_button_display'),
-            'classes': ('wide',)
-        }),
         ('Projets Redmine', {
             'fields': ('get_projects_table_html',),
             'classes': ('collapse', 'full-width')
         }),
+        ('Dates', {
+            'fields': ('date_creation', 'date_modification'),
+            'classes': ('collapse',)
+        }),
     )
 
-    # Affiche le bouton de synchronisation
     def sync_button_display(self, obj):
-        url = reverse('admin:configuration_sync', args=[obj.id])
-        return format_html(
-            '<a class="button" href="{}" style="padding: 6px 12px; background-color: #417690; color: white; text-decoration: none; border-radius: 4px;">🔄 Synchroniser les projets Redmine</a>',
-            url
-        )
+        if self.has_sync_permission(self.request, obj):
+            url = reverse('admin:configuration_sync', args=[obj.id])
+            return format_html(
+                '<a class="button" href="{}" style="padding: 6px 12px; background-color: #417690; color: white; text-decoration: none; border-radius: 4px;">🔄 Synchroniser les projets Redmine</a>',
+                url
+            )
+        return "Non autorisé"
     sync_button_display.short_description = "Action"
 
-    # ---- Tableau HTML des projets ----
-    from django.utils.safestring import mark_safe
-
     def get_projects_table_html(self, obj):
-        projects = RedmineProject.objects.all().order_by('name')
+        # Filtrer les projets par société
+        projects = RedmineProject.objects.filter(societe=obj.societe).order_by('name')
         if not projects.exists():
             return "<p>Aucun projet synchronisé</p>"
 
@@ -1459,16 +1615,14 @@ class ConfigurationAdmin(admin.ModelAdmin):
                     <th>Public</th>
                     <th>Créé le</th>
                     <th>Mis à jour le</th>
-                    <th>Manager</th>
                 </tr>
             </thead>
             <tbody>
         """
 
         for p in projects:
-            # Correction du homepage pour l'affichage
             homepage = p.homepage
-            if homepage:  # Si homepage n'est pas vide
+            if homepage:
                 if not homepage.startswith(('http://', 'https://')):
                     homepage = 'https://' + homepage
             else:
@@ -1486,18 +1640,13 @@ class ConfigurationAdmin(admin.ModelAdmin):
                 <td>{'Oui' if p.is_public else 'Non'}</td>
                 <td>{p.created_on.strftime('%d/%m/%Y') if p.created_on else 'N/A'}</td>
                 <td>{p.updated_on.strftime('%d/%m/%Y') if p.updated_on else 'N/A'}</td>
-                <td>{p.manager or 'Non défini'}</td>
             </tr>
             """
 
         html += "</tbody></table>"
         return mark_safe(html)
-
     get_projects_table_html.short_description = "Projets synchronisés"
 
-
-
-    # ---- URL custom pour le bouton ----
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -1511,6 +1660,12 @@ class ConfigurationAdmin(admin.ModelAdmin):
 
     def sync_view(self, request, object_id):
         config = Configuration.objects.get(id=object_id)
+        
+        # Vérifier les permissions
+        if not self.has_sync_permission(request, config):
+            self.message_user(request, "Vous n'avez pas la permission de synchroniser cette configuration.", messages.ERROR)
+            return HttpResponseRedirect('../')
+        
         success, message = config.sync_redmine_projects()
         if success:
             self.message_user(request, message, messages.SUCCESS)
@@ -1518,21 +1673,60 @@ class ConfigurationAdmin(admin.ModelAdmin):
             self.message_user(request, message, messages.ERROR)
         return HttpResponseRedirect('../')
 
-    # ---- Permissions ----
+    # ---- Permissions révisées ----
     def has_module_permission(self, request):
-        return request.user.is_superuser
+        # Autoriser tous les utilisateurs avec la permission view_configuration
+        return request.user.has_perm('core.view_configuration')
 
     def has_view_permission(self, request, obj=None):
-        return request.user.is_superuser
+        if request.user.is_superuser:
+            return True
+        if obj:
+            # Vérifier si l'utilisateur a accès à la société de cette configuration
+            return hasattr(request.user, 'societe') and obj.societe == request.user.societe
+        return request.user.has_perm('core.view_configuration')
 
     def has_change_permission(self, request, obj=None):
-        return request.user.is_superuser
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return hasattr(request.user, 'societe') and obj.societe == request.user.societe
+        return request.user.has_perm('core.change_configuration')
 
     def has_add_permission(self, request):
-        return Configuration.objects.count() == 0 and request.user.is_superuser
+        if request.user.is_superuser:
+            return True
+        # Les administrateurs ne peuvent créer qu'une configuration pour leur société
+        if hasattr(request.user, 'societe'):
+            # Vérifier si une configuration existe déjà pour leur société
+            return not Configuration.objects.filter(societe=request.user.societe).exists()
+        return False
 
     def has_delete_permission(self, request, obj=None):
+        # Seuls les superadmins peuvent supprimer
+        return request.user.is_superuser
+
+    def has_sync_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj:
+            return hasattr(request.user, 'societe') and obj.societe == request.user.societe
         return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        # Filtrer par société de l'utilisateur
+        if hasattr(request.user, 'societe') and request.user.societe:
+            return qs.filter(societe=request.user.societe)
+        return qs.none()
+
+    def save_model(self, request, obj, form, change):
+        # Pour les administrateurs, assigner automatiquement leur société
+        if not change and not obj.societe and hasattr(request.user, 'societe'):
+            obj.societe = request.user.societe
+        super().save_model(request, obj, form, change)
     
     
 @admin.register(SecteurActivite)
@@ -1541,10 +1735,20 @@ class SecteurActiviteAdmin(admin.ModelAdmin):
     
 @admin.register(Societe)
 class SocieteAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'num_siret', 'secteur_activite', 'admin', 'projet')
-    filter_horizontal = ('employes',)
-    list_filter = ('secteur_activite',)
-    search_fields = ('nom', 'num_siret', 'admin__email', 'projet__nom')
+    list_display = ('nom', 'num_siret', 'secteur_activite', 'admin', 'display_projets', 'nombre_projets')
+    filter_horizontal = ('employes', 'projets')  # Ajoutez 'projets' ici
+    list_filter = ('secteur_activite', 'projets')  # Optionnel: ajoutez aux filtres
+    search_fields = ('nom', 'num_siret', 'admin__email', 'projets__nom')  # Corrigez 'projet__nom' en 'projets__nom'
+    
+    def display_projets(self, obj):
+        """Affiche la liste des projets dans l'admin"""
+        return ", ".join([projet.nom for projet in obj.projets.all()])
+    display_projets.short_description = 'Projets'  # Nom de la colonne dans l'admin
+    
+    def nombre_projets(self, obj):
+        """Affiche le nombre de projets"""
+        return obj.projets.count()
+    nombre_projets.short_description = 'Nb. Projets'
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -1559,12 +1763,11 @@ class SocieteAdmin(admin.ModelAdmin):
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         """
-        Limite le champ employes aux utilisateurs de cette société.
+        Limite les champs manytomany selon les permissions
         """
         if db_field.name == "employes" and not request.user.is_superuser:
-            # On récupère uniquement les utilisateurs liés à la société sélectionnée
-            # Si l'objet existe déjà (édition), on filtre sur sa société
-            if request.resolver_match.url_name.endswith('change'):  # édition
+            # Logique existante pour les employés
+            if request.resolver_match.url_name.endswith('change'):
                 obj_id = request.resolver_match.kwargs.get('object_id')
                 if obj_id:
                     try:
@@ -1573,8 +1776,17 @@ class SocieteAdmin(admin.ModelAdmin):
                     except Societe.DoesNotExist:
                         kwargs["queryset"] = CustomUser.objects.none()
             else:
-                # Pour l'ajout, on ne montre que les utilisateurs de la même société que l'admin connecté
                 kwargs["queryset"] = CustomUser.objects.filter(societe=request.user.societe)
+        
+        elif db_field.name == "projets" and not request.user.is_superuser:
+            # Limiter les projets selon les permissions de l'utilisateur
+            # Adaptez cette logique selon vos besoins
+            if hasattr(request.user, 'projets_access'):
+                kwargs["queryset"] = request.user.projets_access.all()
+            else:
+                # Par défaut, montrer tous les projets ou limiter selon votre logique métier
+                kwargs["queryset"] = Projet.objects.all()
+                
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 

@@ -51,7 +51,7 @@ def create_predefined_groups(sender, **kwargs):
         {
             'nom': 'Administrateur',
             'role_predefini': 'administrateur',
-            'perms': ['add_script', 'change_script', 'view_script', 'add_executiontest', 'change_executiontest', 'view_executiontest','add_script', 'change_script', 'view_script','view_dashboard', 'view_executionresult','add_projet', 'change_projet', 'view_projet', 'view_executionresult', 'view_configurationtest', 'delete_configurationtest', 'add_configurationtest', 'change_configurationtest', 'add_emailnotification', 'view_emailnotification', 'change_emailnotification'],
+            'perms': ['add_script', 'change_script', 'view_script', 'add_executiontest', 'change_executiontest', 'view_executiontest','add_script', 'change_script', 'view_script','view_dashboard', 'view_executionresult','add_projet', 'change_projet', 'view_projet', 'view_executionresult', 'view_configurationtest', 'delete_configurationtest', 'add_configurationtest', 'change_configurationtest', 'add_emailnotification', 'view_emailnotification', 'change_emailnotification',  'view_societe', 'change_societe', 'add_configuration', 'change_configuration', 'view_configuration', 'view_societe_configurationtest', 'change_societe_configurationtest', 'delete_societe_configurationtest', ],
         },
         {
             'nom': 'QA',

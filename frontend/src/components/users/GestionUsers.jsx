@@ -21,16 +21,19 @@ const GestionUsers = ({ user, logout }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
+    
+    // États pour la pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(7);
 
     useEffect(() => {
         fetchUsers();
     }, []);
 
-    const societies = user.societes || user.societe || [];
-
     const fetchUsers = async () => {
         try {
             const response = await api.get('users/');
+            console.log('Données utilisateurs reçues:', response.data); // Debug
             setUsers(response.data);
             setFilteredUsers(response.data);
         } catch (error) {
@@ -38,6 +41,24 @@ const GestionUsers = ({ user, logout }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Fonction pour obtenir le nom de la société
+    const getSocieteName = (userItem) => {
+        console.log('Utilisateur:', userItem); // Debug
+        
+        // Le serializer renvoie la société sous 'societes' (au pluriel)
+        if (userItem.societes && typeof userItem.societes === 'object') {
+            return userItem.societes.nom || 'Société sans nom';
+        }
+        // Fallback vers societe si disponible (au cas où)
+        else if (userItem.societe && typeof userItem.societe === 'object') {
+            return userItem.societe.nom || 'Société sans nom';
+        }
+        else if (userItem.societe && typeof userItem.societe === 'number') {
+            return `Société ID: ${userItem.societe}`;
+        }
+        return 'Non assigné';
     };
 
     // Fonction pour déterminer le statut et les classes CSS
@@ -63,9 +84,52 @@ const GestionUsers = ({ user, logout }) => {
         }
     };
 
+    // Logique de pagination
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+    // Fonction pour changer de page
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    // Fonction pour aller à la page précédente
+    const goToPreviousPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    // Fonction pour aller à la page suivante
+    const goToNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
+
+    // Fonction pour générer les numéros de page à afficher
+    const getPageNumbers = () => {
+        const pageNumbers = [];
+        const maxVisiblePages = 5;
+        
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        // Ajuster si on est près de la fin
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            pageNumbers.push(i);
+        }
+        
+        return pageNumbers;
+    };
+
     const handleDeleteUser = async (userId) => {
         const userToDelete = users.find(u => u.id === userId);
-        
+
         const result = await MySwal.fire({
             title: 'Êtes-vous sûr ?',
             html: `
@@ -112,7 +176,11 @@ const GestionUsers = ({ user, logout }) => {
             const updatedUsers = users.filter(user => user.id !== userId);
             setUsers(updatedUsers);
             setFilteredUsers(updatedUsers);
-            
+            // Réinitialiser à la page 1 si nécessaire
+            if (currentUsers.length === 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            }
+
             // Afficher un message de succès
             MySwal.fire({
                 title: 'Supprimé !',
@@ -132,9 +200,9 @@ const GestionUsers = ({ user, logout }) => {
     const handleToggleUserStatus = async (userId, currentStatus) => {
         const userToUpdate = users.find(u => u.id === userId);
         const newStatus = !currentStatus;
-        
+
         const action = newStatus ? 'activer' : 'désactiver';
-        
+
         const result = await MySwal.fire({
             title: `Êtes-vous sûr ?`,
             html: `
@@ -146,10 +214,10 @@ const GestionUsers = ({ user, logout }) => {
                     </div>
                     <p class="text-muted mt-3">
                         <i class="ti ti-info-circle me-1"></i>
-                        ${newStatus ? 
-                            'L\'utilisateur pourra à nouveau se connecter.' : 
-                            'L\'utilisateur ne pourra plus se connecter.'
-                        }
+                        ${newStatus ?
+                    'L\'utilisateur pourra à nouveau se connecter.' :
+                    'L\'utilisateur ne pourra plus se connecter.'
+                }
                     </p>
                 </div>
             `,
@@ -183,12 +251,12 @@ const GestionUsers = ({ user, logout }) => {
 
         if (result.isConfirmed) {
             // Mettre à jour la liste des utilisateurs
-            const updatedUsers = users.map(u => 
+            const updatedUsers = users.map(u =>
                 u.id === userId ? { ...u, is_active: newStatus } : u
             );
             setUsers(updatedUsers);
             setFilteredUsers(updatedUsers);
-            
+
             // Afficher un message de succès
             MySwal.fire({
                 title: `${action.charAt(0).toUpperCase() + action.slice(1)} !`,
@@ -219,7 +287,10 @@ const GestionUsers = ({ user, logout }) => {
         setUsers(updatedUsers);
         setFilteredUsers(updatedUsers);
         setShowAddModal(false);
-        
+        // Aller à la dernière page pour voir le nouvel utilisateur
+        const newTotalPages = Math.ceil((filteredUsers.length + 1) / itemsPerPage);
+        setCurrentPage(newTotalPages);
+
         // Message de succès
         MySwal.fire({
             title: 'Succès !',
@@ -239,7 +310,7 @@ const GestionUsers = ({ user, logout }) => {
         setFilteredUsers(updatedUsers);
         setShowEditModal(false);
         setSelectedUser(null);
-        
+
         // Message de succès
         MySwal.fire({
             title: 'Succès !',
@@ -255,6 +326,7 @@ const GestionUsers = ({ user, logout }) => {
 
     const handleFilterChange = (filtered) => {
         setFilteredUsers(filtered);
+        setCurrentPage(1); // Réinitialiser à la première page lors du filtrage
     };
 
     if (loading) {
@@ -350,41 +422,34 @@ const GestionUsers = ({ user, logout }) => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {filteredUsers.map((user, index) => {
-                                                            const status = getUserStatus(user);
+                                                        {currentUsers.map((userItem, index) => {
+                                                            const globalIndex = indexOfFirstItem + index;
+                                                            const status = getUserStatus(userItem);
                                                             return (
-                                                                <tr key={user.id}>
-                                                                    <td>{index + 1}</td>
+                                                                <tr key={userItem.id}>
+                                                                    <td>{globalIndex + 1}</td>
                                                                     <td>
                                                                         <div className="row align-items-center">
                                                                             <div className="col-auto pe-0">
                                                                                 <img
-                                                                                    src={`/assets/img/user/avatar-${(index % 8) + 1}.jpg`}
+                                                                                    src={`/assets/img/user/avatar-${(globalIndex % 8) + 1}.jpg`}
                                                                                     alt="avatar"
                                                                                     className="wid-40 rounded-circle"
                                                                                 />
                                                                             </div>
                                                                             <div className="col">
-                                                                                <h6 className="mb-0">{user.first_name} {user.last_name}</h6>
-                                                                                <p className="text-muted f-12 mb-0">{user.email}</p>
+                                                                                <h6 className="mb-0">{userItem.first_name} {userItem.last_name}</h6>
+                                                                                <p className="text-muted f-12 mb-0">{userItem.email}</p>
                                                                             </div>
                                                                         </div>
                                                                     </td>
                                                                     <td>
-                                                                        {user.societes && user.societes.length > 0 ? (
-                                                                            user.societes.map((s, idx) => (
-                                                                                <span key={s.id}>
-                                                                                    {s.nom}{idx < user.societes.length - 1 ? ', ' : ''}
-                                                                                </span>
-                                                                            ))
-                                                                        ) : (
-                                                                            'Non assigné'
-                                                                        )}
+                                                                        {getSocieteName(userItem)}
                                                                     </td>
-                                                                    <td>{user.first_name}</td>
-                                                                    <td>{user.last_name}</td>
+                                                                    <td>{userItem.first_name}</td>
+                                                                    <td>{userItem.last_name}</td>
                                                                     <td>
-                                                                        <span className={`badge rounded-pill f-12 d-flex align-items-center justify-content-center ${status.badgeClass}`} style={{width: 'fit-content', minWidth: '100px'}}>
+                                                                        <span className={`badge rounded-pill f-12 d-flex align-items-center justify-content-center ${status.badgeClass}`} style={{ width: 'fit-content', minWidth: '100px' }}>
                                                                             <i className={`${status.icon} me-1 f-10`}></i>
                                                                             {status.label}
                                                                         </span>
@@ -393,33 +458,36 @@ const GestionUsers = ({ user, logout }) => {
                                                                         <div className="d-flex justify-content-center gap-2">
                                                                             <button
                                                                                 className="btn btn-link-secondary btn-sm p-1"
-                                                                                onClick={() => handleViewUser(user)}
+                                                                                onClick={() => handleViewUser(userItem)}
                                                                                 title="Voir"
                                                                             >
                                                                                 <i className="ti ti-eye f-18"></i>
                                                                             </button>
                                                                             <button
                                                                                 className="btn btn-link-primary btn-sm p-1"
-                                                                                onClick={() => handleEditUser(user)}
+                                                                                onClick={() => handleEditUser(userItem)}
                                                                                 title="Modifier"
                                                                             >
                                                                                 <i className="ti ti-edit-circle f-18"></i>
                                                                             </button>
                                                                             {/* Bouton Activer/Désactiver */}
                                                                             <button
-                                                                                className={`btn btn-sm p-1 ${user.is_active ? 'btn-link-warning' : 'btn-link-success'}`}
-                                                                                onClick={() => handleToggleUserStatus(user.id, user.is_active)}
-                                                                                title={user.is_active ? 'Désactiver' : 'Activer'}
+                                                                                className={`btn btn-sm p-1 ${userItem.is_active ? 'btn-link-warning' : 'btn-link-success'}`}
+                                                                                onClick={() => handleToggleUserStatus(userItem.id, userItem.is_active)}
+                                                                                title={userItem.is_active ? 'Désactiver' : 'Activer'}
                                                                             >
-                                                                                <i className={`ti ${user.is_active ? 'ti-user-off' : 'ti-user-check'} f-18`}></i>
+                                                                                <i className={`ti ${userItem.is_active ? 'ti-user-off' : 'ti-user-check'} f-18`}></i>
                                                                             </button>
-                                                                            <button
-                                                                                className="btn btn-link-danger btn-sm p-1"
-                                                                                onClick={() => handleDeleteUser(user.id)}
-                                                                                title="Supprimer"
-                                                                            >
-                                                                                <i className="ti ti-trash f-18"></i>
-                                                                            </button>
+                                                                            {/* Bouton supprimer - uniquement pour superadmin ET si l'utilisateur n'est pas superadmin */}
+                                                                            {user.is_superuser && !userItem.is_superuser && (
+                                                                                <button
+                                                                                    className="btn btn-link-danger btn-sm p-1"
+                                                                                    onClick={() => handleDeleteUser(userItem.id)}
+                                                                                    title="Supprimer"
+                                                                                >
+                                                                                    <i className="ti ti-trash f-18"></i>
+                                                                                </button>
+                                                                            )}
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -431,14 +499,98 @@ const GestionUsers = ({ user, logout }) => {
                                                 {filteredUsers.length === 0 && (
                                                     <div className="text-center p-4">
                                                         <p className="text-muted">
-                                                            {users.length === 0 ? 
-                                                                'Aucun utilisateur trouvé.' : 
+                                                            {users.length === 0 ?
+                                                                'Aucun utilisateur trouvé.' :
                                                                 'Aucun utilisateur ne correspond aux critères de filtrage.'
                                                             }
                                                         </p>
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Pagination */}
+                                            {filteredUsers.length > itemsPerPage && (
+                                                <div className="d-flex justify-content-between align-items-center mt-4">
+                                                    <div className="text-muted">
+                                                        Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filteredUsers.length)} sur {filteredUsers.length} utilisateurs
+                                                    </div>
+                                                    <nav aria-label="Page navigation">
+                                                        <ul className="pagination mb-0">
+                                                            {/* Bouton Précédent */}
+                                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                                <button
+                                                                    className="page-link"
+                                                                    onClick={goToPreviousPage}
+                                                                    disabled={currentPage === 1}
+                                                                >
+                                                                    <i className="ti ti-chevron-left"></i>
+                                                                </button>
+                                                            </li>
+
+                                                            {/* Première page */}
+                                                            {currentPage > 3 && (
+                                                                <>
+                                                                    <li className="page-item">
+                                                                        <button
+                                                                            className="page-link"
+                                                                            onClick={() => paginate(1)}
+                                                                        >
+                                                                            1
+                                                                        </button>
+                                                                    </li>
+                                                                    {currentPage > 4 && (
+                                                                        <li className="page-item disabled">
+                                                                            <span className="page-link">...</span>
+                                                                        </li>
+                                                                    )}
+                                                                </>
+                                                            )}
+
+                                                            {/* Pages numérotées */}
+                                                            {getPageNumbers().map(number => (
+                                                                <li key={number} className={`page-item ${currentPage === number ? 'active' : ''}`}>
+                                                                    <button
+                                                                        className="page-link"
+                                                                        onClick={() => paginate(number)}
+                                                                    >
+                                                                        {number}
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+
+                                                            {/* Dernière page */}
+                                                            {currentPage < totalPages - 2 && (
+                                                                <>
+                                                                    {currentPage < totalPages - 3 && (
+                                                                        <li className="page-item disabled">
+                                                                            <span className="page-link">...</span>
+                                                                        </li>
+                                                                    )}
+                                                                    <li className="page-item">
+                                                                        <button
+                                                                            className="page-link"
+                                                                            onClick={() => paginate(totalPages)}
+                                                                        >
+                                                                            {totalPages}
+                                                                        </button>
+                                                                    </li>
+                                                                </>
+                                                            )}
+
+                                                            {/* Bouton Suivant */}
+                                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                                <button
+                                                                    className="page-link"
+                                                                    onClick={goToNextPage}
+                                                                    disabled={currentPage === totalPages}
+                                                                >
+                                                                    <i className="ti ti-chevron-right"></i>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </nav>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

@@ -7,12 +7,29 @@ const FiltreGestionUser = ({ users, onFilterChange }) => {
         statut: ''
     });
 
+    // Fonction pour obtenir le nom de la société d'un utilisateur
+    const getSocieteName = (userItem) => {
+        // Le serializer renvoie la société sous 'societes' (au pluriel)
+        if (userItem.societes && typeof userItem.societes === 'object') {
+            return userItem.societes.nom || 'Société sans nom';
+        }
+        // Fallback vers societe si disponible (au cas où)
+        else if (userItem.societe && typeof userItem.societe === 'object') {
+            return userItem.societe.nom || 'Société sans nom';
+        }
+        else if (userItem.societe && typeof userItem.societe === 'number') {
+            return `Société ID: ${userItem.societe}`;
+        }
+        return 'Non assigné';
+    };
+
     // Extraire les sociétés uniques pour le dropdown
     const getSocietesUniques = () => {
         const societes = new Set();
         users.forEach(user => {
-            if (user.societes && user.societes.length > 0) {
-                user.societes.forEach(s => societes.add(s.nom));
+            const societeName = getSocieteName(user);
+            if (societeName && societeName !== 'Non assigné') {
+                societes.add(societeName);
             }
         });
         return Array.from(societes).sort();
@@ -24,22 +41,23 @@ const FiltreGestionUser = ({ users, onFilterChange }) => {
 
         if (filters.nom) {
             filteredUsers = filteredUsers.filter(user => 
-                `${user.first_name} ${user.last_name}`.toLowerCase().includes(filters.nom.toLowerCase())
+                `${user.first_name} ${user.last_name}`.toLowerCase().includes(filters.nom.toLowerCase()) ||
+                user.email.toLowerCase().includes(filters.nom.toLowerCase())
             );
         }
 
         if (filters.societe) {
-            filteredUsers = filteredUsers.filter(user => 
-                user.societes && user.societes.some(s => 
-                    s.nom.toLowerCase().includes(filters.societe.toLowerCase())
-                )
-            );
+            filteredUsers = filteredUsers.filter(user => {
+                const societeName = getSocieteName(user);
+                return societeName.toLowerCase().includes(filters.societe.toLowerCase());
+            });
         }
 
         if (filters.statut) {
             filteredUsers = filteredUsers.filter(user => {
-                if (filters.statut === 'actif') return user.is_staff;
-                if (filters.statut === 'utilisateur') return !user.is_staff;
+                if (filters.statut === 'actif') return user.is_active && user.is_staff;
+                if (filters.statut === 'utilisateur') return user.is_active && !user.is_staff;
+                if (filters.statut === 'desactive') return !user.is_active;
                 return true;
             });
         }
@@ -76,13 +94,13 @@ const FiltreGestionUser = ({ users, onFilterChange }) => {
                 <div className="row align-items-end">
                     <div className="col-md-3">
                         <label htmlFor="filterNom" className="form-label">
-                            Rechercher par nom
+                            Rechercher par nom/email
                         </label>
                         <input
                             type="text"
                             className="form-control"
                             id="filterNom"
-                            placeholder="Nom ou prénom..."
+                            placeholder="Nom, prénom ou email..."
                             value={filters.nom}
                             onChange={(e) => handleInputChange('nom', e.target.value)}
                         />
@@ -103,6 +121,9 @@ const FiltreGestionUser = ({ users, onFilterChange }) => {
                                     {societe}
                                 </option>
                             ))}
+                            {societesUniques.length === 0 && (
+                                <option value="" disabled>Aucune société disponible</option>
+                            )}
                         </select>
                     </div>
                     <div className="col-md-3">
@@ -116,8 +137,9 @@ const FiltreGestionUser = ({ users, onFilterChange }) => {
                             onChange={(e) => handleInputChange('statut', e.target.value)}
                         >
                             <option value="">Tous les statuts</option>
-                            <option value="actif">Actif</option>
+                            <option value="actif">Actif (Staff)</option>
                             <option value="utilisateur">Utilisateur</option>
+                            <option value="desactive">Désactivé</option>
                         </select>
                     </div>
                     <div className="col-md-3">
@@ -140,6 +162,15 @@ const FiltreGestionUser = ({ users, onFilterChange }) => {
                         {filterUsers().length !== users.length && ` sur ${users.length}`}
                     </small>
                 </div>
+
+                {/* Debug info (à supprimer en production) */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="mt-2">
+                        <small className="text-muted">
+                            Debug: {societesUniques.length} société(s) trouvée(s)
+                        </small>
+                    </div>
+                )}
             </div>
         </div>
     );

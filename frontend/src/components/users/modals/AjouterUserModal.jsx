@@ -11,7 +11,7 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
         is_active: true,
         is_staff: false,
         groups: [],
-        societe: ''
+        societe: ''  // Maintenant obligatoire
     });
     const [groupes, setGroupes] = useState([]);
     const [societes, setSocietes] = useState([]);
@@ -49,6 +49,9 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+        
+        // Effacer l'erreur quand l'utilisateur modifie le champ
+        if (error) setError('');
     };
 
     const handleGroupChange = (e) => {
@@ -63,7 +66,12 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
         e.preventDefault();
         setError('');
 
-        // Validation
+        // Validation renforcée
+        if (!formData.societe) {
+            setError('Veuillez sélectionner une société');
+            return;
+        }
+
         if (formData.password !== formData.confirm_password) {
             setError('Les mots de passe ne correspondent pas');
             return;
@@ -86,7 +94,7 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                 is_active: formData.is_active,
                 is_staff: formData.is_staff,
                 groups: formData.groups,
-                societe: formData.societe ? parseInt(formData.societe) : null
+                societe: parseInt(formData.societe)  // Maintenant obligatoire
             };
 
             console.log('Données envoyées à l\'API:', userData);
@@ -106,10 +114,10 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
 
                 if (error.response.data.email) {
                     setError('Cet email est déjà utilisé');
-                } else if (error.response.data.groups) {
-                    setError('Erreur avec les groupes: ' + error.response.data.groups);
                 } else if (error.response.data.societe) {
                     setError('Erreur avec la société: ' + error.response.data.societe);
+                } else if (error.response.data.password) {
+                    setError('Erreur avec le mot de passe: ' + error.response.data.password);
                 } else if (error.response.data.non_field_errors) {
                     setError(error.response.data.non_field_errors.join(', '));
                 } else {
@@ -159,9 +167,44 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                         <div className="modal-body">
                             {error && (
                                 <div className="alert alert-danger" role="alert">
+                                    <i className="ti ti-alert-circle me-2"></i>
                                     {error}
                                 </div>
                             )}
+
+                            {/* Section Société - Mise en avant */}
+                            <div className="card bg-light mb-4">
+                                <div className="card-body">
+                                    <div className="row">
+                                        <div className="col-12">
+                                            <div className="form-floating mb-3">
+                                                <select
+                                                    className={`form-control ${error && !formData.societe ? 'is-invalid' : ''}`}
+                                                    id="societe"
+                                                    name="societe"
+                                                    value={formData.societe}
+                                                    onChange={handleChange}
+                                                    required
+                                                >
+                                                    <option value="">Sélectionner une société *</option>
+                                                    {societes.map(societe => (
+                                                        <option key={societe.id} value={societe.id}>
+                                                            {societe.nom}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <label htmlFor="societe" className="text-primary">
+                                                    Société <span className="text-danger">*</span>
+                                                </label>
+                                                <div className="form-text text-primary">
+                                                    <i className="ti ti-info-circle me-1"></i>
+                                                    L'association à une société est obligatoire pour cet utilisateur.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="row">
                                 <div className="col-md-6">
@@ -182,28 +225,6 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
 
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
-                                        <select
-                                            className="form-select"
-                                            id="societe"
-                                            name="societe"
-                                            value={formData.societe}
-                                            onChange={handleChange}
-                                        >
-                                            <option value="">Sélectionner une société</option>
-                                            {societes.map(societe => (
-                                                <option key={societe.id} value={societe.id}>
-                                                    {societe.nom}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <label htmlFor="societe">Société</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="row">
-                                <div className="col-md-6">
-                                    <div className="form-floating mb-3">
                                         <input
                                             type="text"
                                             className="form-control"
@@ -217,7 +238,9 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                         <label htmlFor="first_name">Prénom *</label>
                                     </div>
                                 </div>
+                            </div>
 
+                            <div className="row">
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
                                         <input
@@ -233,9 +256,7 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                         <label htmlFor="last_name">Nom *</label>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="row">
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
                                         <input
@@ -251,7 +272,9 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                         <label htmlFor="password">Mot de passe *</label>
                                     </div>
                                 </div>
+                            </div>
 
+                            <div className="row">
                                 <div className="col-md-6">
                                     <div className="form-floating mb-3">
                                         <input
@@ -314,7 +337,7 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                                             </label>
                                             <br></br>
                                             <small className="form-text text-muted">
-                                                Précise si l'utilisateur doit être considéré comme actif. Décochez ceci plutôt que de supprimer le compte.
+                                                Précise si l'utilisateur doit être considéré comme actif.
                                             </small>
                                         </div>
                                     </div>
@@ -347,8 +370,19 @@ const AjouterUserModal = ({ show, onClose, onUserAdded }) => {
                             <button type="button" className="btn btn-secondary" onClick={handleClose}>
                                 Annuler
                             </button>
-                            <button type="submit" className="btn btn-primary" disabled={loading}>
-                                {loading ? 'Création...' : 'Créer l\'utilisateur'}
+                            <button 
+                                type="submit" 
+                                className="btn btn-primary" 
+                                disabled={loading || !formData.societe}
+                            >
+                                {loading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        Création...
+                                    </>
+                                ) : (
+                                    'Créer l\'utilisateur'
+                                )}
                             </button>
                         </div>
                     </form>
