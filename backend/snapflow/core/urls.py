@@ -23,6 +23,7 @@ router.register(r'parametres', views.ConfigurationViewSet, basename='configurati
 
 urlpatterns = [
     path("", include(router.urls)),
+    path('execution-resultats/', views.ExecutionResultatList.as_view(), name='execution-resultats-list'),
     path("users/", UserListCreateView.as_view(), name="user-list"),
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
     path('users/<int:pk>/update-profile/', views.update_user_profile, name='update-user-profile'),

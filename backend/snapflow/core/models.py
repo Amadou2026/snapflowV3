@@ -288,11 +288,25 @@ class ConfigurationTest(models.Model):
         return f"{self.nom} - {self.societe.nom}"
 
     def save(self, *args, **kwargs):
-        # CORRECTION: Vérifier via la relation ManyToMany societes
-        if self.projet and self.societe:
-            if not self.projet.societes.filter(id=self.societe.id).exists():
-                raise ValidationError("Le projet doit appartenir à la même société")
-        super().save(*args, **kwargs)
+        # CORRECTION: Meilleure gestion des erreurs
+        try:
+            # Vérifier via la relation ManyToMany societes
+            if self.projet and self.societe:
+                if not self.projet.societes.filter(id=self.societe.id).exists():
+                    raise ValidationError("Le projet doit appartenir à la même société")
+            
+            # CORRECTION: Log pour débogage
+            print(f"💾 Sauvegarde ConfigurationTest: {self.nom}")
+            print(f"   is_active: {self.is_active}")
+            print(f"   date_activation: {self.date_activation}")
+            print(f"   date_desactivation: {self.date_desactivation}")
+            
+            super().save(*args, **kwargs)
+            print(f"✅ ConfigurationTest sauvegardé avec ID: {self.id}")
+            
+        except Exception as e:
+            print(f"❌ Erreur sauvegarde ConfigurationTest: {str(e)}")
+            raise
 
     def get_emails_for_notification(self):
         """Retourne la liste des emails actifs pour les notifications"""

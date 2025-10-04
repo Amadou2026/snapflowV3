@@ -18,6 +18,9 @@ import GestionScripts from './components/script/GestionScripts';
 import GestionMail from './components/email/GestionMail';
 import GestionParametres from './components/parametre/GestionParametres';
 import GestionConfigurationTest from './components/configurationtest/GestionConfigurationTest';
+import GestionResultatTest from './components/resultattest/GestionResultatTest'
+import GestionExecutionTest from './components/executiontest/GestionExecutionTest';
+import VueGlobale from './components/vueglobale/VueGlobale';
 import 'font-awesome/css/font-awesome.min.css';
 import { useContext } from 'react';
 
@@ -240,13 +243,41 @@ const AppRoutes = () => {
             )
           }
         />
-        
+        <Route
+          path="/admin/core/executionresult/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <GestionResultatTest user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
 
+
+
+        <Route
+          path="/admin/core/executiontest/"
+          element={
+            isAuthenticated ? (
+              user?.is_staff ? (
+                <GestionExecutionTest user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
         <Route
           path="/admin/core/configurationtest/"
           element={
             isAuthenticated ? (
-              // Rediriger les utilisateurs non-staff vers l'accueil
               user?.is_staff ? (
                 <GestionConfigurationTest user={user} logout={logout} />
               ) : (
@@ -257,7 +288,20 @@ const AppRoutes = () => {
             )
           }
         />
-
+        <Route
+          path="/admin/core/vueglobale/"
+          element={
+            isAuthenticated ? (
+              user?.is_staff ? (
+                <VueGlobale user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
         <Route
           path="/userprofile"
           element={
