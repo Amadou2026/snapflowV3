@@ -9,6 +9,8 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
         projet: '',
         periodicite: '2h',
         is_active: true,
+        date_activation: '',
+        date_desactivation: '',
         scripts: [],
         emails_notification: []
     });
@@ -57,7 +59,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             await loadScripts();
 
             // Charger les emails de notification actifs
-            const emailsResponse = await api.get('emails-notification/?est_actif=true');
+            const emailsResponse = await api.get('email-notifications/?est_actif=true');
             setEmails(emailsResponse.data);
             setEmailsDisponibles(emailsResponse.data);
 
@@ -118,6 +120,14 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                 loadProjets();
                 loadScripts();
             }, 100);
+        }
+
+        // Si is_active change, ajuster la date d'activation
+        if (name === 'is_active' && checked && !formData.date_activation) {
+            setFormData(prev => ({
+                ...prev,
+                date_activation: new Date().toISOString().slice(0, 16) // Format datetime-local
+            }));
         }
 
         // Clear error for this field when user starts typing
@@ -262,6 +272,16 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             newErrors.scripts = 'Au moins un script doit être sélectionné';
         }
 
+        // Validation des dates
+        if (formData.date_activation && formData.date_desactivation) {
+            const dateActivation = new Date(formData.date_activation);
+            const dateDesactivation = new Date(formData.date_desactivation);
+            
+            if (dateDesactivation <= dateActivation) {
+                newErrors.date_desactivation = 'La date de désactivation doit être après la date d\'activation';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -275,30 +295,45 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
 
         setLoading(true);
         try {
+            // Préparer les données pour l'API
             const dataToSend = {
-                nom: formData.nom,
-                societe: parseInt(formData.societe),
-                projet: parseInt(formData.projet),
+                nom: formData.nom.trim(),
+                societe_id: parseInt(formData.societe),
+                projet_id: parseInt(formData.projet),
                 periodicite: formData.periodicite,
                 is_active: formData.is_active,
                 scripts: formData.scripts,
-                emails_notification: formData.emails_notification
+                emails_notification: formData.emails_notification,
+                // Gestion des dates
+                date_activation: formData.date_activation || null,
+                date_desactivation: formData.date_desactivation || null
             };
 
-            console.log('📤 Données envoyées:', dataToSend);
+            console.log('Données envoyées pour création:', dataToSend);
 
-            const response = await api.post('configuration-test/create/', dataToSend);
-            console.log('✅ Réponse API:', response.data);
+            const response = await api.post('configuration-tests/', dataToSend);
+            console.log('Réponse API:', response.data);
 
             toast.success('Configuration créée avec succès');
             onConfigurationAdded(response.data);
             resetForm();
         } catch (error) {
-            console.error('❌ Erreur:', error);
+            console.error('Erreur lors de la création:', error);
             if (error.response?.data) {
-                console.log('📋 Détails erreur:', error.response.data);
+                console.log('Détails erreur backend:', error.response.data);
                 setErrors(error.response.data);
-                toast.error('Erreur lors de la création de la configuration');
+                
+                // Afficher le premier message d'erreur
+                const firstError = Object.values(error.response.data)[0];
+                if (Array.isArray(firstError)) {
+                    toast.error(firstError[0]);
+                } else if (typeof firstError === 'string') {
+                    toast.error(firstError);
+                } else {
+                    toast.error('Erreur lors de la création de la configuration');
+                }
+            } else {
+                toast.error('Erreur de connexion au serveur');
             }
         } finally {
             setLoading(false);
@@ -312,6 +347,8 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             projet: '',
             periodicite: '2h',
             is_active: true,
+            date_activation: '',
+            date_desactivation: '',
             scripts: [],
             emails_notification: []
         });
@@ -326,6 +363,13 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
         resetForm();
         onClose();
     };
+
+    // Filtrer les projets par société sélectionnée
+    const projetsFiltres = formData.societe 
+        ? projets.filter(projet => {
+            return projet.societes && projet.societes.some(s => s.id === parseInt(formData.societe));
+        })
+        : projets;
 
     if (!show) return null;
 
@@ -342,392 +386,481 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                             type="button"
                             className="btn-close"
                             onClick={handleClose}
+                            disabled={loading}
                         ></button>
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
-                            <div className="row">
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label htmlFor="nom" className="form-label">
-                                            Nom de la configuration *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className={`form-control ${errors.nom ? 'is-invalid' : ''}`}
-                                            id="nom"
-                                            name="nom"
-                                            value={formData.nom}
-                                            onChange={handleInputChange}
-                                            placeholder="Ex: Tests quotidiens - Site principal"
-                                        />
-                                        {errors.nom && (
-                                            <div className="invalid-feedback">
-                                                {errors.nom}
-                                            </div>
-                                        )}
+                            {loadingReferences ? (
+                                <div className="text-center py-4">
+                                    <div className="spinner-border text-primary" role="status">
+                                        <span className="visually-hidden">Chargement...</span>
                                     </div>
+                                    <p className="mt-2">Chargement des données...</p>
                                 </div>
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label htmlFor="periodicite" className="form-label">
-                                            Périodicité *
-                                        </label>
-                                        <select
-                                            className={`form-select ${errors.periodicite ? 'is-invalid' : ''}`}
-                                            id="periodicite"
-                                            name="periodicite"
-                                            value={formData.periodicite}
-                                            onChange={handleInputChange}
-                                        >
-                                            <option value="2min">Toutes les 2 minutes</option>
-                                            <option value="2h">Toutes les 2 heures</option>
-                                            <option value="6h">Toutes les 6 heures</option>
-                                            <option value="1j">Une fois par jour</option>
-                                            <option value="1s">Une fois par semaine</option>
-                                            <option value="1m">Une fois par mois</option>
-                                        </select>
-                                        {errors.periodicite && (
-                                            <div className="invalid-feedback">
-                                                {errors.periodicite}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="row">
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label htmlFor="societe" className="form-label">
-                                            Société {!isSuperAdmin && '(Votre société)'}
-                                        </label>
-                                        <select
-                                            className={`form-select ${errors.societe ? 'is-invalid' : ''}`}
-                                            id="societe"
-                                            name="societe"
-                                            value={formData.societe}
-                                            onChange={handleInputChange}
-                                            disabled={!isSuperAdmin}
-                                        >
-                                            <option value="">Sélectionner une société</option>
-                                            {societes.map(societe => (
-                                                <option key={societe.id} value={societe.id}>
-                                                    {societe.nom}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.societe && (
-                                            <div className="invalid-feedback">
-                                                {errors.societe}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label htmlFor="projet" className="form-label">
-                                            Projet *
-                                        </label>
-                                        <select
-                                            className={`form-select ${errors.projet ? 'is-invalid' : ''}`}
-                                            id="projet"
-                                            name="projet"
-                                            value={formData.projet}
-                                            onChange={handleInputChange}
-                                        >
-                                            <option value="">Sélectionner un projet</option>
-                                            {projets.map(projet => (
-                                                <option key={projet.id} value={projet.id}>
-                                                    {projet.nom}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.projet && (
-                                            <div className="invalid-feedback">
-                                                {errors.projet}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="row">
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <div className="form-check form-switch">
-                                            <input
-                                                className="form-check-input"
-                                                type="checkbox"
-                                                id="is_active"
-                                                name="is_active"
-                                                checked={formData.is_active}
-                                                onChange={handleInputChange}
-                                            />
-                                            <label className="form-check-label" htmlFor="is_active">
-                                                Configuration active
-                                            </label>
-                                        </div>
-                                        <small className="form-text text-muted">
-                                            Une configuration active sera exécutée selon sa périodicité
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Section Scripts (ManyToMany) */}
-                            <div className="row">
-                                <div className="col-12">
-                                    <div className="mb-3">
-                                        <label className="form-label">
-                                            Scripts à exécuter *
-                                        </label>
-                                        
-                                        <div className="row">
-                                            {/* Scripts disponibles */}
-                                            <div className="col-md-5">
-                                                <div className="card">
-                                                    <div className="card-header d-flex justify-content-between align-items-center">
-                                                        <span>Scripts disponibles ({scriptsDisponibles.length})</span>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-outline-primary"
-                                                            onClick={ajouterTousScripts}
-                                                            disabled={scriptsDisponibles.length === 0}
-                                                        >
-                                                            Tout ajouter →
-                                                        </button>
+                            ) : (
+                                <>
+                                    <div className="row">
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="nom" className="form-label">
+                                                    Nom de la configuration *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    className={`form-control ${errors.nom ? 'is-invalid' : ''}`}
+                                                    id="nom"
+                                                    name="nom"
+                                                    value={formData.nom}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Ex: Tests quotidiens - Site principal"
+                                                    disabled={loading}
+                                                />
+                                                {errors.nom && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.nom}
                                                     </div>
-                                                    <div className="card-body p-0">
-                                                        <div 
-                                                            className="list-group list-group-flush"
-                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
-                                                        >
-                                                            {scriptsDisponibles.map(script => (
-                                                                <div 
-                                                                    key={script.id}
-                                                                    className="list-group-item d-flex justify-content-between align-items-center"
-                                                                >
-                                                                    <div>
-                                                                        <strong>{script.nom}</strong>
-                                                                        <br />
-                                                                        <small className="text-muted">
-                                                                            {script.axe?.nom} / {script.sous_axe?.nom}
-                                                                        </small>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-success"
-                                                                        onClick={() => ajouterScript(script.id)}
-                                                                    >
-                                                                        <i className="ti ti-plus"></i>
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                            {scriptsDisponibles.length === 0 && (
-                                                                <div className="list-group-item text-center text-muted">
-                                                                    Aucun script disponible
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Boutons de transfert */}
-                                            <div className="col-md-2 d-flex align-items-center justify-content-center">
-                                                <div className="text-center">
-                                                    <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
-                                                </div>
-                                            </div>
-
-                                            {/* Scripts sélectionnés */}
-                                            <div className="col-md-5">
-                                                <div className="card">
-                                                    <div className="card-header d-flex justify-content-between align-items-center">
-                                                        <span>Scripts sélectionnés ({scriptsSelectionnes.length})</span>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-outline-danger"
-                                                            onClick={retirerTousScripts}
-                                                            disabled={scriptsSelectionnes.length === 0}
-                                                        >
-                                                            ← Tout retirer
-                                                        </button>
-                                                    </div>
-                                                    <div className="card-body p-0">
-                                                        <div 
-                                                            className="list-group list-group-flush"
-                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
-                                                        >
-                                                            {scriptsSelectionnes.map(script => (
-                                                                <div 
-                                                                    key={script.id}
-                                                                    className="list-group-item d-flex justify-content-between align-items-center"
-                                                                >
-                                                                    <div>
-                                                                        <strong>{script.nom}</strong>
-                                                                        <br />
-                                                                        <small className="text-muted">
-                                                                            {script.axe?.nom} / {script.sous_axe?.nom}
-                                                                        </small>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-danger"
-                                                                        onClick={() => retirerScript(script.id)}
-                                                                    >
-                                                                        <i className="ti ti-minus"></i>
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                            {scriptsSelectionnes.length === 0 && (
-                                                                <div className="list-group-item text-center text-muted">
-                                                                    Aucun script sélectionné
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
-                                        
-                                        <small className="form-text text-muted">
-                                            {scriptsSelectionnes.length} script(s) sélectionné(s) pour cette configuration
-                                        </small>
-                                        {errors.scripts && (
-                                            <div className="invalid-feedback d-block">
-                                                {errors.scripts}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Section Emails de notification */}
-                            <div className="row">
-                                <div className="col-12">
-                                    <div className="mb-3">
-                                        <label className="form-label">
-                                            Emails de notification
-                                        </label>
-                                        
-                                        <div className="row">
-                                            {/* Emails disponibles */}
-                                            <div className="col-md-5">
-                                                <div className="card">
-                                                    <div className="card-header d-flex justify-content-between align-items-center">
-                                                        <span>Emails disponibles ({emailsDisponibles.length})</span>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-outline-primary"
-                                                            onClick={ajouterTousEmails}
-                                                            disabled={emailsDisponibles.length === 0}
-                                                        >
-                                                            Tout ajouter →
-                                                        </button>
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="periodicite" className="form-label">
+                                                    Périodicité *
+                                                </label>
+                                                <select
+                                                    className={`form-select ${errors.periodicite ? 'is-invalid' : ''}`}
+                                                    id="periodicite"
+                                                    name="periodicite"
+                                                    value={formData.periodicite}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading}
+                                                >
+                                                    <option value="2min">Toutes les 2 minutes</option>
+                                                    <option value="2h">Toutes les 2 heures</option>
+                                                    <option value="6h">Toutes les 6 heures</option>
+                                                    <option value="1j">Une fois par jour</option>
+                                                    <option value="1s">Une fois par semaine</option>
+                                                    <option value="1m">Une fois par mois</option>
+                                                </select>
+                                                {errors.periodicite && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.periodicite}
                                                     </div>
-                                                    <div className="card-body p-0">
-                                                        <div 
-                                                            className="list-group list-group-flush"
-                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
-                                                        >
-                                                            {emailsDisponibles.map(email => (
-                                                                <div 
-                                                                    key={email.id}
-                                                                    className="list-group-item d-flex justify-content-between align-items-center"
-                                                                >
-                                                                    <div>
-                                                                        <strong>{email.nom}</strong>
-                                                                        <br />
-                                                                        <small className="text-muted">{email.email}</small>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-success"
-                                                                        onClick={() => ajouterEmail(email.id)}
-                                                                    >
-                                                                        <i className="ti ti-plus"></i>
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                            {emailsDisponibles.length === 0 && (
-                                                                <div className="list-group-item text-center text-muted">
-                                                                    Aucun email disponible
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Boutons de transfert */}
-                                            <div className="col-md-2 d-flex align-items-center justify-content-center">
-                                                <div className="text-center">
-                                                    <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
-                                                </div>
-                                            </div>
-
-                                            {/* Emails sélectionnés */}
-                                            <div className="col-md-5">
-                                                <div className="card">
-                                                    <div className="card-header d-flex justify-content-between align-items-center">
-                                                        <span>Emails sélectionnés ({emailsSelectionnes.length})</span>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-outline-danger"
-                                                            onClick={retirerTousEmails}
-                                                            disabled={emailsSelectionnes.length === 0}
-                                                        >
-                                                            ← Tout retirer
-                                                        </button>
-                                                    </div>
-                                                    <div className="card-body p-0">
-                                                        <div 
-                                                            className="list-group list-group-flush"
-                                                            style={{ maxHeight: '200px', overflowY: 'auto' }}
-                                                        >
-                                                            {emailsSelectionnes.map(email => (
-                                                                <div 
-                                                                    key={email.id}
-                                                                    className="list-group-item d-flex justify-content-between align-items-center"
-                                                                >
-                                                                    <div>
-                                                                        <strong>{email.nom}</strong>
-                                                                        <br />
-                                                                        <small className="text-muted">{email.email}</small>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-danger"
-                                                                        onClick={() => retirerEmail(email.id)}
-                                                                    >
-                                                                        <i className="ti ti-minus"></i>
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                            {emailsSelectionnes.length === 0 && (
-                                                                <div className="list-group-item text-center text-muted">
-                                                                    Aucun email sélectionné
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
-                                        
-                                        <small className="form-text text-muted">
-                                            {emailsSelectionnes.length} email(s) sélectionné(s) pour les notifications
-                                        </small>
-                                        {errors.emails_notification && (
-                                            <div className="invalid-feedback d-block">
-                                                {errors.emails_notification}
-                                            </div>
-                                        )}
                                     </div>
-                                </div>
-                            </div>
+
+                                    <div className="row">
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="societe" className="form-label">
+                                                    Société {!isSuperAdmin && '(Votre société)'}
+                                                </label>
+                                                <select
+                                                    className={`form-select ${errors.societe ? 'is-invalid' : ''}`}
+                                                    id="societe"
+                                                    name="societe"
+                                                    value={formData.societe}
+                                                    onChange={handleInputChange}
+                                                    disabled={!isSuperAdmin || loading}
+                                                >
+                                                    <option value="">Sélectionner une société</option>
+                                                    {societes.map(societe => (
+                                                        <option key={societe.id} value={societe.id}>
+                                                            {societe.nom}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.societe && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.societe}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="projet" className="form-label">
+                                                    Projet *
+                                                </label>
+                                                <select
+                                                    className={`form-select ${errors.projet ? 'is-invalid' : ''}`}
+                                                    id="projet"
+                                                    name="projet"
+                                                    value={formData.projet}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading || !formData.societe}
+                                                >
+                                                    <option value="">Sélectionner un projet</option>
+                                                    {projetsFiltres.map(projet => (
+                                                        <option key={projet.id} value={projet.id}>
+                                                            {projet.nom}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {projetsFiltres.length === 0 && formData.societe && (
+                                                    <div className="form-text text-warning">
+                                                        Aucun projet disponible pour cette société
+                                                    </div>
+                                                )}
+                                                {errors.projet && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.projet}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Section Dates d'activation/désactivation */}
+                                    <div className="row">
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="date_activation" className="form-label">
+                                                    Date d'activation
+                                                </label>
+                                                <input
+                                                    type="datetime-local"
+                                                    className={`form-control ${errors.date_activation ? 'is-invalid' : ''}`}
+                                                    id="date_activation"
+                                                    name="date_activation"
+                                                    value={formData.date_activation}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading}
+                                                />
+                                                <small className="form-text text-muted">
+                                                    Si vide, la configuration sera activée immédiatement
+                                                </small>
+                                                {errors.date_activation && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.date_activation}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="date_desactivation" className="form-label">
+                                                    Date de désactivation
+                                                </label>
+                                                <input
+                                                    type="datetime-local"
+                                                    className={`form-control ${errors.date_desactivation ? 'is-invalid' : ''}`}
+                                                    id="date_desactivation"
+                                                    name="date_desactivation"
+                                                    value={formData.date_desactivation}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading}
+                                                />
+                                                <small className="form-text text-muted">
+                                                    Si vide, la configuration restera active indéfiniment
+                                                </small>
+                                                {errors.date_desactivation && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.date_desactivation}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="row">
+                                        <div className="col-md-12">
+                                            <div className="mb-3">
+                                                <div className="form-check form-switch">
+                                                    <input
+                                                        className="form-check-input"
+                                                        type="checkbox"
+                                                        id="is_active"
+                                                        name="is_active"
+                                                        checked={formData.is_active}
+                                                        onChange={handleInputChange}
+                                                        disabled={loading}
+                                                    />
+                                                    <label className="form-check-label" htmlFor="is_active">
+                                                        Configuration active
+                                                    </label>
+                                                </div>
+                                                <small className="form-text text-muted">
+                                                    {formData.is_active 
+                                                        ? "La configuration sera exécutée selon sa périodicité"
+                                                        : "La configuration sera créée mais ne sera pas exécutée automatiquement"
+                                                    }
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Section Scripts (ManyToMany) */}
+                                    <div className="row">
+                                        <div className="col-12">
+                                            <div className="mb-3">
+                                                <label className="form-label">
+                                                    Scripts à exécuter *
+                                                </label>
+                                                
+                                                <div className="row">
+                                                    {/* Scripts disponibles */}
+                                                    <div className="col-md-5">
+                                                        <div className="card">
+                                                            <div className="card-header d-flex justify-content-between align-items-center">
+                                                                <span>Scripts disponibles ({scriptsDisponibles.length})</span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-primary"
+                                                                    onClick={ajouterTousScripts}
+                                                                    disabled={scriptsDisponibles.length === 0 || loading}
+                                                                >
+                                                                    Tout ajouter →
+                                                                </button>
+                                                            </div>
+                                                            <div className="card-body p-0">
+                                                                <div 
+                                                                    className="list-group list-group-flush"
+                                                                    style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                                >
+                                                                    {scriptsDisponibles.map(script => (
+                                                                        <div 
+                                                                            key={script.id}
+                                                                            className="list-group-item d-flex justify-content-between align-items-center"
+                                                                        >
+                                                                            <div>
+                                                                                <strong>{script.nom}</strong>
+                                                                                <br />
+                                                                                <small className="text-muted">
+                                                                                    {script.description && (
+                                                                                        <>{script.description.substring(0, 50)}...</>
+                                                                                    )}
+                                                                                </small>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn btn-sm btn-success"
+                                                                                onClick={() => ajouterScript(script.id)}
+                                                                                disabled={loading}
+                                                                            >
+                                                                                <i className="ti ti-plus"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                    {scriptsDisponibles.length === 0 && (
+                                                                        <div className="list-group-item text-center text-muted">
+                                                                            Aucun script disponible
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Boutons de transfert */}
+                                                    <div className="col-md-2 d-flex align-items-center justify-content-center">
+                                                        <div className="text-center">
+                                                            <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Scripts sélectionnés */}
+                                                    <div className="col-md-5">
+                                                        <div className="card">
+                                                            <div className="card-header d-flex justify-content-between align-items-center">
+                                                                <span>Scripts sélectionnés ({scriptsSelectionnes.length})</span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-danger"
+                                                                    onClick={retirerTousScripts}
+                                                                    disabled={scriptsSelectionnes.length === 0 || loading}
+                                                                >
+                                                                    ← Tout retirer
+                                                                </button>
+                                                            </div>
+                                                            <div className="card-body p-0">
+                                                                <div 
+                                                                    className="list-group list-group-flush"
+                                                                    style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                                >
+                                                                    {scriptsSelectionnes.map(script => (
+                                                                        <div 
+                                                                            key={script.id}
+                                                                            className="list-group-item d-flex justify-content-between align-items-center"
+                                                                        >
+                                                                            <div>
+                                                                                <strong>{script.nom}</strong>
+                                                                                <br />
+                                                                                <small className="text-muted">
+                                                                                    {script.description && (
+                                                                                        <>{script.description.substring(0, 50)}...</>
+                                                                                    )}
+                                                                                </small>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn btn-sm btn-danger"
+                                                                                onClick={() => retirerScript(script.id)}
+                                                                                disabled={loading}
+                                                                            >
+                                                                                <i className="ti ti-minus"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                    {scriptsSelectionnes.length === 0 && (
+                                                                        <div className="list-group-item text-center text-muted">
+                                                                            Aucun script sélectionné
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <small className="form-text text-muted">
+                                                    {scriptsSelectionnes.length} script(s) sélectionné(s) pour cette configuration
+                                                </small>
+                                                {errors.scripts && (
+                                                    <div className="invalid-feedback d-block">
+                                                        {errors.scripts}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Section Emails de notification */}
+                                    <div className="row">
+                                        <div className="col-12">
+                                            <div className="mb-3">
+                                                <label className="form-label">
+                                                    Emails de notification
+                                                </label>
+                                                
+                                                <div className="row">
+                                                    {/* Emails disponibles */}
+                                                    <div className="col-md-5">
+                                                        <div className="card">
+                                                            <div className="card-header d-flex justify-content-between align-items-center">
+                                                                <span>Emails disponibles ({emailsDisponibles.length})</span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-primary"
+                                                                    onClick={ajouterTousEmails}
+                                                                    disabled={emailsDisponibles.length === 0 || loading}
+                                                                >
+                                                                    Tout ajouter →
+                                                                </button>
+                                                            </div>
+                                                            <div className="card-body p-0">
+                                                                <div 
+                                                                    className="list-group list-group-flush"
+                                                                    style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                                >
+                                                                    {emailsDisponibles.map(email => (
+                                                                        <div 
+                                                                            key={email.id}
+                                                                            className="list-group-item d-flex justify-content-between align-items-center"
+                                                                        >
+                                                                            <div>
+                                                                                <strong>{email.email}</strong>
+                                                                                <br />
+                                                                                <small className={`badge bg-${email.est_actif ? 'success' : 'danger'}`}>
+                                                                                    {email.est_actif ? 'Actif' : 'Inactif'}
+                                                                                </small>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn btn-sm btn-success"
+                                                                                onClick={() => ajouterEmail(email.id)}
+                                                                                disabled={loading || !email.est_actif}
+                                                                            >
+                                                                                <i className="ti ti-plus"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                    {emailsDisponibles.length === 0 && (
+                                                                        <div className="list-group-item text-center text-muted">
+                                                                            Aucun email disponible
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Boutons de transfert */}
+                                                    <div className="col-md-2 d-flex align-items-center justify-content-center">
+                                                        <div className="text-center">
+                                                            <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Emails sélectionnés */}
+                                                    <div className="col-md-5">
+                                                        <div className="card">
+                                                            <div className="card-header d-flex justify-content-between align-items-center">
+                                                                <span>Emails sélectionnés ({emailsSelectionnes.length})</span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-danger"
+                                                                    onClick={retirerTousEmails}
+                                                                    disabled={emailsSelectionnes.length === 0 || loading}
+                                                                >
+                                                                    ← Tout retirer
+                                                                </button>
+                                                            </div>
+                                                            <div className="card-body p-0">
+                                                                <div 
+                                                                    className="list-group list-group-flush"
+                                                                    style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                                >
+                                                                    {emailsSelectionnes.map(email => (
+                                                                        <div 
+                                                                            key={email.id}
+                                                                            className="list-group-item d-flex justify-content-between align-items-center"
+                                                                        >
+                                                                            <div>
+                                                                                <i className="ti ti-mail me-2 text-muted"></i>
+                                                                                {email.email}
+                                                                                <br />
+                                                                                <small className={`badge bg-${email.est_actif ? 'success' : 'danger'}`}>
+                                                                                    {email.est_actif ? 'Actif' : 'Inactif'}
+                                                                                </small>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn btn-sm btn-danger"
+                                                                                onClick={() => retirerEmail(email.id)}
+                                                                                disabled={loading}
+                                                                            >
+                                                                                <i className="ti ti-minus"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                    {emailsSelectionnes.length === 0 && (
+                                                                        <div className="list-group-item text-center text-muted">
+                                                                            Aucun email sélectionné
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <small className="form-text text-muted">
+                                                    {emailsSelectionnes.length} email(s) sélectionné(s) pour les notifications
+                                                </small>
+                                                {errors.emails_notification && (
+                                                    <div className="invalid-feedback d-block">
+                                                        {errors.emails_notification}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <div className="modal-footer">
                             <button

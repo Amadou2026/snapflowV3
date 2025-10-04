@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth import get_user_model
 from .models import (
-    CustomUser, Societe, SecteurActivite, GroupePersonnalise,
+    CustomUser, ExecutionResult, Societe, SecteurActivite, GroupePersonnalise,
     Axe, SousAxe, Script, Projet, EmailNotification, 
     ConfigurationTest, ExecutionTest,Configuration
 )
@@ -418,7 +418,7 @@ class ConfigurationTestSerializer(serializers.ModelSerializer):
     emails_count = serializers.SerializerMethodField()
     next_execution = serializers.SerializerMethodField()
     
-    # Pour l'écriture, garder les IDs - CORRECTION: required=True pour projet_id
+    # Pour l'écriture, garder les IDs
     societe_id = serializers.PrimaryKeyRelatedField(
         queryset=Societe.objects.all(), 
         source='societe', 
@@ -430,7 +430,7 @@ class ConfigurationTestSerializer(serializers.ModelSerializer):
         queryset=Projet.objects.all(), 
         source='projet', 
         write_only=True,
-        required=True  # CORRECTION: required=True
+        required=True
     )
     
     # Détails des relations ManyToMany
@@ -454,19 +454,27 @@ class ConfigurationTestSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_creation', 'date_modification', 'societe', 'projet']
 
     def get_scripts_count(self, obj):
+        if isinstance(obj, dict):
+            scripts_data = obj.get('scripts', [])
+            return len(scripts_data) if scripts_data else 0
         return obj.scripts.count()
 
     def get_emails_count(self, obj):
+        if isinstance(obj, dict):
+            emails_data = obj.get('emails_notification', [])
+            return len(emails_data) if emails_data else 0
         return obj.emails_notification.count()
 
     def get_next_execution(self, obj):
+        if isinstance(obj, dict):
+            return None
         next_exec = obj.get_next_execution_time()
         return next_exec.isoformat() if next_exec else None
 
     def validate(self, data):
         user = self.context['request'].user
         
-        print("🔍 Données reçues dans validate:", data)
+        print("Données reçues dans validate:", data)
         
         # Validation de la société pour les non-superadmins
         if not user.is_superuser:
@@ -475,19 +483,69 @@ class ConfigurationTestSerializer(serializers.ModelSerializer):
             else:
                 raise serializers.ValidationError("Vous n'êtes associé à aucune société.")
         else:
-            # Pour les superadmins, s'assurer qu'une société est fournie
             if 'societe' not in data or not data['societe']:
                 raise serializers.ValidationError({"societe": "La société est requise pour les superadmins."})
         
         # Validation que le projet appartient à la société
         if data.get('projet') and data.get('societe'):
-            # CORRECTION: Vérifier la relation ManyToMany
             if not data['projet'].societes.filter(id=data['societe'].id).exists():
                 raise serializers.ValidationError({
                     "projet": "Le projet sélectionné n'appartient pas à votre société."
                 })
         
+        # Validation des dates
+        date_activation = data.get('date_activation')
+        date_desactivation = data.get('date_desactivation')
+        
+        if date_activation and date_desactivation and date_desactivation <= date_activation:
+            raise serializers.ValidationError({
+                "date_desactivation": "La date de désactivation doit être après la date d'activation."
+            })
+        
         return data
+
+    def create(self, validated_data):
+        """Méthode CORRECTE pour un Serializer"""
+        print("CREATE SERIALIZER APPELÉ")
+        print(f"validated_data: {validated_data}")
+        
+        try:
+            # Extraire les relations ManyToMany
+            scripts_data = validated_data.pop('scripts', [])
+            emails_notification_data = validated_data.pop('emails_notification', [])
+            
+            print(f"Scripts à ajouter: {scripts_data}")
+            print(f"Emails à ajouter: {emails_notification_data}")
+            
+            # Créer l'instance
+            instance = ConfigurationTest.objects.create(**validated_data)
+            print(f"Instance créée avec ID: {instance.id}")
+            
+            # Ajouter les relations ManyToMany
+            if scripts_data:
+                instance.scripts.set(scripts_data)
+                print(f"{len(scripts_data)} scripts ajoutés")
+            
+            if emails_notification_data:
+                instance.emails_notification.set(emails_notification_data)
+                print(f"{len(emails_notification_data)} emails ajoutés")
+            
+            # Vérification finale
+            instance.refresh_from_db()
+            print(f"Configuration finale:")
+            print(f"   - ID: {instance.id}")
+            print(f"   - Nom: {instance.nom}")
+            print(f"   - Active: {instance.is_active}")
+            print(f"   - Scripts: {instance.scripts.count()}")
+            print(f"   - Emails: {instance.emails_notification.count()}")
+            
+            return instance
+            
+        except Exception as e:
+            print(f"❌ ERREUR dans create: {str(e)}")
+            import traceback
+            print(f"📋 STACK TRACE: {traceback.format_exc()}")
+            raise serializers.ValidationError(f"Erreur création: {str(e)}")
 
     def update(self, instance, validated_data):
         print("🔍 Début update - validated_data:", validated_data)
@@ -500,6 +558,7 @@ class ConfigurationTestSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
+        # Sauvegarder l'instance
         instance.save()
         
         # Mettre à jour les relations ManyToMany si fournies
@@ -512,19 +571,53 @@ class ConfigurationTestSerializer(serializers.ModelSerializer):
         print("✅ Update terminé avec succès")
         return instance
 
-    def create(self, validated_data):
-        user = self.context['request'].user
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
         
-        # Pour les non-superadmins, assigner automatiquement leur société
-        if not user.is_superuser and hasattr(user, 'societe'):
-            validated_data['societe'] = user.societe
+        if isinstance(instance, ConfigurationTest):
+            representation['scripts_count'] = instance.scripts.count()
+            representation['emails_count'] = instance.emails_notification.count()
+            next_exec = instance.get_next_execution_time()
+            representation['next_execution'] = next_exec.isoformat() if next_exec else None
         
-        return super().create(validated_data)
+        return representation
 
 class ExecutionTestSerializer(serializers.ModelSerializer):
+    # CORRECTION: Ajouter les champs de relation
+    configuration_nom = serializers.CharField(source='configuration.nom', read_only=True)
+    projet_nom = serializers.CharField(source='configuration.projet.nom', read_only=True)
+    societe_nom = serializers.CharField(source='configuration.societe.nom', read_only=True)
+    
+    # Détails complets de la configuration (optionnel)
+    configuration_details = serializers.SerializerMethodField()
+    
     class Meta:
         model = ExecutionTest
-        fields = '__all__'
+        fields = [
+            'id',
+            'configuration',  # ID de la configuration
+            'configuration_nom',  # Nom de la configuration
+            'projet_nom',  # Nom du projet
+            'societe_nom',  # Nom de la société
+            'configuration_details',  # Détails complets (optionnel)
+            'statut',
+            'started_at',
+            'ended_at',
+            'log_fichier',
+            'rapport',
+            'ticket_redmine_id'
+        ]
+
+    def get_configuration_details(self, obj):
+        # Retourner des détails supplémentaires si besoin
+        if obj.configuration:
+            return {
+                'id': obj.configuration.id,
+                'nom': obj.configuration.nom,
+                'periodicite': obj.configuration.periodicite,
+                'is_active': obj.configuration.is_active
+            }
+        return None
 
 class ExecutionTestExportSerializer(serializers.ModelSerializer):
     projet_nom = serializers.CharField(source='configuration.projet.nom', read_only=True)
@@ -592,3 +685,19 @@ class ConfigurationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"societe": "Cette société a déjà une configuration."})
         
         return super().create(validated_data)
+    
+# serializers.py
+class ExecutionResultSerializer(serializers.ModelSerializer):
+    script_nom = serializers.CharField(source='script.nom', read_only=True)
+    configuration_nom = serializers.CharField(source='execution.configuration.nom', read_only=True)
+    projet_nom = serializers.CharField(source='execution.configuration.projet.nom', read_only=True)
+    started_at = serializers.DateTimeField(source='execution.started_at', read_only=True)
+    execution_id = serializers.IntegerField(source='execution.id', read_only=True)
+
+    class Meta:
+        model = ExecutionResult
+        fields = [
+            'id', 'execution_id', 'script', 'script_nom', 'statut', 
+            'log_fichier', 'commentaire', 'configuration_nom', 
+            'projet_nom', 'started_at'
+        ]

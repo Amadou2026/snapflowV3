@@ -121,7 +121,7 @@ class ProjetViewSet(viewsets.ModelViewSet):
 
 
 class ConfigurationTestViewSet(viewsets.ModelViewSet):
-    queryset = ConfigurationTest.objects.all()  # ✅ obligatoire pour DRF
+    queryset = ConfigurationTest.objects.all()
     serializer_class = ConfigurationTestSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -150,25 +150,90 @@ class ConfigurationTestViewSet(viewsets.ModelViewSet):
         
         return queryset.filter(projet__in=projets_acces)
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        
-        # Déterminer la société automatiquement
-        if user.is_superuser:
-            # Les superadmins doivent spécifier une société
-            if not serializer.validated_data.get('societe'):
-                raise ValidationError({"societe": "La société est requise pour les superadmins."})
-        else:
-            # Pour les autres utilisateurs, assigner automatiquement leur société
-            if hasattr(user, 'societe') and user.societe:
-                serializer.save(societe=user.societe)
-            else:
-                raise PermissionDenied("Vous n'êtes associé à aucune société.")
-
     def get_serializer_context(self):
+        """IMPORTANT: Ajouter le user dans le context AVANT tout"""
         context = super().get_serializer_context()
+        context['request'] = self.request
         context['user'] = self.request.user
         return context
+
+    def perform_create(self, serializer):
+        """Méthode corrigée pour la création"""
+        user = self.request.user
+        
+        print("🎯 PERFORM_CREATE VIEWSET")
+        print(f"👤 User: {user.username}")
+        print(f"🔐 Is superuser: {user.is_superuser}")
+        print(f"📝 Serializer validated_data: {serializer.validated_data}")
+        
+        try:
+            # IMPORTANT: Le serializer a déjà validé et ajouté la société dans validate()
+            # On sauvegarde simplement avec les données validées
+            instance = serializer.save()
+            
+            print(f"✅ Instance sauvegardée avec ID: {instance.id}")
+            print(f"📋 Nom: {instance.nom}")
+            print(f"🏢 Société: {instance.societe}")
+            print(f"📁 Projet: {instance.projet}")
+            print(f"🔄 Active: {instance.is_active}")
+            
+            # Vérification supplémentaire
+            exists = ConfigurationTest.objects.filter(id=instance.id).exists()
+            print(f"🔍 Vérification existence en BDD: {exists}")
+            
+            if not exists:
+                print("❌ ALERTE: L'instance n'existe pas en BDD après save!")
+            
+            return instance
+            
+        except Exception as e:
+            print(f"❌ ERREUR dans perform_create: {str(e)}")
+            import traceback
+            print(f"📋 STACK TRACE: {traceback.format_exc()}")
+            raise
+
+    def create(self, request, *args, **kwargs):
+        """Override pour ajouter des logs détaillés"""
+        print("=" * 80)
+        print("🚀 CREATE ENDPOINT APPELÉ")
+        print(f"📍 URL: {request.path}")
+        print(f"📝 Data reçue: {request.data}")
+        print(f"👤 User: {request.user.username}")
+        print("=" * 80)
+        
+        try:
+            response = super().create(request, *args, **kwargs)
+            
+            print("=" * 80)
+            print("✅ CREATE ENDPOINT TERMINÉ")
+            print(f"📊 Status: {response.status_code}")
+            print(f"📋 Response data: {response.data}")
+            print("=" * 80)
+            
+            # Vérification finale critique
+            if response.status_code == 201:
+                config_id = response.data.get('id')
+                if config_id:
+                    exists = ConfigurationTest.objects.filter(id=config_id).exists()
+                    count = ConfigurationTest.objects.count()
+                    print(f"🔍 VÉRIFICATION FINALE:")
+                    print(f"   - Config {config_id} existe: {exists}")
+                    print(f"   - Total configs en BDD: {count}")
+                    
+                    if exists:
+                        config = ConfigurationTest.objects.get(id=config_id)
+                        print(f"   - Scripts: {config.scripts.count()}")
+                        print(f"   - Emails: {config.emails_notification.count()}")
+            
+            return response
+            
+        except Exception as e:
+            print("=" * 80)
+            print(f"❌ ERREUR CREATE ENDPOINT: {str(e)}")
+            import traceback
+            print(f"📋 STACK TRACE:\n{traceback.format_exc()}")
+            print("=" * 80)
+            raise
 
     @action(detail=True, methods=["post"], url_path="activate")
     def activate(self, request, pk=None):
@@ -198,8 +263,6 @@ class ConfigurationTestViewSet(viewsets.ModelViewSet):
         config = self.get_object()
         self.check_object_permissions(request, config)
         
-        # Ici vous ajouterez la logique d'exécution
-        # Pour l'instant, on met juste à jour last_execution
         config.last_execution = timezone.now()
         config.save()
         
@@ -216,9 +279,28 @@ class ExecutionTestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        return ExecutionTest.objects.filter(
-            configuration__projet__charge_de_compte=user
+        
+        # CORRECTION: Logique de filtrage améliorée
+        queryset = ExecutionTest.objects.select_related(
+            'configuration', 
+            'configuration__projet',
+            'configuration__societe'
         )
+        
+        # Superadmin voit tout
+        if user.is_superuser:
+            return queryset.all()
+        
+        # Administrateur de société voit les exécutions de sa société
+        if hasattr(user, 'societe') and user.societe:
+            return queryset.filter(configuration__societe=user.societe)
+        
+        # Chargé de projet voit les exécutions de ses projets
+        if hasattr(user, 'projets_charges'):
+            return queryset.filter(configuration__projet__in=user.projets_charges.all())
+        
+        # Par défaut: utilisateur normal voit les exécutions où il est charge_de_compte
+        return queryset.filter(configuration__projet__charge_de_compte=user)
 
 
 class RapportPDFView(APIView):
@@ -465,6 +547,22 @@ class ScriptsTestsStatsView(APIView):
 def execution_resultats_view(request):
     resultats = ExecutionResult.objects.select_related('execution', 'script', 'execution__configuration').order_by('-execution__started_at')
     return render(request, 'admin/execution_resultats.html', {'resultats': resultats})
+
+# views.py
+from rest_framework import generics
+from .models import ExecutionResult
+from .serializers import ExecutionResultSerializer
+
+class ExecutionResultatList(generics.ListAPIView):
+    queryset = ExecutionResult.objects.select_related(
+        'execution', 
+        'script', 
+        'execution__configuration',
+        'execution__configuration__projet'
+    ).order_by('-execution__started_at')
+    serializer_class = ExecutionResultSerializer
+
+
 
 
 # API Scripts

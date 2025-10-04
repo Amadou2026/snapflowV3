@@ -9,6 +9,8 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
         projet: '',
         periodicite: '',
         is_active: true,
+        date_activation: '',
+        date_desactivation: '',
         scripts: [], // Array d'IDs de scripts
         emails_notification: [] // Array d'IDs d'emails - CORRECTION: emails_notification au lieu de emails
     });
@@ -54,6 +56,13 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
             console.log('📧 Emails notification details:', configDetails.emails_notification_details);
             console.log('🏢 Projet:', configDetails.projet);
 
+            // Fonction pour formater la date pour l'input datetime-local
+            const formatDateForInput = (dateString) => {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toISOString().slice(0, 16);
+            };
+
             // Préparer les IDs des scripts
             const scriptsIds = configDetails.scripts_details
                 ? configDetails.scripts_details.map(script => script.id)
@@ -70,6 +79,8 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                 projet: configDetails.projet?.id || '', // CORRECTION: projet ID
                 periodicite: configDetails.periodicite || '',
                 is_active: configDetails.is_active || true,
+                date_activation: formatDateForInput(configDetails.date_activation),
+                date_desactivation: formatDateForInput(configDetails.date_desactivation),
                 scripts: scriptsIds,
                 emails_notification: emailsIds // CORRECTION: emails_notification
             });
@@ -89,6 +100,8 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                 projet: configuration.projet?.id || '', // CORRECTION: projet ID
                 periodicite: configuration.periodicite || '',
                 is_active: configuration.is_active || true,
+                date_activation: '',
+                date_desactivation: '',
                 scripts: [],
                 emails_notification: []
             });
@@ -147,10 +160,20 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
+        
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+
+        // Si is_active change, ajuster la date d'activation
+        if (name === 'is_active' && checked && !formData.date_activation) {
+            setFormData(prev => ({
+                ...prev,
+                date_activation: new Date().toISOString().slice(0, 16) // Format datetime-local
+            }));
+        }
+
         // Clear error for this field when user starts typing
         if (errors[name]) {
             setErrors(prev => ({
@@ -313,6 +336,20 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
             newErrors.periodicite = 'La périodicité est requise';
         }
 
+        if (formData.scripts.length === 0) {
+            newErrors.scripts = 'Au moins un script doit être sélectionné';
+        }
+
+        // Validation des dates
+        if (formData.date_activation && formData.date_desactivation) {
+            const dateActivation = new Date(formData.date_activation);
+            const dateDesactivation = new Date(formData.date_desactivation);
+            
+            if (dateDesactivation <= dateActivation) {
+                newErrors.date_desactivation = 'La date de désactivation doit être après la date d\'activation';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -333,6 +370,8 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                 projet_id: parseInt(formData.projet),
                 periodicite: formData.periodicite,
                 is_active: formData.is_active,
+                date_activation: formData.date_activation || null,
+                date_desactivation: formData.date_desactivation || null,
                 scripts: formData.scripts,
                 emails_notification: formData.emails_notification
             };
@@ -383,6 +422,8 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
             projet: '',
             periodicite: '',
             is_active: true,
+            date_activation: '',
+            date_desactivation: '',
             scripts: [],
             emails_notification: [] // CORRECTION: emails_notification
         });
@@ -541,6 +582,58 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                 {errors.projet && (
                                                     <div className="invalid-feedback">
                                                         {errors.projet}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Section Dates d'activation/désactivation */}
+                                    <div className="row">
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="date_activation" className="form-label">
+                                                    Date d'activation
+                                                </label>
+                                                <input
+                                                    type="datetime-local"
+                                                    className={`form-control ${errors.date_activation ? 'is-invalid' : ''}`}
+                                                    id="date_activation"
+                                                    name="date_activation"
+                                                    value={formData.date_activation}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading}
+                                                />
+                                                <small className="form-text text-muted">
+                                                    Si vide, la configuration sera activée immédiatement
+                                                </small>
+                                                {errors.date_activation && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.date_activation}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="date_desactivation" className="form-label">
+                                                    Date de désactivation
+                                                </label>
+                                                <input
+                                                    type="datetime-local"
+                                                    className={`form-control ${errors.date_desactivation ? 'is-invalid' : ''}`}
+                                                    id="date_desactivation"
+                                                    name="date_desactivation"
+                                                    value={formData.date_desactivation}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading}
+                                                />
+                                                <small className="form-text text-muted">
+                                                    Si vide, la configuration restera active indéfiniment
+                                                </small>
+                                                {errors.date_desactivation && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.date_desactivation}
                                                     </div>
                                                 )}
                                             </div>
