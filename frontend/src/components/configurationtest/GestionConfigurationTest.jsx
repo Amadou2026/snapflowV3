@@ -615,17 +615,7 @@ const GestionConfigurationTest = ({ user, logout }) => {
                                                                                 </button>
                                                                             )
                                                                         )}
-
-                                                                        {/* Bouton Exécuter maintenant - Pour configurations actives */}
-                                                                        {configuration.is_active && canEditConfiguration(configuration) && (
-                                                                            <button
-                                                                                className="btn btn-link-info btn-sm p-1"
-                                                                                onClick={() => handleExecuteNow(configuration.id)}
-                                                                                title="Exécuter maintenant"
-                                                                            >
-                                                                                <i className="ti ti-player-play f-18"></i>
-                                                                            </button>
-                                                                        )}
+                                                                       
 
                                                                         {/* Bouton Supprimer - Pour utilisateurs autorisés */}
                                                                         {canEditConfiguration(configuration) && (

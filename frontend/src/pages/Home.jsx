@@ -9,14 +9,14 @@ const Home = ({ isAuthenticated }) => {
         <div className="hero-container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Transformez votre productivité avec 
+              Transformez votre productivité avec
               <span className="gradient-text"> Notre Solution</span>
             </h1>
             <p className="hero-subtitle">
-              Découvrez la plateforme tout-en-un qui révolutionne votre façon de travailler. 
+              Découvrez la plateforme tout-en-un qui révolutionne votre façon de travailler.
               Interface intuitive, sécurité maximale et performances exceptionnelles.
             </p>
-            
+
             <div className="hero-stats">
               <div className="stat">
                 <span className="stat-number">10K+</span>
@@ -51,26 +51,79 @@ const Home = ({ isAuthenticated }) => {
               </div>
             )}
           </div>
-          
+
           <div className="hero-visual">
             <div className="hero-image-container">
-              <img 
-                src="/assets/hero-dashboard.png" 
-                alt="Dashboard moderne" 
+              <img
+                src="/assets/img/dashboard.jpg"
+                alt="Dashboard de tests automatisés"
                 className="hero-image"
               />
+
+              {/* Cartes flottantes très éparpillées */}
               <div className="floating-card card-1">
-                <div className="card-icon">📊</div>
-                <span>Analytics en temps réel</span>
+                <div className="card-icon">🧪</div>
+                <span>Tests automatisés</span>
+                <div className="card-pulse"></div>
               </div>
-              <div className="floating-card card-2">
+
+              {/* <div className="floating-card card-2">
+                <div className="card-icon">📈</div>
+                <span>Rapports détaillés</span>
+                <div className="card-pulse"></div>
+              </div> */}
+
+              <div className="floating-card card-3">
+                <div className="card-icon">🔄</div>
+                <span>Exécutions planifiées</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-4">
+                <div className="card-icon">⚡</div>
+                <span>Résultats instantanés</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-5">
+                <div className="card-icon">🔒</div>
+                <span>Sécurité des tests</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-6">
+                <div className="card-icon">📊</div>
+                <span>Analytics temps réel</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-7">
                 <div className="card-icon">🚀</div>
                 <span>Performance optimale</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-8">
+                <div className="card-icon">👥</div>
+                <span>Équipes collaboratives</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-9">
+                <div className="card-icon">🔔</div>
+                <span>Alertes intelligentes</span>
+                <div className="card-pulse"></div>
+              </div>
+
+              <div className="floating-card card-10">
+                <div className="card-icon">📋</div>
+                <span>Scénarios personnalisés</span>
+                <div className="card-pulse"></div>
               </div>
             </div>
           </div>
         </div>
-        
+
         <div className="scroll-indicator">
           <span>Découvrir plus</span>
           <div className="arrow-down"></div>
@@ -100,7 +153,7 @@ const Home = ({ isAuthenticated }) => {
               <p>Une interface utilisateur intuitive et élégante qui améliore l'expérience utilisateur</p>
               <div className="feature-badge">Nouveau</div>
             </div>
-            
+
             <div className="feature-card">
               <div className="feature-icon">
                 <div className="icon-wrapper">
@@ -111,7 +164,7 @@ const Home = ({ isAuthenticated }) => {
               <p>Protection des données avec chiffrement de bout en bout et authentification multi-facteurs</p>
               <div className="feature-badge">Sécurisé</div>
             </div>
-            
+
             <div className="feature-card">
               <div className="feature-icon">
                 <div className="icon-wrapper">
