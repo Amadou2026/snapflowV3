@@ -96,4 +96,9 @@ urlpatterns = [
         path('secteurs/', SecteurActiviteListAPIView.as_view(), name='secteurs-list'),
         path('secteurs/<int:pk>/', SecteurActiviteDetailAPIView.as_view(), name='secteurs-detail'),
         # Employés 
+        
+        
+        # 
+        path('stats/configurations-actives/', stats_views.configurations_actives, name='configurations-actives'),
+        path('stats/configurations-statistiques/', stats_views.configurations_statistiques, name='configurations-statistiques'),
     ]

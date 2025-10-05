@@ -2,69 +2,119 @@ import React, { useState, useEffect } from 'react';
 import HeaderAdmin from '../components/admin/HeaderAdmin';
 import FooterAdmin from '../components/admin/FooterAdmin';
 import SidebarAdmin from '../components/admin/SidebarAdmin';
+import FilterDashboard from '../components/dashboard/FilterDashboard';
 import api from '../services/api';
 
 const Dashboard = ({ user, logout }) => {
   const [dashboardData, setDashboardData] = useState({
     stats: {},
-    recentActivities: [],
-    projects: [],
-    recentOrders: [],
-    analytics: [],
-    transactions: []
+    testsParJour: [],
+    successVsFailed: [],
+    testsParProjet: [],
+    tauxReussite: {},
+    tauxErreurScript: []
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('week');
+  const [activeFilters, setActiveFilters] = useState({
+    periode: 'mois',
+    projet_id: '',
+    date_debut: '',
+    date_fin: ''
+  });
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [activeFilters]);
 
   const fetchDashboardData = async () => {
     try {
-      // Simuler le chargement des données du dashboard
-      setTimeout(() => {
-        setDashboardData({
-          stats: {
-            totalPageViews: 442236,
-            totalUsers: 78250,
-            totalOrders: 18800,
-            totalSales: 35078
-          },
-          recentActivities: [
-            { id: 1, user: 'John Doe', action: 'added new task', time: '4 mins ago' },
-            { id: 2, user: 'Tarah Shropshire', action: 'changed task name', time: '6 mins ago' },
-            { id: 3, user: 'Misty Tison', action: 'added team members', time: '8 mins ago' }
-          ],
-          projects: [
-            { id: 1, name: 'Office Management', progress: 65 },
-            { id: 2, name: 'Project Management', progress: 85 },
-            { id: 3, name: 'Video Calling App', progress: 45 }
-          ],
-          recentOrders: [
-            { id: '84564564', product: 'Camera Lens', quantity: 40, status: 'Rejected', amount: 40570, statusClass: 'danger' },
-            { id: '84564565', product: 'Laptop', quantity: 300, status: 'Pending', amount: 180139, statusClass: 'warning' },
-            { id: '84564566', product: 'Mobile', quantity: 355, status: 'Approved', amount: 180139, statusClass: 'success' },
-            { id: '84564567', product: 'Tablet', quantity: 120, status: 'Approved', amount: 95000, statusClass: 'success' },
-            { id: '84564568', product: 'Headphones', quantity: 200, status: 'Pending', amount: 75000, statusClass: 'warning' }
-          ],
-          analytics: [
-            { label: 'Company Finance Growth', value: '+45.14%' },
-            { label: 'Company Expenses Ratio', value: '0.58%' },
-            { label: 'Business Risk Cases', value: 'Low' }
-          ],
-          transactions: [
-            { id: '#002434', title: 'Order #002434', time: 'Today, 2:00 AM', amount: '+$1,430', percentage: '78%', icon: 'ti-gift', color: 'success' },
-            { id: '#984947', title: 'Order #984947', time: '5 August, 1:45 PM', amount: '-$302', percentage: '8%', icon: 'ti-message-circle', color: 'primary' },
-            { id: '#988784', title: 'Order #988784', time: '7 hours ago', amount: '-$682', percentage: '16%', icon: 'ti-settings', color: 'danger' }
-          ]
-        });
-        setLoading(false);
-      }, 1000);
+      setLoading(true);
+
+      // Nettoyer les paramètres vides
+      const params = Object.fromEntries(
+        Object.entries(activeFilters).filter(([_, value]) => value !== '')
+      );
+
+      console.log('Fetching dashboard data with params:', params);
+
+      // Récupérer toutes les données statistiques en parallèle
+      const [
+        testsParJourResponse,
+        successVsFailedResponse,
+        testsParProjetResponse,
+        tauxReussiteResponse,
+        tauxErreurScriptResponse
+      ] = await Promise.all([
+        api.get('/stats/tests-par-jour/', { params }),
+        api.get('/stats/success-vs-failed-par-jour/', { params }),
+        api.get('/stats/tests-par-projet/', { params }),
+        api.get('/stats/taux-reussite/', { params }),
+        api.get('/stats/taux-erreur-par-script/', { params })
+      ]);
+
+      // Calculer les totaux pour les cartes de stats
+      const totalTests = testsParProjetResponse.data.reduce((sum, projet) => sum + projet.total, 0);
+      const totalSuccess = tauxReussiteResponse.data.succès || 0;
+      const totalEchec = tauxReussiteResponse.data.échec || 0;
+      const tauxReussite = tauxReussiteResponse.data.taux_reussite || 0;
+      const tauxEchec = tauxReussiteResponse.data.taux_echec || 0;
+
+      setDashboardData({
+        stats: {
+          totalTests: totalTests,
+          totalSuccess: totalSuccess,
+          totalEchec: totalEchec,
+          tauxReussite: tauxReussite,
+          tauxEchec: tauxEchec
+        },
+        testsParJour: testsParJourResponse.data,
+        successVsFailed: successVsFailedResponse.data,
+        testsParProjet: testsParProjetResponse.data,
+        tauxReussite: tauxReussiteResponse.data,
+        tauxErreurScript: tauxErreurScriptResponse.data
+      });
+
+      // console.log('✅ Tests par jour:', testsParJourResponse.data);
+      // console.log('✅ Success vs Failed:', successVsFailedResponse.data);
+      // console.log('✅ Tests par projet:', testsParProjetResponse.data);
+      // console.log('✅ Taux réussite:', tauxReussiteResponse.data);
+      // console.log('✅ Taux erreur script:', tauxErreurScriptResponse.data);
+
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (newFilters) => {
+    console.log('Setting active filters:', newFilters);
+    setActiveFilters(prev => ({
+      ...prev,
+      ...newFilters
+    }));
+  };
+
+  const handleProjectChange = (projet_id) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      projet_id
+    }));
+  };
+
+  // Fonction pour formater les dates
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Obtenir les 7 derniers jours de données
+  const getLast7DaysData = () => {
+    return dashboardData.successVsFailed.slice(-7);
   };
 
   if (loading) {
@@ -77,7 +127,7 @@ const Dashboard = ({ user, logout }) => {
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
-              <p className="mt-3">Loading Dashboard...</p>
+              <p className="mt-3">Chargement du Dashboard...</p>
             </div>
           </div>
         </div>
@@ -89,10 +139,10 @@ const Dashboard = ({ user, logout }) => {
   return (
     <div className="dashboard-wrapper">
       <HeaderAdmin user={user} logout={logout} />
-      
+
       <div className="main-container">
         <SidebarAdmin />
-        
+
         <div className="pc-container">
           <div className="pc-content">
             {/* Breadcrumb */}
@@ -101,16 +151,46 @@ const Dashboard = ({ user, logout }) => {
                 <div className="row align-items-center">
                   <div className="col-md-12">
                     <div className="page-header-title">
-                      <h5 className="m-b-10">Welcome {user?.first_name} {user?.last_name}</h5>
+                      <h5 className="m-b-10">Bienvenue {user?.first_name} {user?.last_name}</h5>
                     </div>
-                    <ul className="breadcrumb">                      
+                    <ul className="breadcrumb">
                       <li className="breadcrumb-item"><a href="#!">Dashboard</a></li>
-                      
                     </ul>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Filtres */}
+            <div className="row mb-4">
+              <div className="col-12">
+                <FilterDashboard
+                  onFilterChange={handleFilterChange}
+                  selectedProject={activeFilters.projet_id}
+                  setSelectedProject={handleProjectChange}
+                  currentFilters={activeFilters}
+                />
+              </div>
+            </div>
+
+            {/* Indicateur de filtres actifs */}
+            {(activeFilters.projet_id || activeFilters.periode !== 'mois') && (
+              <div className="row mb-3">
+                <div className="col-12">
+                  <div className="alert alert-info py-2">
+                    <small>
+                      <i className="ti ti-filter me-1"></i>
+                      Filtres actifs:
+                      {activeFilters.projet_id && ` Projet: ${dashboardData.testsParProjet.find(p => (p.id || p.projet) === activeFilters.projet_id)?.projet}`}
+                      {activeFilters.periode && ` | Période: ${activeFilters.periode}`}
+                      {activeFilters.date_debut && activeFilters.date_fin &&
+                        ` (${formatDate(activeFilters.date_debut)} - ${formatDate(activeFilters.date_fin)})`
+                      }
+                    </small>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Main Content */}
             <div className="row">
@@ -118,15 +198,15 @@ const Dashboard = ({ user, logout }) => {
               <div className="col-md-6 col-xl-3">
                 <div className="card">
                   <div className="card-body">
-                    <h6 className="mb-2 f-w-400 text-muted">Total Page Views</h6>
+                    <h6 className="mb-2 f-w-400 text-muted">Total de tests</h6>
                     <h4 className="mb-3">
-                      {dashboardData.stats.totalPageViews?.toLocaleString()} 
-                      <span className="badge bg-light-primary border border-primary">
-                        <i className="ti ti-trending-up"></i> 59.3%
+                      {dashboardData.stats.totalTests?.toLocaleString()}
+                      <span className="badge bg-light-primary border border-primary ms-2">
+                        <i className="ti ti-chart-bar"></i> Total
                       </span>
                     </h4>
                     <p className="mb-0 text-muted text-sm">
-                      You made an extra <span className="text-primary">35,000</span> this year
+                      Nombre total de tests exécutés
                     </p>
                   </div>
                 </div>
@@ -135,15 +215,16 @@ const Dashboard = ({ user, logout }) => {
               <div className="col-md-6 col-xl-3">
                 <div className="card">
                   <div className="card-body">
-                    <h6 className="mb-2 f-w-400 text-muted">Total Users</h6>
+                    <h6 className="mb-2 f-w-400 text-muted">Total succès</h6>
                     <h4 className="mb-3">
-                      {dashboardData.stats.totalUsers?.toLocaleString()} 
-                      <span className="badge bg-light-success border border-success">
-                        <i className="ti ti-trending-up"></i> 70.5%
+                      {dashboardData.stats.totalSuccess?.toLocaleString()}
+                      <span className={`badge bg-light-${dashboardData.stats.tauxReussite > 70 ? 'success' : 'warning'} border border-${dashboardData.stats.tauxReussite > 70 ? 'success' : 'warning'} ms-2`}>
+                        <i className={`ti ti-trending-${dashboardData.stats.tauxReussite > 70 ? 'up' : 'down'}`}></i>
+                        {dashboardData.stats.tauxReussite}%
                       </span>
                     </h4>
                     <p className="mb-0 text-muted text-sm">
-                      You made an extra <span className="text-success">8,900</span> this year
+                      Taux de réussite global
                     </p>
                   </div>
                 </div>
@@ -152,15 +233,16 @@ const Dashboard = ({ user, logout }) => {
               <div className="col-md-6 col-xl-3">
                 <div className="card">
                   <div className="card-body">
-                    <h6 className="mb-2 f-w-400 text-muted">Total Order</h6>
+                    <h6 className="mb-2 f-w-400 text-muted">Total échec</h6>
                     <h4 className="mb-3">
-                      {dashboardData.stats.totalOrders?.toLocaleString()} 
-                      <span className="badge bg-light-warning border border-warning">
-                        <i className="ti ti-trending-down"></i> 27.4%
+                      {dashboardData.stats.totalEchec?.toLocaleString()}
+                      <span className={`badge bg-light-${dashboardData.stats.tauxEchec < 30 ? 'warning' : 'danger'} border border-${dashboardData.stats.tauxEchec < 30 ? 'warning' : 'danger'} ms-2`}>
+                        <i className="ti ti-alert-triangle"></i>
+                        {dashboardData.stats.tauxEchec}%
                       </span>
                     </h4>
                     <p className="mb-0 text-muted text-sm">
-                      You made an extra <span className="text-warning">1,943</span> this year
+                      Taux d'échec global
                     </p>
                   </div>
                 </div>
@@ -169,112 +251,57 @@ const Dashboard = ({ user, logout }) => {
               <div className="col-md-6 col-xl-3">
                 <div className="card">
                   <div className="card-body">
-                    <h6 className="mb-2 f-w-400 text-muted">Total Sales</h6>
+                    <h6 className="mb-2 f-w-400 text-muted">Scripts analysés</h6>
                     <h4 className="mb-3">
-                      ${dashboardData.stats.totalSales?.toLocaleString()} 
-                      <span className="badge bg-light-danger border border-danger">
-                        <i className="ti ti-trending-down"></i> 27.4%
+                      {dashboardData.tauxErreurScript.length}
+                      <span className="badge bg-light-info border border-info ms-2">
+                        <i className="ti ti-script"></i> Actifs
                       </span>
                     </h4>
                     <p className="mb-0 text-muted text-sm">
-                      You made an extra <span className="text-danger">$20,395</span> this year
+                      Nombre de scripts suivis
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Unique Visitor Chart */}
-              <div className="col-md-12 col-xl-8">
-                <div className="d-flex align-items-center justify-content-between mb-3">
-                  <h5 className="mb-0">Unique Visitor</h5>
-                  <ul className="nav nav-pills justify-content-end mb-0" role="tablist">
-                    <li className="nav-item" role="presentation">
-                      <button 
-                        className={`nav-link ${activeTab === 'month' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('month')}
-                        type="button" 
-                        role="tab"
-                      >
-                        Month
-                      </button>
-                    </li>
-                    <li className="nav-item" role="presentation">
-                      <button 
-                        className={`nav-link ${activeTab === 'week' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('week')}
-                        type="button" 
-                        role="tab"
-                      >
-                        Week
-                      </button>
-                    </li>
-                  </ul>
-                </div>
+              {/* Tests par jour */}
+              <div className="col-md-12 col-xl-6">
                 <div className="card">
-                  <div className="card-body">
-                    <div className="tab-content">
-                      <div className={`tab-pane ${activeTab === 'month' ? 'show active' : ''}`}>
-                        <div className="text-center py-4">
-                          <p className="text-muted">Monthly visitor chart would be displayed here</p>
-                        </div>
-                      </div>
-                      <div className={`tab-pane ${activeTab === 'week' ? 'show active' : ''}`}>
-                        <div className="text-center py-4">
-                          <p className="text-muted">Weekly visitor chart would be displayed here</p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="card-header">
+                    <h5>Tests par jour</h5>
                   </div>
-                </div>
-              </div>
-
-              {/* Income Overview */}
-              <div className="col-md-12 col-xl-4">
-                <h5 className="mb-3">Income Overview</h5>
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="mb-2 f-w-400 text-muted">This Week Statistics</h6>
-                    <h3 className="mb-3">$7,650</h3>
-                    <div className="text-center py-3">
-                      <p className="text-muted">Income overview chart would be displayed here</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Orders */}
-              <div className="col-md-12 col-xl-8">
-                <h5 className="mb-3">Recent Orders</h5>
-                <div className="card tbl-card">
                   <div className="card-body">
                     <div className="table-responsive">
-                      <table className="table table-hover table-borderless mb-0">
+                      <table className="table table-hover">
                         <thead>
                           <tr>
-                            <th>TRACKING NO.</th>
-                            <th>PRODUCT NAME</th>
-                            <th>TOTAL ORDER</th>
-                            <th>STATUS</th>
-                            <th className="text-end">TOTAL AMOUNT</th>
+                            <th>Projet</th>
+                            <th>Date</th>
+                            <th className="text-end">Total</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {dashboardData.recentOrders.map((order) => (
-                            <tr key={order.id}>
-                              <td>
-                                <a href="#" className="text-muted">{order.id}</a>
-                              </td>
-                              <td>{order.product}</td>
-                              <td>{order.quantity}</td>
-                              <td>
-                                <span className="d-flex align-items-center gap-2">
-                                  <i className={`fas fa-circle text-${order.statusClass} f-10 m-r-5`}></i>
-                                  {order.status}
-                                </span>
-                              </td>
-                              <td className="text-end">${order.amount.toLocaleString()}</td>
-                            </tr>
+                          {Object.entries(dashboardData.testsParJour).slice(0, 5).map(([projet, data], index) => (
+                            data.slice(0, 2).map((item, itemIndex) => (
+                              <tr key={`${index}-${itemIndex}`}>
+                                {itemIndex === 0 && (
+                                  <td rowSpan={Math.min(data.length, 2)} className="fw-bold">
+                                    {projet}
+                                  </td>
+                                )}
+                                <td>{item.date ? formatDate(item.date) : 'N/A'}</td>
+                                <td className="text-end">{item.total}</td>
+                              </tr>
+                            ))
                           ))}
+                          {Object.keys(dashboardData.testsParJour).length === 0 && (
+                            <tr>
+                              <td colSpan="3" className="text-center text-muted">
+                                Aucune donnée disponible
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -282,68 +309,162 @@ const Dashboard = ({ user, logout }) => {
                 </div>
               </div>
 
-              {/* Analytics Report */}
-              <div className="col-md-12 col-xl-4">
-                <h5 className="mb-3">Analytics Report</h5>
+              {/* Succès vs Échec par jour */}
+              <div className="col-md-12 col-xl-6">
                 <div className="card">
-                  <div className="list-group list-group-flush">
-                    {dashboardData.analytics.map((item, index) => (
-                      <a 
-                        href="#" 
-                        key={index}
-                        className="list-group-item list-group-item-action d-flex align-items-center justify-content-between"
-                      >
-                        {item.label}
-                        <span className="h5 mb-0">{item.value}</span>
-                      </a>
-                    ))}
+                  <div className="card-header">
+                    <h5>Succès vs Échec</h5>
                   </div>
-                  <div className="card-body px-2">
-                    <div className="text-center py-3">
-                      <p className="text-muted">Analytics report chart would be displayed here</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sales Report */}
-              <div className="col-md-12 col-xl-8">
-                <h5 className="mb-3">Sales Report</h5>
-                <div className="card">
                   <div className="card-body">
-                    <h6 className="mb-2 f-w-400 text-muted">This Week Statistics</h6>
-                    <h3 className="mb-0">$7,650</h3>
-                    <div className="text-center py-4">
-                      <p className="text-muted">Sales report chart would be displayed here</p>
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th className="text-success">Succès</th>
+                            <th className="text-danger">Échec</th>
+                            <th className="text-info">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getLast7DaysData().map((item, index) => (
+                            <tr key={index}>
+                              <td>{formatDate(item.date)}</td>
+                              <td className="text-success fw-bold">{item.succès}</td>
+                              <td className="text-danger fw-bold">{item.échec}</td>
+                              <td className="text-info fw-bold">{item.succès + item.échec}</td>
+                            </tr>
+                          ))}
+                          {dashboardData.successVsFailed.length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="text-center text-muted">
+                                Aucune donnée disponible
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Transaction History */}
-              <div className="col-md-12 col-xl-4">
-                <h5 className="mb-3">Transaction History</h5>
+              {/* Top scripts avec erreurs */}
+              <div className="col-md-12 col-xl-6">
                 <div className="card">
-                  <div className="list-group list-group-flush">
-                    {dashboardData.transactions.map((transaction) => (
-                      <a href="#" key={transaction.id} className="list-group-item list-group-item-action">
-                        <div className="d-flex">
-                          <div className="flex-shrink-0">
-                            <div className={`avtar avtar-s rounded-circle text-${transaction.color} bg-light-${transaction.color}`}>
-                              <i className={`ti ${transaction.icon} f-18`}></i>
-                            </div>
-                          </div>
-                          <div className="flex-grow-1 ms-3">
-                            <h6 className="mb-1">{transaction.title}</h6>
-                            <p className="mb-0 text-muted">{transaction.time}</p>
-                          </div>
-                          <div className="flex-shrink-0 text-end">
-                            <h6 className="mb-1">{transaction.amount}</h6>
-                            <p className="mb-0 text-muted">{transaction.percentage}</p>
-                          </div>
-                        </div>
-                      </a>
-                    ))}
+                  <div className="card-header">
+                    <h5>Top scripts avec erreurs</h5>
+                  </div>
+                  <div className="card-body">
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead>
+                          <tr>
+                            <th>Script</th>
+                            <th>Total</th>
+                            <th>Erreurs</th>
+                            <th>Taux d'erreur</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dashboardData.tauxErreurScript.slice(0, 8).map((script, index) => (
+                            <tr key={index}>
+                              <td className="text-truncate" style={{ maxWidth: '200px' }} title={script.script}>
+                                {script.script}
+                              </td>
+                              <td>{script.total}</td>
+                              <td className="text-danger fw-bold">{script.erreurs}</td>
+                              <td>
+                                <span className={`badge bg-light-${script.taux_erreur > 50 ? 'danger' : script.taux_erreur > 20 ? 'warning' : 'success'}`}>
+                                  {script.taux_erreur}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {dashboardData.tauxErreurScript.length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="text-center text-muted">
+                                Aucune donnée disponible
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Répartition par projet */}
+              <div className="col-md-12 col-xl-6">
+                <div className="card">
+                  <div className="card-header">
+                    <h5>Répartition par projet</h5>
+                  </div>
+                  <div className="card-body">
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead>
+                          <tr>
+                            <th>Projet</th>
+                            <th className="text-end">Total tests</th>
+                            <th className="text-end">Pourcentage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dashboardData.testsParProjet.slice(0, 8).map((projet, index) => {
+                            const percentage = dashboardData.stats.totalTests > 0
+                              ? ((projet.total / dashboardData.stats.totalTests) * 100).toFixed(1)
+                              : 0;
+                            return (
+                              <tr key={index}>
+                                <td>{projet.projet}</td>
+                                <td className="text-end fw-bold">{projet.total}</td>
+                                <td className="text-end">
+                                  <span className="badge bg-light-primary">{percentage}%</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {dashboardData.testsParProjet.length === 0 && (
+                            <tr>
+                              <td colSpan="3" className="text-center text-muted">
+                                Aucune donnée disponible
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Détails taux de réussite */}
+              <div className="col-md-12">
+                <div className="card">
+                  <div className="card-header">
+                    <h5>Détails du taux de réussite</h5>
+                  </div>
+                  <div className="card-body">
+                    <div className="row text-center">
+                      <div className="col-md-3">
+                        <h3 className="text-primary">{dashboardData.tauxReussite.total}</h3>
+                        <p className="text-muted">Total tests</p>
+                      </div>
+                      <div className="col-md-3">
+                        <h3 className="text-success">{dashboardData.tauxReussite.succès}</h3>
+                        <p className="text-muted">Succès</p>
+                      </div>
+                      <div className="col-md-3">
+                        <h3 className="text-danger">{dashboardData.tauxReussite.échec}</h3>
+                        <p className="text-muted">Échecs</p>
+                      </div>
+                      <div className="col-md-3">
+                        <h3 className="text-info">{dashboardData.tauxReussite.taux_reussite}%</h3>
+                        <p className="text-muted">Taux de réussite</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -351,7 +472,7 @@ const Dashboard = ({ user, logout }) => {
           </div>
         </div>
       </div>
-      
+
       <FooterAdmin />
     </div>
   );

@@ -1,0 +1,426 @@
+/* Conteneur principal de l'image hero */
+.hero-image-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 600px;
+}
+
+/* Image hero */
+.hero-image {
+  width: 100%;
+  max-width: 800px;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  position: relative;
+  z-index: 1;
+}
+
+/* Cartes flottantes de base */
+.floating-card {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+              0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  z-index: 2;
+  min-width: 160px;
+  transition: all 0.3s ease;
+  animation: float 3s ease-in-out infinite;
+}
+
+.floating-card:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 
+              0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+.card-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* Animation de pulsation */
+.card-pulse {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+
+.card-pulse::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse-ring 2s infinite;
+}
+
+/* POSITIONS TRÈS ÉPARPILLÉES - ÉLÉMENTS DANS TOUS LES COINS */
+
+/* Haut gauche très éloigné */
+.floating-card.card-1 {
+  top: -5%;
+  left: -10%;
+  animation-delay: 0s;
+}
+
+/* Haut droite très éloigné */
+.floating-card.card-2 {
+  top: -8%;
+  right: -15%;
+  animation-delay: 0.8s;
+}
+
+/* Milieu gauche externe */
+.floating-card.card-3 {
+  top: 25%;
+  left: -12%;
+  animation-delay: 1.6s;
+}
+
+/* Milieu droite externe */
+.floating-card.card-4 {
+  top: 35%;
+  right: -18%;
+  animation-delay: 2.4s;
+}
+
+/* Bas gauche très éloigné */
+.floating-card.card-5 {
+  bottom: -10%;
+  left: -8%;
+  animation-delay: 3.2s;
+}
+
+/* Bas droite très éloigné */
+.floating-card.card-6 {
+  bottom: -5%;
+  right: -12%;
+  animation-delay: 4s;
+}
+
+/* Centre haut externe */
+.floating-card.card-7 {
+  top: -12%;
+  left: 45%;
+  animation-delay: 4.8s;
+}
+
+/* Centre bas externe */
+.floating-card.card-8 {
+  bottom: -15%;
+  left: 40%;
+  animation-delay: 5.6s;
+}
+
+/* Angle très éloigné haut-gauche */
+.floating-card.card-9 {
+  top: 15%;
+  left: -20%;
+  animation-delay: 6.4s;
+}
+
+/* Angle très éloigné bas-droite */
+.floating-card.card-10 {
+  bottom: -8%;
+  right: -25%;
+  animation-delay: 7.2s;
+}
+
+/* Animations avec amplitudes différentes pour plus de naturel */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  25% {
+    transform: translateY(-15px) translateX(5px);
+  }
+  50% {
+    transform: translateY(-5px) translateX(-8px);
+  }
+  75% {
+    transform: translateY(-12px) translateX(3px);
+  }
+}
+
+/* Animations spécifiques avec variations */
+.floating-card.card-1 { 
+  animation: float-wide 8s ease-in-out infinite; 
+}
+.floating-card.card-2 { 
+  animation: float-wide 7s ease-in-out infinite 1s; 
+}
+.floating-card.card-3 { 
+  animation: float-wide 9s ease-in-out infinite 2s; 
+}
+.floating-card.card-4 { 
+  animation: float-wide 6.5s ease-in-out infinite 3s; 
+}
+.floating-card.card-5 { 
+  animation: float-wide 8.5s ease-in-out infinite 4s; 
+}
+.floating-card.card-6 { 
+  animation: float-wide 7.5s ease-in-out infinite 5s; 
+}
+.floating-card.card-7 { 
+  animation: float-wide 9.5s ease-in-out infinite 6s; 
+}
+.floating-card.card-8 { 
+  animation: float-wide 6s ease-in-out infinite 7s; 
+}
+.floating-card.card-9 { 
+  animation: float-wide 8s ease-in-out infinite 8s; 
+}
+.floating-card.card-10 { 
+  animation: float-wide 7s ease-in-out infinite 9s; 
+}
+
+/* Animation avec plus de mouvement latéral */
+@keyframes float-wide {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  20% {
+    transform: translateY(-20px) translateX(15px);
+  }
+  40% {
+    transform: translateY(-10px) translateX(-12px);
+  }
+  60% {
+    transform: translateY(-25px) translateX(8px);
+  }
+  80% {
+    transform: translateY(-5px) translateX(-18px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+/* Couleurs spécifiques pour chaque carte */
+.floating-card.card-1 .card-pulse { background: #ef4444; }
+.floating-card.card-1 .card-pulse::before { background: #ef4444; }
+
+.floating-card.card-2 .card-pulse { background: #3b82f6; }
+.floating-card.card-2 .card-pulse::before { background: #3b82f6; }
+
+.floating-card.card-3 .card-pulse { background: #10b981; }
+.floating-card.card-3 .card-pulse::before { background: #10b981; }
+
+.floating-card.card-4 .card-pulse { background: #f59e0b; }
+.floating-card.card-4 .card-pulse::before { background: #f59e0b; }
+
+.floating-card.card-5 .card-pulse { background: #8b5cf6; }
+.floating-card.card-5 .card-pulse::before { background: #8b5cf6; }
+
+.floating-card.card-6 .card-pulse { background: #06b6d4; }
+.floating-card.card-6 .card-pulse::before { background: #06b6d4; }
+
+.floating-card.card-7 .card-pulse { background: #84cc16; }
+.floating-card.card-7 .card-pulse::before { background: #84cc16; }
+
+.floating-card.card-8 .card-pulse { background: #f97316; }
+.floating-card.card-8 .card-pulse::before { background: #f97316; }
+
+.floating-card.card-9 .card-pulse { background: #ec4899; }
+.floating-card.card-9 .card-pulse::before { background: #ec4899; }
+
+.floating-card.card-10 .card-pulse { background: #6366f1; }
+.floating-card.card-10 .card-pulse::before { background: #6366f1; }
+
+/* Effet de profondeur avec z-index différent */
+.floating-card.card-1 { z-index: 10; }
+.floating-card.card-2 { z-index: 9; }
+.floating-card.card-3 { z-index: 8; }
+.floating-card.card-4 { z-index: 7; }
+.floating-card.card-5 { z-index: 6; }
+.floating-card.card-6 { z-index: 5; }
+.floating-card.card-7 { z-index: 4; }
+.floating-card.card-8 { z-index: 3; }
+.floating-card.card-9 { z-index: 2; }
+.floating-card.card-10 { z-index: 1; }
+
+/* Animation d'entrée en douceur */
+@keyframes slideInFromFar {
+  from {
+    opacity: 0;
+    transform: translateY(100px) translateX(100px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1);
+  }
+}
+
+.floating-card {
+  animation: slideInFromFar 1s ease-out, float-wide 8s ease-in-out infinite 1s;
+}
+
+/* Responsive design pour l'éparpillement */
+@media (max-width: 1200px) {
+  .floating-card {
+    min-width: 140px;
+    font-size: 0.8rem;
+    padding: 10px 12px;
+  }
+  
+  /* Réduire légèrement l'éparpillement sur grand écran */
+  .floating-card.card-1 { left: -8%; }
+  .floating-card.card-2 { right: -12%; }
+  .floating-card.card-3 { left: -10%; }
+  .floating-card.card-4 { right: -15%; }
+  .floating-card.card-9 { left: -15%; }
+  .floating-card.card-10 { right: -20%; }
+}
+
+@media (max-width: 1024px) {
+  .hero-image-container {
+    min-height: 500px;
+  }
+  
+  .floating-card {
+    min-width: 130px;
+    font-size: 0.75rem;
+    padding: 8px 10px;
+  }
+  
+  /* Réduire l'éparpillement sur tablette */
+  .floating-card.card-1 { left: -5%; top: -3%; }
+  .floating-card.card-2 { right: -8%; top: -5%; }
+  .floating-card.card-3 { left: -8%; }
+  .floating-card.card-4 { right: -12%; }
+  .floating-card.card-5 { left: -5%; bottom: -5%; }
+  .floating-card.card-6 { right: -8%; bottom: -3%; }
+  .floating-card.card-9 { left: -10%; }
+  .floating-card.card-10 { right: -15%; }
+  
+  /* Cacher quelques éléments sur tablette */
+  .floating-card.card-7,
+  .floating-card.card-8 {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-image-container {
+    margin: 0 -20px;
+    min-height: 400px;
+  }
+  
+  .floating-card {
+    min-width: 120px;
+    font-size: 0.7rem;
+    padding: 6px 8px;
+    backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.98);
+  }
+  
+  /* Éparpillement modéré sur mobile */
+  .floating-card.card-1 { left: -3%; top: -2%; }
+  .floating-card.card-2 { right: -5%; top: -3%; }
+  .floating-card.card-3 { left: -5%; top: 30%; }
+  .floating-card.card-4 { right: -8%; top: 40%; }
+  .floating-card.card-5 { left: -3%; bottom: -3%; }
+  .floating-card.card-6 { right: -5%; bottom: -2%; }
+  .floating-card.card-9 { left: -8%; top: 20%; }
+  .floating-card.card-10 { right: -10%; bottom: -5%; }
+  
+  /* Cacher plus d'éléments sur mobile */
+  .floating-card.card-3,
+  .floating-card.card-4,
+  .floating-card.card-9,
+  .floating-card.card-10 {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-card {
+    min-width: 100px;
+    font-size: 0.65rem;
+    padding: 5px 6px;
+  }
+  
+  .card-icon {
+    font-size: 0.9rem;
+  }
+  
+  /* Éparpillement minimal sur très petits écrans */
+  .floating-card.card-1 { left: -2%; top: -1%; }
+  .floating-card.card-2 { right: -3%; top: -2%; }
+  .floating-card.card-5 { left: -2%; bottom: -1%; }
+  .floating-card.card-6 { right: -3%; bottom: -1%; }
+  
+  /* Garder seulement 4 éléments */
+  .floating-card.card-3,
+  .floating-card.card-4,
+  .floating-card.card-7,
+  .floating-card.card-8,
+  .floating-card.card-9,
+  .floating-card.card-10 {
+    display: none;
+  }
+}
+
+/* Effet de flottement aléatoire supplémentaire */
+@keyframes random-float {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(10px, -15px) rotate(1deg);
+  }
+  50% {
+    transform: translate(-8px, -25px) rotate(-1deg);
+  }
+  75% {
+    transform: translate(15px, -10px) rotate(2deg);
+  }
+}
+
+/* Appliquer l'animation aléatoire à certaines cartes */
+.floating-card.card-1,
+.floating-card.card-3,
+.floating-card.card-5,
+.floating-card.card-7,
+.floating-card.card-9 {
+  animation: random-float 10s ease-in-out infinite, slideInFromFar 1s ease-out;
+}

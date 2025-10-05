@@ -258,6 +258,21 @@ const AppRoutes = () => {
           }
         />
 
+        <Route
+          path="/admin/core/dashboard/"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <Dashboard user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
 
 
         <Route
