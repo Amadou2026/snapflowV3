@@ -72,6 +72,7 @@ const SidebarAdmin = () => {
       setLoading(false);
     }
   };
+  
 
   // Charger le menu quand l'utilisateur est authentifié
   useEffect(() => {
