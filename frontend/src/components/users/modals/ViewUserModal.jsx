@@ -38,11 +38,11 @@ const ViewUserModal = ({ show, onClose, user }) => {
                                         <div className="position-absolute end-0 top-0 p-3">
                                             <span className="badge bg-primary">Profil</span>
                                         </div>
-                                        <img
+                                        {/* <img
                                             src="/assets/img/user/avatar-1.jpg"
                                             alt="avatar"
                                             className="rounded-circle img-fluid wid-60 mb-3"
-                                        />
+                                        /> */}
                                         <h5>{user.first_name} {user.last_name}</h5>
                                         <p className="text-muted text-sm">{user.email}</p>
                                         <hr className="my-3" />

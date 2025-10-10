@@ -255,13 +255,13 @@ const ProfilUtilisateur = ({ user: initialUser, logout, setUser }) => {
                                             <div className="card">
                                                 <div className="card-body position-relative">
                                                     <div className="text-center">
-                                                        <div className="chat-avtar d-inline-flex mx-auto">
+                                                        {/* <div className="chat-avtar d-inline-flex mx-auto">
                                                             <img
                                                                 className="rounded-circle img-fluid wid-120"
                                                                 src="/assets/img/user/avatar-5.jpg"
                                                                 alt="User image"
                                                             />
-                                                        </div>
+                                                        </div> */}
                                                         <h5 className="mt-3">
                                                             {user?.first_name && user?.last_name
                                                                 ? `${user.first_name} ${user.last_name}`

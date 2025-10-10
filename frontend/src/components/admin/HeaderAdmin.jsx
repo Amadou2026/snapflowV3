@@ -396,7 +396,7 @@ const handleSocieteClick = (societe) => {
                   toggleProfileDropdown();
                 }}
               >
-                <img src={avatar2} alt="user-image" className="user-avtar" />
+                {/* <img src={avatar2} alt="user-image" className="user-avtar" /> */}
                 <span>{user?.first_name} {user?.last_name}</span>
               </a>
               {showProfileDropdown && (
@@ -440,7 +440,7 @@ const handleSocieteClick = (societe) => {
                         role="tab"
                         onClick={() => setActiveProfileTab('profile')}
                       >
-                        <i className="ti ti-user"></i> Profile
+                        <i className="ti ti-user"></i> Profil
                       </button>
                     </li>
                     <li className="nav-item" role="presentation">
