@@ -1,12 +1,12 @@
-# core/signals.py
-from django.db.models.signals import post_save, post_delete
-from django.db.models.signals import post_migrate
+from django.db.models.signals import post_save
 from django.dispatch import receiver
+
+from snapflow.core.runner import lancer_scripts_pour_execution
 from .models import ExecutionTest, ExecutionResult
-from .runner import lancer_scripts_pour_execution
+from .jobs import detecter_scripts_problemes, nettoyer_anciens_problemes_resolus
 import threading
-from django.contrib.auth.models import Group, Permission
-from .models import GroupePersonnalise
+from datetime import timedelta
+from django.utils import timezone
 
 @receiver(post_save, sender=ExecutionTest)
 def lancer_execution_apres_creation(sender, instance, created, **kwargs):
@@ -23,76 +23,20 @@ def lancer_execution_apres_creation(sender, instance, created, **kwargs):
         # Lancer l'exécution dans un thread si statut pending
         if instance.statut == 'pending':
             threading.Thread(target=lancer_scripts_pour_execution, args=(instance.id,)).start()
-            
-# @receiver(post_save, sender=GroupePersonnalise)
-# def sync_group_permissions(sender, instance, created, **kwargs):
-#     """Synchronise les permissions entre GroupePersonnalise et Group Django"""
-#     if not created:
-#         instance.groupe_django.permissions.set(instance.permissions.all())
 
-# @receiver(post_save, sender=Group)
-# def create_groupe_personnalise(sender, instance, created, **kwargs):
-#     """Crée automatiquement un GroupePersonnalise pour les nouveaux groupes"""
-#     if created and not hasattr(instance, 'groupe_personnalise'):
-#         GroupePersonnalise.objects.create(
-#             nom=instance.name,
-#             groupe_django=instance,
-#             type_groupe='personnalisé',
-#             description='Groupe personnalisé créé automatiquement'
-#         )
-@receiver(post_migrate)
-def create_predefined_groups(sender, **kwargs):
-    # Ne pas créer pour les apps qui ne sont pas la notre
-    if sender.name != "core":
-        return
+@receiver(post_save, sender=ExecutionTest)
+def detecter_problemes_apres_execution(sender, instance, **kwargs):
+    """
+    Détecte les problèmes après chaque exécution
+    """
+    # Exécuter la détection dans un thread pour ne pas bloquer
+    threading.Thread(target=detecter_scripts_problemes).start()
 
-    # Définir les groupes prédéfinis et leurs permissions (codenames)
-    predefined_groups = [
-        {
-            'nom': 'Administrateur',
-            'role_predefini': 'administrateur',
-            'perms': ['add_script', 'change_script', 'view_script', 'add_executiontest', 'change_executiontest', 'view_executiontest','add_script', 'change_script', 'view_script','view_dashboard', 'view_executionresult','add_projet', 'change_projet', 'view_projet', 'view_executionresult', 'view_configurationtest', 'delete_configurationtest', 'add_configurationtest', 'change_configurationtest', 'add_emailnotification', 'view_emailnotification', 'change_emailnotification',  'view_societe', 'change_societe', 'add_configuration', 'change_configuration', 'view_configuration', 'view_societe_configurationtest', 'change_societe_configurationtest', 'delete_societe_configurationtest', ],
-        },
-        {
-            'nom': 'QA',
-            'role_predefini': 'qa',
-            'perms': ['add_script', 'change_script', 'view_script', 'add_executiontest', 'change_executiontest', 'view_executiontest'],
-        },
-        {
-            'nom': 'Développeur',
-            'role_predefini': 'developpeur',
-            'perms': ['add_script', 'change_script', 'view_script'],
-        },
-        {
-            'nom': 'Manager',
-            'role_predefini': 'manager',
-            'perms': ['view_dashboard', 'view_executionresult'],
-        },
-        {
-            'nom': 'Chef de projet',
-            'role_predefini': 'chef_projet',
-            'perms': ['add_projet', 'change_projet', 'view_projet', 'view_executionresult'],
-        },
-    ]
-
-    for g in predefined_groups:
-        group, created = Group.objects.get_or_create(name=g['nom'])
-
-        # Créer le GroupePersonnalise correspondant
-        grp_perso, created2 = GroupePersonnalise.objects.get_or_create(
-            nom=g['nom'],
-            defaults={
-                'type_groupe': 'predéfini',
-                'role_predefini': g['role_predefini'],
-                'groupe_django': group,
-                'est_protege': True
-            }
-        )
-
-        # Ajouter les permissions
-        if g['perms'] == 'all':
-            perms = Permission.objects.all()
-            group.permissions.set(perms)
-        else:
-            perms = Permission.objects.filter(codename__in=g['perms'])
-            group.permissions.set(perms)
+@receiver(post_save, sender=ExecutionResult)
+def detecter_problemes_apres_resultat(sender, instance, **kwargs):
+    """
+    Détecte les problèmes après chaque résultat d'exécution
+    """
+    # Si le résultat indique un problème, déclencher la détection
+    if instance.statut in ['error', 'timeout']:
+        threading.Thread(target=detecter_scripts_problemes).start()

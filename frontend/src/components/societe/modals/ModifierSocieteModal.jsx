@@ -3,10 +3,9 @@ import api from '../../../services/api';
 import { toast } from 'react-toastify';
 
 const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
+    // MODIFIÉ : Suppression de 'num_siret' et 'url' de l'état initial
     const [formData, setFormData] = useState({
         nom: '',
-        num_siret: '',
-        url: '',
         secteur_activite: '', // ID du secteur
         projets: [], // Array d'IDs de projets
         employes: [] // Array d'IDs d'employés
@@ -61,10 +60,9 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                 ? societeDetails.projets.map(projet => projet.id)
                 : [];
 
+            // MODIFIÉ : Suppression de 'num_siret' et 'url'
             setFormData({
                 nom: societeDetails.nom || '',
-                num_siret: societeDetails.num_siret || '',
-                url: societeDetails.url || '',
                 secteur_activite: secteurTrouve?.id || '',
                 employes: employesIds,
                 projets: projetsIds
@@ -83,10 +81,9 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                 secteur.nom === societe.secteur_activite
             );
             
+            // MODIFIÉ : Suppression de 'num_siret' et 'url'
             setFormData({
                 nom: societe.nom || '',
-                num_siret: societe.num_siret || '',
-                url: societe.url || '',
                 secteur_activite: secteurTrouve?.id || '',
                 employes: [],
                 projets: []
@@ -239,6 +236,7 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
         updateProjetsLists([]);
     };
 
+    // MODIFIÉ : Suppression des validations pour 'url' et 'num_siret'
     const validateForm = () => {
         const newErrors = {};
         
@@ -246,26 +244,12 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
             newErrors.nom = 'Le nom de la société est requis';
         }
 
-        if (formData.num_siret && !/^\d{14}$/.test(formData.num_siret.replace(/\s/g, ''))) {
-            newErrors.num_siret = 'Le numéro SIRET doit contenir 14 chiffres';
-        }
-
-        if (formData.url && !isValidUrl(formData.url)) {
-            newErrors.url = 'URL invalide';
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const isValidUrl = (string) => {
-        try {
-            new URL(string);
-            return true;
-        } catch (_) {
-            return false;
-        }
-    };
+    // MODIFIÉ : Suppression de la fonction de validation non utilisée
+    // const isValidUrl = (string) => { ... };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -276,11 +260,9 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
 
         setLoading(true);
         try {
-            // Préparer les données pour l'API
+            // MODIFIÉ : Suppression de 'num_siret' et 'url' de l'objet envoyé
             const dataToSend = {
                 nom: formData.nom.trim(),
-                num_siret: formData.num_siret || '',
-                url: formData.url || '',
                 secteur_activite: formData.secteur_activite ? parseInt(formData.secteur_activite) : null,
                 projets: formData.projets,
                 employes: formData.employes
@@ -306,11 +288,10 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
         }
     };
 
+    // MODIFIÉ : Suppression de 'num_siret' et 'url' de la réinitialisation
     const handleClose = () => {
         setFormData({
             nom: '',
-            num_siret: '',
-            url: '',
             secteur_activite: '',
             projets: [],
             employes: []
@@ -352,8 +333,9 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                                 </div>
                             ) : (
                                 <>
+                                    {/* MODIFIÉ : Le champ 'nom' prend toute la largeur */}
                                     <div className="row">
-                                        <div className="col-md-6">
+                                        <div className="col-12">
                                             <div className="mb-3">
                                                 <label htmlFor="nom" className="form-label">
                                                     Nom de la société *
@@ -375,54 +357,10 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="col-md-6">
-                                            <div className="mb-3">
-                                                <label htmlFor="num_siret" className="form-label">
-                                                    Numéro SIRET
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    className={`form-control ${errors.num_siret ? 'is-invalid' : ''}`}
-                                                    id="num_siret"
-                                                    name="num_siret"
-                                                    value={formData.num_siret}
-                                                    onChange={handleInputChange}
-                                                    placeholder="Ex: 00000000000002"
-                                                    maxLength="14"
-                                                    disabled={loading}
-                                                />
-                                                {errors.num_siret && (
-                                                    <div className="invalid-feedback">
-                                                        {errors.num_siret}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
                                     </div>
 
+                                    {/* MODIFIÉ : La ligne 'Secteur d'activité' prend toute la largeur */}
                                     <div className="row">
-                                        <div className="col-md-6">
-                                            <div className="mb-3">
-                                                <label htmlFor="url" className="form-label">
-                                                    Site Web
-                                                </label>
-                                                <input
-                                                    type="url"
-                                                    className={`form-control ${errors.url ? 'is-invalid' : ''}`}
-                                                    id="url"
-                                                    name="url"
-                                                    value={formData.url}
-                                                    onChange={handleInputChange}
-                                                    placeholder="https://www.exemple.com"
-                                                    disabled={loading}
-                                                />
-                                                {errors.url && (
-                                                    <div className="invalid-feedback">
-                                                        {errors.url}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
                                         <div className="col-md-6">
                                             <div className="mb-3">
                                                 <label htmlFor="secteur_activite" className="form-label">
@@ -436,7 +374,7 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                                                     onChange={handleInputChange}
                                                     disabled={loading || loadingReferences}
                                                 >
-                                                    <option value="">Sélectionnez un secteur</option>
+                                                    <option value="">Sélectionner un secteur</option>
                                                     {secteurs.map((secteur) => (
                                                         <option key={secteur.id} value={secteur.id}>
                                                             {secteur.nom}
@@ -450,9 +388,36 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                                                 )}
                                             </div>
                                         </div>
+                                        <div className="col-md-6">
+                                            <div className="mb-3">
+                                                <label htmlFor="admin" className="form-label">
+                                                    Administrateur
+                                                </label>
+                                                <select
+                                                    className={`form-control ${errors.admin ? 'is-invalid' : ''}`}
+                                                    id="admin"
+                                                    name="admin"
+                                                    value={formData.admin}
+                                                    onChange={handleInputChange}
+                                                    disabled={loading || loadingReferences}
+                                                >
+                                                    <option value="">Sélectionner un administrateur</option>
+                                                    {utilisateurs.map(user => (
+                                                        <option key={user.id} value={user.id}>
+                                                            {user.first_name} {user.last_name} ({user.email})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.admin && (
+                                                    <div className="invalid-feedback">
+                                                        {errors.admin}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {/* Section Projets (ManyToMany) */}
+                                    {/* Section Projets (ManyToMany) - Inchangée */}
                                     <div className="row">
                                         <div className="col-12">
                                             <div className="mb-3">
@@ -587,7 +552,7 @@ const ModifierSocieteModal = ({ show, onClose, onSocieteUpdated, societe }) => {
                                         </div>
                                     </div>
 
-                                    {/* Section employés avec deux listes */}
+                                    {/* Section employés avec deux listes - Inchangée */}
                                     <div className="row">
                                         <div className="col-12">
                                             <div className="mb-3">

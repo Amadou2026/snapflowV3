@@ -3,13 +3,12 @@ import api from '../../../services/api';
 import { toast } from 'react-toastify';
 
 const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
+    // MODIFIÉ : Suppression de 'num_siret' et 'url' de l'état initial
     const [formData, setFormData] = useState({
         nom: '',
-        num_siret: '',
-        url: '',
         secteur_activite: '',
         admin: '',
-        projets: [], // Changé de 'projet' à 'projets' (array)
+        projets: [],
         employes: []
     });
     const [loading, setLoading] = useState(false);
@@ -51,7 +50,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             // Charger les projets
             const projetsResponse = await api.get('projets/');
             setProjets(projetsResponse.data);
-            setProjetsDisponibles(projetsResponse.data); // Tous les projets sont disponibles initialement
+            setProjetsDisponibles(projetsResponse.data);
         } catch (error) {
             console.error('Erreur lors du chargement des données de référence:', error);
             toast.error('Erreur lors du chargement des données de référence');
@@ -198,6 +197,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
         setEmployesSelectionnes([]);
     };
 
+    // MODIFIÉ : Suppression des validations pour 'url' et 'num_siret'
     const validateForm = () => {
         const newErrors = {};
 
@@ -205,30 +205,13 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
             newErrors.nom = 'Le nom de la société est requis';
         }
 
-        if (formData.url && !isValidUrl(formData.url)) {
-            newErrors.url = 'URL invalide';
-        }
-
-        if (formData.num_siret && !isValidSiret(formData.num_siret)) {
-            newErrors.num_siret = 'Le numéro SIRET doit contenir 14 chiffres';
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const isValidUrl = (string) => {
-        try {
-            new URL(string);
-            return true;
-        } catch (_) {
-            return false;
-        }
-    };
-
-    const isValidSiret = (siret) => {
-        return /^\d{14}$/.test(siret);
-    };
+    // MODIFIÉ : Suppression des fonctions de validation non utilisées
+    // const isValidUrl = (string) => { ... };
+    // const isValidSiret = (siret) => { ... };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -239,14 +222,12 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
 
         setLoading(true);
         try {
-            // Format exact pour le sérialiseur de création
+            // MODIFIÉ : Suppression de 'num_siret' et 'url' de l'objet envoyé
             const dataToSend = {
                 nom: formData.nom,
-                num_siret: formData.num_siret || '',
-                url: formData.url || '',
                 secteur_activite: formData.secteur_activite ? parseInt(formData.secteur_activite) : null,
                 admin: formData.admin ? parseInt(formData.admin) : null,
-                projets: formData.projets, // Array d'IDs de projets
+                projets: formData.projets,
                 employes: formData.employes
             };
 
@@ -270,11 +251,10 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
         }
     };
 
+    // MODIFIÉ : Suppression de 'num_siret' et 'url' de la réinitialisation
     const resetForm = () => {
         setFormData({
             nom: '',
-            num_siret: '',
-            url: '',
             secteur_activite: '',
             admin: '',
             projets: [],
@@ -311,8 +291,9 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
+                            {/* MODIFIÉ : Suppression de la ligne contenant le nom et le SIRET */}
                             <div className="row">
-                                <div className="col-md-6">
+                                <div className="col-md-12">
                                     <div className="mb-3">
                                         <label htmlFor="nom" className="form-label">
                                             Nom de la société *
@@ -333,52 +314,10 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label htmlFor="num_siret" className="form-label">
-                                            Numéro SIRET
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className={`form-control ${errors.num_siret ? 'is-invalid' : ''}`}
-                                            id="num_siret"
-                                            name="num_siret"
-                                            value={formData.num_siret}
-                                            onChange={handleInputChange}
-                                            placeholder="Ex: 00000000000002"
-                                            maxLength="14"
-                                        />
-                                        {errors.num_siret && (
-                                            <div className="invalid-feedback">
-                                                {errors.num_siret}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
 
+                            {/* MODIFIÉ : Suppression de la ligne contenant l'URL et le secteur d'activité */}
                             <div className="row">
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label htmlFor="url" className="form-label">
-                                            Site Web
-                                        </label>
-                                        <input
-                                            type="url"
-                                            className={`form-control ${errors.url ? 'is-invalid' : ''}`}
-                                            id="url"
-                                            name="url"
-                                            value={formData.url}
-                                            onChange={handleInputChange}
-                                            placeholder="https://www.exemple.com"
-                                        />
-                                        {errors.url && (
-                                            <div className="invalid-feedback">
-                                                {errors.url}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                                 <div className="col-md-6">
                                     <div className="mb-3">
                                         <label htmlFor="secteur_activite" className="form-label">
@@ -405,9 +344,6 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                         )}
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="row">
                                 <div className="col-md-6">
                                     <div className="mb-3">
                                         <label htmlFor="admin" className="form-label">
@@ -436,7 +372,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                 </div>
                             </div>
 
-                            {/* Section Projets (ManyToMany) */}
+                            {/* Section Projets (ManyToMany) - Inchangée */}
                             <div className="row">
                                 <div className="col-12">
                                     <div className="mb-3">
@@ -569,7 +505,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                 </div>
                             </div>
 
-                            {/* Section employés avec deux listes */}
+                            {/* Section employés avec deux listes - Inchangée */}
                             <div className="row">
                                 <div className="col-12">
                                     <div className="mb-3">

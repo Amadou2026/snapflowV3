@@ -3,7 +3,10 @@ import api from '../../../services/api';
 import { toast } from 'react-toastify';
 
 const AjouterMailModal = ({ show, onClose, onEmailAdded }) => {
+    // MODIFIÉ : Ajout des champs prenom et nom
     const [formData, setFormData] = useState({
+        prenom: '',
+        nom: '',
         email: '',
         societe: '',
         est_actif: true
@@ -35,6 +38,7 @@ const AjouterMailModal = ({ show, onClose, onEmailAdded }) => {
             [name]: type === 'checkbox' ? checked : value
         }));
 
+        // Effacer l'erreur lorsque l'utilisateur commence à taper
         if (errors[name]) {
             setErrors(prev => ({
                 ...prev,
@@ -69,12 +73,14 @@ const AjouterMailModal = ({ show, onClose, onEmailAdded }) => {
 
         setLoading(true);
         try {
+            // L'API recevra maintenant prenom et nom
             const response = await api.post('email-notifications/', formData);
             onEmailAdded(response.data);
             resetForm();
         } catch (error) {
             console.error('Erreur lors de la création:', error);
             if (error.response?.data) {
+                // Gère les erreurs pour tous les champs, y compris les nouveaux
                 setErrors(error.response.data);
             } else {
                 toast.error('Erreur lors de la création de l\'email');
@@ -84,8 +90,11 @@ const AjouterMailModal = ({ show, onClose, onEmailAdded }) => {
         }
     };
 
+    // MODIFIÉ : Ajout de prenom et nom à la réinitialisation
     const resetForm = () => {
         setFormData({
+            prenom: '',
+            nom: '',
             email: '',
             societe: '',
             est_actif: true
@@ -117,6 +126,52 @@ const AjouterMailModal = ({ show, onClose, onEmailAdded }) => {
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
+                            {/* NOUVEAU : Ligne pour le Prénom et le Nom */}
+                            <div className="row">
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label htmlFor="prenom" className="form-label">
+                                            Prénom
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className={`form-control ${errors.prenom ? 'is-invalid' : ''}`}
+                                            id="prenom"
+                                            name="prenom"
+                                            value={formData.prenom}
+                                            onChange={handleInputChange}
+                                            placeholder="Oussem"
+                                        />
+                                        {errors.prenom && (
+                                            <div className="invalid-feedback">
+                                                {errors.prenom}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label htmlFor="nom" className="form-label">
+                                            Nom
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className={`form-control ${errors.nom ? 'is-invalid' : ''}`}
+                                            id="nom"
+                                            name="nom"
+                                            value={formData.nom}
+                                            onChange={handleInputChange}
+                                            placeholder="Abid"
+                                        />
+                                        {errors.nom && (
+                                            <div className="invalid-feedback">
+                                                {errors.nom}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="row">
                                 <div className="col-12">
                                     <div className="mb-3">

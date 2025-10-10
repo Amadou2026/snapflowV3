@@ -5,54 +5,133 @@ import SidebarAdmin from '../admin/SidebarAdmin';
 import FooterAdmin from '../admin/FooterAdmin';
 import FiltreVueGlobale from './FiltreVueGlobale';
 import api from '../../services/api';
+import { toast } from 'react-toastify';
 
 const VueGlobale = ({ user, logout }) => {
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [filters, setFilters] = useState({
         projet_id: '',
         societe_id: '',
         periodicite: ''
     });
-    const [configurationsData, setConfigurationsData] = useState({
-        configurations: [],
-        stats: {},
-        filters_applied: {}
-    });
-    const [loadingConfigurations, setLoadingConfigurations] = useState(false);
 
-    // Fonction pour récupérer les configurations actives
-    const fetchConfigurationsActives = async () => {
+    // États pour les données brutes
+    const [societes, setSocietes] = useState([]);
+    const [projets, setProjets] = useState([]);
+    const [configurations, setConfigurations] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [scriptsProblemes, setScriptsProblemes] = useState([]);
+
+    // État pour gérer l'expansion des sociétés
+    const [expandedSocietes, setExpandedSocietes] = useState([]);
+
+    // État pour les statistiques calculées
+    const [globalStats, setGlobalStats] = useState({
+        societes: 0,
+        projets: 0,
+        batteries: 0,
+        utilisateurs: 0,
+        scripts_actifs: 0,
+        scripts_inactifs: 0,
+        scripts_problemes: []
+    });
+
+    // Fonction pour basculer l'expansion d'une société
+    const toggleSocieteExpansion = (societeId) => {
+        setExpandedSocietes(prev => 
+            prev.includes(societeId) 
+                ? prev.filter(id => id !== societeId)
+                : [...prev, societeId]
+        );
+    };
+
+    // Fonction pour récupérer les scripts avec problèmes
+    const fetchScriptsProblemes = async () => {
+    try {
+        console.log('🔍 Récupération des scripts avec problèmes...');
+        
+        // Appel à l'API pour détecter les problèmes
+        await api.get('/stats/detecter-scripts-problemes/');
+        
+        // Récupération des problèmes existants
+        const response = await api.get('/stats/scripts-problemes/');
+        console.log('📊 Scripts avec problèmes:', response.data);
+        
+        setScriptsProblemes(response.data);
+        setGlobalStats(prev => ({ ...prev, scripts_problemes: response.data }));
+        
+    } catch (error) {
+        console.error('Erreur lors du chargement des scripts avec problèmes:', error);
+        toast.error('Erreur lors du chargement des scripts avec problèmes');
+    }
+};
+
+    // Fonction principale pour récupérer toutes les données du dashboard
+    const fetchDashboardData = async () => {
         try {
-            setLoadingConfigurations(true);
-            const params = {};
-            if (filters.projet_id) params.projet_id = filters.projet_id;
-            if (filters.societe_id) params.societe_id = filters.societe_id;
-            if (filters.periodicite) params.periodicite = filters.periodicite;
+            console.log('🚀 Récupération des données du dashboard...');
             
-            const response = await api.get('/stats/configurations-actives/', { params });
-            setConfigurationsData(response.data);
-        } catch (error) {
-            console.error('Erreur lors du chargement des configurations actives:', error);
-            setConfigurationsData({
-                configurations: [],
-                stats: {},
-                filters_applied: {}
+            const [societesRes, projetsRes, configsRes, usersRes] = await Promise.all([
+                api.get('societe/'),
+                api.get('projets/'),
+                api.get('configuration-tests/'),
+                api.get('users/')
+            ]);
+
+            console.log('📊 Données récupérées:', {
+                societes: societesRes.data.length,
+                projets: projetsRes.data.length,
+                configurations: configsRes.data.length,
+                users: usersRes.data.length
             });
+
+            // Mettre à jour les états avec les données brutes
+            setSocietes(societesRes.data);
+            setProjets(projetsRes.data);
+            setConfigurations(configsRes.data);
+            setUsers(usersRes.data);
+
+            // Calculer les statistiques globales
+            const calculatedStats = {
+                societes: societesRes.data.length,
+                projets: projetsRes.data.length,
+                batteries: configsRes.data.length,
+                utilisateurs: usersRes.data.length,
+                scripts_actifs: configsRes.data.filter(c => c.is_active).length,
+                scripts_inactifs: configsRes.data.filter(c => !c.is_active).length,
+                scripts_problemes: [] // Sera rempli par fetchScriptsProblemes
+            };
+
+            setGlobalStats(calculatedStats);
+            console.log('✅ Statistiques calculées:', calculatedStats);
+
+            // Récupérer les scripts avec problèmes
+            await fetchScriptsProblemes();
+
+        } catch (error) {
+            console.error('❌ Erreur lors du chargement des données:', error);
+            toast.error('Erreur lors du chargement des données du dashboard');
         } finally {
-            setLoadingConfigurations(false);
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
     useEffect(() => {
-        fetchConfigurationsActives();
-    }, [filters]);
+        fetchDashboardData();
+    }, []);
 
     const handleFilterChange = (newFilters) => {
         setFilters(newFilters);
     };
 
-    // Fonction pour formater la date
+    const handleRefresh = () => {
+        setRefreshing(true);
+        fetchDashboardData();
+    };
+
+    // Fonctions de formatage
     const formatDate = (dateString) => {
         if (!dateString) return 'Non défini';
         try {
@@ -69,96 +148,61 @@ const VueGlobale = ({ user, logout }) => {
         }
     };
 
-    // Fonction pour formater le temps restant
-    const formatTimeUntil = (seconds) => {
-        if (!seconds || seconds < 0) return 'Non planifié';
-        if (seconds < 60) {
-            return `${seconds} secondes`;
-        } else if (seconds < 3600) {
-            const minutes = Math.floor(seconds / 60);
-            return `${minutes} minute${minutes > 1 ? 's' : ''}`;
-        } else if (seconds < 86400) {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            return `${hours}h${minutes > 0 ? `${minutes}m` : ''}`;
-        } else {
-            const days = Math.floor(seconds / 86400);
-            const hours = Math.floor((seconds % 86400) / 3600);
-            return `${days} jour${days > 1 ? 's' : ''}${hours > 0 ? ` ${hours}h` : ''}`;
-        }
+    // Fonction pour obtenir le badge de type de problème
+    const getProblemeBadge = (typeProbleme) => {
+    const types = {
+        'timeout': { class: 'bg-warning text-dark', icon: 'ti ti-clock' },
+        'configuration_invalide': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
+        'element_non_trouve': { class: 'bg-info', icon: 'ti ti-search-off' },
+        'erreur_reseau': { class: 'bg-secondary', icon: 'ti ti-wifi-off' },
+        'resource_non_disponible': { class: 'bg-dark', icon: 'ti ti-server-off' },
+        'echecs_repetes': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
+        'autre': { class: 'bg-light-secondary', icon: 'ti ti-help' }
     };
-
-    // Fonction pour formater le retard
-    const formatDelay = (seconds) => {
-        if (!seconds || seconds <= 0) return '';
-        if (seconds < 60) {
-            return `${seconds} seconde${seconds > 1 ? 's' : ''}`;
-        } else if (seconds < 3600) {
-            const minutes = Math.floor(seconds / 60);
-            return `${minutes} minute${minutes > 1 ? 's' : ''}`;
-        } else if (seconds < 86400) {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            return `${hours}h${minutes > 0 ? `${minutes}m` : ''}`;
-        } else {
-            const days = Math.floor(seconds / 86400);
-            const hours = Math.floor((seconds % 86400) / 3600);
-            return `${days} jour${days > 1 ? 's' : ''}${hours > 0 ? ` ${hours}h` : ''}`;
-        }
-    };
+    
+    const config = types[typeProbleme] || { class: 'bg-light-secondary', icon: 'ti ti-help' };
+    
+    return (
+        <span className={`badge ${config.class}`}>
+            <i className={`${config.icon} me-1`}></i>
+            {typeProbleme.replace('_', ' ')}
+        </span>
+    );
+};
 
     // Fonction pour obtenir le badge de statut
-    const getStatusBadge = (config) => {
-        if (config.is_overdue) {
-            return <span className="badge bg-danger">En retard</span>;
-        } else if (config.next_execution) {
-            const seconds = config.time_until_execution_seconds;
-            if (seconds && seconds <= 3600) { // Moins d'1 heure
-                return <span className="badge bg-warning text-dark">Bientôt</span>;
-            }
-            return <span className="badge bg-success">Planifié</span>;
-        } else {
-            return <span className="badge bg-secondary">Inactif</span>;
-        }
-    };
-
-    // Fonction pour obtenir le badge de périodicité
-    const getPeriodiciteBadge = (periodicite) => {
-        const colors = {
-            '2min': 'bg-info',
-            '2h': 'bg-primary',
-            '6h': 'bg-warning text-dark',
-            '1j': 'bg-success',
-            '1s': 'bg-secondary',
-            '1m': 'bg-dark'
+    const getStatutBadge = (statut) => {
+        const statuts = {
+            'critique': { class: 'bg-danger', icon: 'ti ti-alert-triangle-filled' },
+            'en_attente_resolution': { class: 'bg-warning text-dark', icon: 'ti ti-clock' },
+            'surveillé': { class: 'bg-info', icon: 'ti ti-eye' },
+            'résolu': { class: 'bg-success', icon: 'ti ti-check' }
         };
-        return <span className={`badge ${colors[periodicite] || 'bg-secondary'}`}>{periodicite}</span>;
+        
+        const config = statuts[statut] || { class: 'bg-secondary', icon: 'ti ti-help' };
+        
+        return (
+            <span className={`badge ${config.class}`}>
+                <i className={`${config.icon} me-1`}></i>
+                {statut.replace('_', ' ')}
+            </span>
+        );
     };
 
-    // Fonction pour obtenir l'icône d'urgence
-    const getUrgencyIcon = (config) => {
-        if (config.is_overdue) {
-            return <i className="ti ti-alert-triangle text-danger me-1"></i>;
-        } else if (config.time_until_execution_seconds && config.time_until_execution_seconds <= 3600) {
-            return <i className="ti ti-clock text-warning me-1"></i>;
-        }
-        return <i className="ti ti-clock text-success me-1"></i>;
-    };
-
-    // Cartes de statistiques
-    const StatsCards = () => (
+    // Composant pour les cartes de statistiques globales
+    const GlobalStatsCards = () => (
         <div className="row mb-4">
             <div className="col-xl-3 col-md-6">
                 <div className="card stats-card">
                     <div className="card-body">
                         <div className="d-flex align-items-center">
                             <div className="flex-grow-1">
-                                <h4 className="mb-0">{configurationsData.stats?.total_configurations || 0}</h4>
-                                <p className="text-muted mb-0">Configurations actives</p>
+                                <h4 className="mb-0">{globalStats.societes}</h4>
+                                <p className="text-muted mb-0">Sociétés</p>
                             </div>
                             <div className="flex-shrink-0">
                                 <div className="avatar-sm rounded-circle bg-primary bg-opacity-10">
-                                    <i className="ti ti-settings text-primary font-24"></i>
+                                    <i className="ti ti-building text-primary font-24"></i>
                                 </div>
                             </div>
                         </div>
@@ -170,51 +214,441 @@ const VueGlobale = ({ user, logout }) => {
                     <div className="card-body">
                         <div className="d-flex align-items-center">
                             <div className="flex-grow-1">
-                                <h4 className="mb-0">{configurationsData.stats?.configurations_en_retard || 0}</h4>
-                                <p className="text-muted mb-0">En retard</p>
-                            </div>
-                            <div className="flex-shrink-0">
-                                <div className="avatar-sm rounded-circle bg-danger bg-opacity-10">
-                                    <i className="ti ti-alert-triangle text-danger font-24"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div className="col-xl-3 col-md-6">
-                <div className="card stats-card">
-                    <div className="card-body">
-                        <div className="d-flex align-items-center">
-                            <div className="flex-grow-1">
-                                <h4 className="mb-0">{configurationsData.stats?.prochaines_executions_24h || 0}</h4>
-                                <p className="text-muted mb-0">Dans 24h</p>
-                            </div>
-                            <div className="flex-shrink-0">
-                                <div className="avatar-sm rounded-circle bg-success bg-opacity-10">
-                                    <i className="ti ti-clock text-success font-24"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div className="col-xl-3 col-md-6">
-                <div className="card stats-card">
-                    <div className="card-body">
-                        <div className="d-flex align-items-center">
-                            <div className="flex-grow-1">
-                                <h4 className="mb-0">
-                                    {Object.keys(configurationsData.stats?.repartition_periodicite || {}).length}
-                                </h4>
-                                <p className="text-muted mb-0">Périodicités</p>
+                                <h4 className="mb-0">{globalStats.projets}</h4>
+                                <p className="text-muted mb-0">Projets</p>
                             </div>
                             <div className="flex-shrink-0">
                                 <div className="avatar-sm rounded-circle bg-info bg-opacity-10">
-                                    <i className="ti ti-chart-bar text-info font-24"></i>
+                                    <i className="ti ti-folder text-info font-24"></i>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+            <div className="col-xl-3 col-md-6">
+                <div className="card stats-card">
+                    <div className="card-body">
+                        <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                                <h4 className="mb-0">{globalStats.batteries}</h4>
+                                <p className="text-muted mb-0">Batteries de test</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                                <div className="avatar-sm rounded-circle bg-success bg-opacity-10">
+                                    <i className="ti ti-battery text-success font-24"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="col-xl-3 col-md-6">
+                <div className="card stats-card">
+                    <div className="card-body">
+                        <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                                <h4 className="mb-0">{globalStats.utilisateurs}</h4>
+                                <p className="text-muted mb-0">Utilisateurs</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                                <div className="avatar-sm rounded-circle bg-warning bg-opacity-10">
+                                    <i className="ti ti-users text-warning font-24"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Composant pour les statistiques des batteries
+    const BatteriesStatsCards = () => (
+        <div className="row mb-4">
+            <div className="col-xl-6 col-md-6">
+                <div className="card stats-card">
+                    <div className="card-body">
+                        <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                                <h4 className="mb-0">{globalStats.scripts_actifs}</h4>
+                                <p className="text-muted mb-0">Batteries actives</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                                <div className="avatar-sm rounded-circle bg-success bg-opacity-10">
+                                    <i className="ti ti-player-play text-success font-24"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="col-xl-6 col-md-6">
+                <div className="card stats-card">
+                    <div className="card-body">
+                        <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                                <h4 className="mb-0">{globalStats.scripts_inactifs}</h4>
+                                <p className="text-muted mb-0">Batteries inactives</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                                <div className="avatar-sm rounded-circle bg-secondary bg-opacity-10">
+                                    <i className="ti ti-player-pause text-secondary font-24"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Composant pour le tableau des sociétés avec liste des employés
+    const SocietesTable = () => (
+        <div className="row mb-4">
+            <div className="col-12">
+                <div className="card">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">
+                            <i className="ti ti-building me-2"></i>
+                            Liste des sociétés et employés
+                        </h5>
+                        <span className="badge bg-primary">
+                            {societes.length} société(s)
+                        </span>
+                    </div>
+                    <div className="card-body">
+                        <div className="table-responsive">
+                            <table className="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>Secteur d'activité</th>
+                                        <th>Admin</th>
+                                        <th>Nb. Projets</th>
+                                        <th>Nb. Employés</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {societes.map((societe) => (
+                                        <React.Fragment key={societe.id}>
+                                            <tr>
+                                                <td>
+                                                    <div className="d-flex align-items-center">
+                                                        <i className="ti ti-building text-primary me-2"></i>
+                                                        <strong>{societe.nom}</strong>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span className="badge bg-light-info">
+                                                        {societe.secteur_activite || 'N/A'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {societe.admin ? (
+                                                        <div>
+                                                            <strong>{societe.admin.full_name}</strong>
+                                                            <br />
+                                                            <small className="text-muted">{societe.admin.email}</small>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted">Non défini</span>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <span className="badge bg-light-primary">
+                                                        {societe.projets?.length || 0}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        className="btn btn-sm btn-link-primary d-flex align-items-center"
+                                                        onClick={() => toggleSocieteExpansion(societe.id)}
+                                                        title={expandedSocietes.includes(societe.id) ? "Masquer les employés" : "Voir les employés"}
+                                                    >
+                                                        <i className={`ti ti-chevron-${expandedSocietes.includes(societe.id) ? 'up' : 'down'} me-1`}></i>
+                                                        <span className="badge bg-light-success">
+                                                            {societe.employes?.length || 0}
+                                                        </span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* Ligne d'expansion pour afficher les employés */}
+                                            {expandedSocietes.includes(societe.id) && (
+                                                <tr>
+                                                    <td colSpan="5" className="p-0">
+                                                        <div className="bg-light p-3 border-start border-4 border-primary">
+                                                            <h6 className="mb-3 text-primary">
+                                                                <i className="ti ti-users me-2"></i>
+                                                                Liste des employés ({societe.employes?.length || 0})
+                                                            </h6>
+                                                            {societe.employes && societe.employes.length > 0 ? (
+                                                                <div className="row">
+                                                                    {societe.employes.map((employe) => (
+                                                                        <div key={employe.id} className="col-md-6 col-lg-4 mb-3">
+                                                                            <div className="card border-0 bg-white shadow-sm">
+                                                                                <div className="card-body p-3">
+                                                                                    <div className="d-flex align-items-center">
+                                                                                        <div className="avatar-sm rounded-circle bg-primary bg-opacity-10 me-3">
+                                                                                            <i className="ti ti-user text-primary"></i>
+                                                                                        </div>
+                                                                                        <div className="flex-grow-1">
+                                                                                            <h6 className="mb-1">{employe.full_name}</h6>
+                                                                                            <small className="text-muted d-block">{employe.email}</small>
+                                                                                            <small className="text-muted">ID: {employe.id}</small>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-center text-muted py-3">
+                                                                    <i className="ti ti-user-off me-2"></i>
+                                                                    Aucun employé trouvé pour cette société
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Composant pour le tableau des projets
+    const ProjetsTable = () => (
+        <div className="row mb-4">
+            <div className="col-12">
+                <div className="card">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">
+                            <i className="ti ti-folder me-2"></i>
+                            Liste des projets
+                        </h5>
+                        <span className="badge bg-info">
+                            {projets.length} projet(s)
+                        </span>
+                    </div>
+                    <div className="card-body">
+                        <div className="table-responsive">
+                            <table className="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>Charge de compte</th>
+                                        <th>Sociétés</th>
+                                        <th>URL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {projets.map((projet) => (
+                                        <tr key={projet.id}>
+                                            <td>
+                                                <div className="d-flex align-items-center">
+                                                    {projet.logo && (
+                                                        <img 
+                                                            src={projet.logo} 
+                                                            alt={projet.nom}
+                                                            style={{ width: '30px', height: '30px', marginRight: '10px', borderRadius: '100px',  }}
+                                                        />
+                                                    )}
+                                                    <strong>{projet.nom}</strong>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {projet.charge_de_compte_nom ? (
+                                                    <div>
+                                                        <strong>{projet.charge_de_compte_nom}</strong>
+                                                        <br />
+                                                        <small className="text-muted">{projet.charge_de_compte_email}</small>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted">Non défini</span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    {projet.societes?.map((societe) => (
+                                                        <span key={societe.id} className="badge bg-light-primary me-1">
+                                                            {societe.nom}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href={projet.url} target="_blank" rel="noopener noreferrer" className="text-primary">
+                                                    <i className="ti ti-external-link me-1"></i>
+                                                    Voir le site
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Composant pour le tableau des batteries de test
+    const ConfigurationsTable = () => (
+        <div className="row mb-4">
+            <div className="col-12">
+                <div className="card">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">
+                            <i className="ti ti-battery me-2"></i>
+                            Batteries de test
+                        </h5>
+                        <span className="badge bg-success">
+                            {configurations.length} batterie(s)
+                        </span>
+                    </div>
+                    <div className="card-body">
+                        <div className="table-responsive">
+                            <table className="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>Société</th>
+                                        <th>Projet</th>
+                                        <th>Périodicité</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {configurations.map((config) => (
+                                        <tr key={config.id}>
+                                            <td>
+                                                <strong>{config.nom}</strong>
+                                            </td>
+                                            <td>
+                                                <span className="badge bg-light-primary">
+                                                    {config.societe?.nom || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className="badge bg-light-info">
+                                                    {config.projet?.nom || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className="badge bg-light-secondary">
+                                                    {config.periodicite || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`badge ${config.is_active ? 'bg-success' : 'bg-secondary'}`}>
+                                                    {config.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // NOUVEAU COMPOSANT: Tableau des scripts avec problèmes
+    const ScriptsProblemesTable = () => (
+        <div className="row mb-4">
+            <div className="col-12">
+                <div className="card border-danger">
+                    <div className="card-header d-flex justify-content-between align-items-center bg-light-danger">
+                        <h5 className="mb-0 text-danger">
+                            <i className="ti ti-alert-triangle me-2"></i>
+                            Scripts présentant des problèmes d'exécution
+                        </h5>
+                        <span className="badge bg-danger">
+                            {scriptsProblemes.length} script(s)
+                        </span>
+                    </div>
+                    <div className="card-body">
+                        {scriptsProblemes.length > 0 ? (
+                            <div className="table-responsive">
+                                <table className="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Script</th>
+                                            <th>Projet/Société</th>
+                                            <th>Type de problème</th>
+                                            <th>Description</th>
+                                            <th>Fréquence</th>
+                                            <th>Dernière exécution</th>
+                                            <th>Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {scriptsProblemes.map((script) => (
+                                            <tr key={script.id} className="border-start border-3 border-warning">
+                                                <td>
+                                                    <div className="d-flex align-items-center">
+                                                        <i className="ti ti-alert-triangle text-warning me-2"></i>
+                                                        <div>
+                                                            <strong>{script.nom}</strong>
+                                                            <br />
+                                                            <small className="text-muted">ID: {script.id}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        <strong>{script.projet?.nom || 'N/A'}</strong>
+                                                        <br />
+                                                        <small className="text-muted">{script.societe?.nom || 'N/A'}</small>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    {getProblemeBadge(script.type_probleme)}
+                                                </td>
+                                                <td>
+                                                    <small className="text-muted">
+                                                        {script.description}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <span className="badge bg-light-warning text-dark">
+                                                        {script.frequence_probleme}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small className="text-muted">
+                                                        {formatDate(script.derniere_execution)}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    {getStatutBadge(script.statut)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="text-center p-4">
+                                <i className="ti ti-check text-success mb-3" style={{ fontSize: '48px' }}></i>
+                                <h6 className="text-muted">Aucun script avec problème détecté</h6>
+                                <p className="text-muted mb-0">
+                                    Tous les scripts fonctionnent correctement.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -233,7 +667,7 @@ const VueGlobale = ({ user, logout }) => {
                                 <div className="spinner-border text-primary" role="status">
                                     <span className="visually-hidden">Chargement...</span>
                                 </div>
-                                <p className="mt-3 text-muted">Chargement des configurations...</p>
+                                <p className="mt-3 text-muted">Chargement des données du dashboard...</p>
                             </div>
                         </div>
                     </div>
@@ -271,208 +705,46 @@ const VueGlobale = ({ user, logout }) => {
                                             </ul>
                                         </div>
                                         <div className="col-md-12">
-                                            <div className="page-header-title">
-                                                <h2 className="mb-0">Vue Globale</h2>
-                                                <p className="text-muted mb-0">
-                                                    Surveillance des configurations de test actives
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Filtres */}
-                            <FiltreVueGlobale 
-                                onFilterChange={handleFilterChange}
-                                user={user}
-                            />
-
-                            {/* Cartes de statistiques */}
-                            <StatsCards />
-
-                            {/* Section Configurations Actives */}
-                            <div className="row mb-4">
-                                <div className="col-12">
-                                    <div className="card">
-                                        <div className="card-header d-flex justify-content-between align-items-center">
-                                            <h5 className="mb-0">
-                                                <i className="ti ti-settings me-2"></i>
-                                                Configurations Actives
-                                            </h5>
-                                            <div className="d-flex align-items-center gap-2">
-                                                {configurationsData.filters_applied && (
-                                                    <div className="d-flex gap-1">
-                                                        {configurationsData.filters_applied.projet_id && (
-                                                            <span className="badge bg-light text-dark">
-                                                                Projet: {configurationsData.filters_applied.projet_id}
-                                                            </span>
-                                                        )}
-                                                        {configurationsData.filters_applied.societe_id && (
-                                                            <span className="badge bg-light text-dark">
-                                                                Société: {configurationsData.filters_applied.societe_id}
-                                                            </span>
-                                                        )}
-                                                        {configurationsData.filters_applied.periodicite && (
-                                                            <span className="badge bg-light text-dark">
-                                                                Périodicité: {configurationsData.filters_applied.periodicite}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <span className="badge bg-primary">
-                                                    {configurationsData.configurations?.length || 0} configuration(s)
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="card-body">
-                                            {loadingConfigurations ? (
-                                                <div className="text-center p-4">
-                                                    <div className="spinner-border text-primary" role="status">
-                                                        <span className="visually-hidden">Chargement...</span>
-                                                    </div>
-                                                    <p className="mt-2 text-muted">Chargement des configurations actives...</p>
-                                                </div>
-                                            ) : configurationsData.configurations?.length > 0 ? (
-                                                <div className="table-responsive">
-                                                    <table className="table table-hover">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Configuration</th>
-                                                                <th>Projet/Société</th>
-                                                                <th>Périodicité</th>
-                                                                <th>Scripts</th>
-                                                                <th>Dernière exécution</th>
-                                                                <th>Prochaine exécution</th>
-                                                                <th>Statut</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {configurationsData.configurations.map((config) => (
-                                                                <tr key={config.id} className={config.is_overdue ? 'table-warning' : ''}>
-                                                                    <td>
-                                                                        <div className="d-flex align-items-center">
-                                                                            <i className="ti ti-script text-primary me-2"></i>
-                                                                            <div>
-                                                                                <strong>{config.nom}</strong>
-                                                                                <br />
-                                                                                <small className="text-muted">
-                                                                                    ID: {config.id} | 
-                                                                                    {config.emails_count > 0 && (
-                                                                                        <span className="ms-1">
-                                                                                            <i className="ti ti-mail me-1"></i>
-                                                                                            {config.emails_count} email(s)
-                                                                                        </span>
-                                                                                    )}
-                                                                                </small>
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        <div>
-                                                                            <strong>{config.projet.nom}</strong>
-                                                                            <br />
-                                                                            <small className="text-muted">{config.societe.nom}</small>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        {getPeriodiciteBadge(config.periodicite)}
-                                                                        <br />
-                                                                        <small className="text-muted">{config.periodicite_display}</small>
-                                                                    </td>
-                                                                    <td>
-                                                                        <div className="d-flex flex-wrap gap-1">
-                                                                            {config.scripts.slice(0, 2).map((script, idx) => (
-                                                                                <span key={idx} className="badge bg-light text-dark">
-                                                                                    {script.nom}
-                                                                                </span>
-                                                                            ))}
-                                                                            {config.scripts.length > 2 && (
-                                                                                <span className="badge bg-secondary">
-                                                                                    +{config.scripts.length - 2}
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                        <small className="text-muted">
-                                                                            {config.scripts.length} script(s)
-                                                                        </small>
-                                                                    </td>
-                                                                    <td>
-                                                                        <div className="text-nowrap">
-                                                                            {formatDate(config.last_execution)}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        <div className="text-nowrap">
-                                                                            {config.next_execution ? (
-                                                                                <div>
-                                                                                    <div className="d-flex align-items-center">
-                                                                                        {getUrgencyIcon(config)}
-                                                                                        {formatDate(config.next_execution)}
-                                                                                    </div>
-                                                                                    <small className="text-muted">
-                                                                                        {formatTimeUntil(config.time_until_execution_seconds)}
-                                                                                    </small>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <span className="text-muted">Non planifié</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        {getStatusBadge(config)}
-                                                                        {config.is_overdue && config.delay_seconds > 0 && (
-                                                                            <div>
-                                                                                <small className="text-danger">
-                                                                                    Retard: {formatDelay(config.delay_seconds)}
-                                                                                </small>
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            ) : (
-                                                <div className="text-center p-4">
-                                                    <i className="ti ti-settings text-muted mb-3" style={{ fontSize: '48px' }}></i>
-                                                    <h6 className="text-muted">Aucune configuration active trouvée</h6>
+                                            <div className="page-header-title d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h2 className="mb-0">Vue Globale</h2>
                                                     <p className="text-muted mb-0">
-                                                        {Object.keys(filters).some(key => filters[key]) 
-                                                            ? "Aucune configuration ne correspond aux filtres appliqués."
-                                                            : "Les configurations actives apparaîtront ici lorsqu'elles seront créées et activées."
-                                                        }
+                                                        Vue d'ensemble de l'ensemble du système
                                                     </p>
                                                 </div>
-                                            )}
-                                        </div>
-                                        {configurationsData.configurations?.length > 0 && (
-                                            <div className="card-footer">
-                                                <div className="row">
-                                                    <div className="col-md-4">
-                                                        <small className="text-muted">
-                                                            <i className="ti ti-alert-triangle text-warning me-1"></i>
-                                                            {configurationsData.stats?.configurations_en_retard || 0} configuration(s) en retard
-                                                        </small>
-                                                    </div>
-                                                    <div className="col-md-4 text-center">
-                                                        <small className="text-muted">
-                                                            <i className="ti ti-clock text-success me-1"></i>
-                                                            {configurationsData.stats?.prochaines_executions_24h || 0} exécution(s) dans 24h
-                                                        </small>
-                                                    </div>
-                                                    <div className="col-md-4 text-end">
-                                                        <small className="text-muted">
-                                                            Dernière mise à jour: {new Date().toLocaleTimeString('fr-FR')}
-                                                        </small>
-                                                    </div>
-                                                </div>
+                                                {/* <button 
+                                                    className="btn btn-outline-primary"
+                                                    onClick={handleRefresh}
+                                                    disabled={refreshing}
+                                                >
+                                                    <i className={`ti ti-refresh ${refreshing ? 'spin' : ''} me-1`}></i>
+                                                    {refreshing ? 'Actualisation...' : 'Actualiser'}
+                                                </button> */}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* Filtres */}
+                            {/* <FiltreVueGlobale
+                                onFilterChange={handleFilterChange}
+                                user={user}
+                            /> */}
+                            
+                            {/* Cartes de statistiques globales */}
+                            <GlobalStatsCards />
+
+                            {/* Cartes de statistiques des batteries */}
+                            <BatteriesStatsCards />
+
+                            {/* Tableaux des données */}
+                            <SocietesTable />
+                            <ProjetsTable />
+                            <ConfigurationsTable />
+
+                            {/* NOUVEAU: Tableau des scripts avec problèmes */}
+                            <ScriptsProblemesTable />
 
                         </div>
                     </div>

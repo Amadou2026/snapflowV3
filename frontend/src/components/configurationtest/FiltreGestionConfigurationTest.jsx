@@ -337,49 +337,7 @@ const FiltreGestionConfigurationTest = ({ configurations, onFilterChange, user }
                 {/* Ligne 2 : Filtres Avancés et Tri */}
                 <div className="row g-3 align-items-end">
                     {/* Filtre par scripts */}
-                    <div className="col-md-3">
-                        <label className="form-label small fw-bold d-block">
-                            <i className="ti ti-script me-1"></i>
-                            Scripts associés
-                        </label>
-                        <div className="btn-group w-100" role="group">
-                            <input
-                                type="radio"
-                                className="btn-check"
-                                name="scriptsFilter"
-                                id="scriptsTous"
-                                checked={filters.avec_scripts === ''}
-                                onChange={() => handleInputChange('avec_scripts', '')}
-                            />
-                            <label className="btn btn-outline-secondary btn-sm" htmlFor="scriptsTous">
-                                Tous
-                            </label>
-
-                            <input
-                                type="radio"
-                                className="btn-check"
-                                name="scriptsFilter"
-                                id="scriptsAvec"
-                                checked={filters.avec_scripts === 'avec'}
-                                onChange={() => handleInputChange('avec_scripts', 'avec')}
-                            />
-                            <label className="btn btn-outline-secondary btn-sm" htmlFor="scriptsAvec">
-                                Avec
-                            </label>
-
-                            <input
-                                type="radio"
-                                className="btn-check"
-                                name="scriptsFilter"
-                                id="scriptsSans"
-                                checked={filters.avec_scripts === 'sans'}
-                                onChange={() => handleInputChange('avec_scripts', 'sans')}
-                            />
-                            <label className="btn btn-outline-secondary btn-sm" htmlFor="scriptsSans">
-                                Sans
-                            </label>
-                        </div>
-                    </div>
+                    
 
                     {/* Tri des résultats */}
                     <div className="col-md-4">

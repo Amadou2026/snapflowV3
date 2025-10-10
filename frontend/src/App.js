@@ -21,6 +21,9 @@ import GestionConfigurationTest from './components/configurationtest/GestionConf
 import GestionResultatTest from './components/resultattest/GestionResultatTest'
 import GestionExecutionTest from './components/executiontest/GestionExecutionTest';
 import VueGlobale from './components/vueglobale/VueGlobale';
+import PageProjet from './components/projet/PageProjet';
+import TemplateSociete from './components/societe/TemplateSociete';
+import DetailsSociete from './components/societe/DetailsSociete';
 import 'font-awesome/css/font-awesome.min.css';
 import { useContext } from 'react';
 
@@ -87,7 +90,7 @@ const AppRoutes = () => {
             isAuthenticated ? (
               // Rediriger les utilisateurs non-staff vers l'accueil
               user?.is_staff ? (
-                <Dashboard user={user} logout={logout} />
+                <VueGlobale user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -150,6 +153,20 @@ const AppRoutes = () => {
             isAuthenticated ? (
               hasAdminAccess() ? (
                 <GestionSocietes user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/projets/:projetId"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <PageProjet user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -257,6 +274,20 @@ const AppRoutes = () => {
             )
           }
         />
+        {/* <Route
+          path="/societe/details"
+          element={
+            isAuthenticated ? (
+              hasAdminAccess() ? (
+                <DetailsSociete user={user} logout={logout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        /> */}
 
         <Route
           path="/admin/core/dashboard/"

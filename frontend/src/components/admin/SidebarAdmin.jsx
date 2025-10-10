@@ -1,87 +1,22 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext'; // Ajustez le chemin selon votre structure
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 import logo from '../../assets/img/snapflow.png'
 import { TiArrowUnsorted } from "react-icons/ti";
 
 const SidebarAdmin = () => {
   const [openMenus, setOpenMenus] = useState({});
-  const [adminApps, setAdminApps] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const location = useLocation();
-  
-  // Utiliser le contexte d'authentification
-  const { user, isAuthenticated } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { user, isAuthenticated, setIsAuthenticated, setUser, selectedProjectId } = useContext(AuthContext);
 
-  // Fonction pour récupérer le menu admin depuis l'API Django
-  const fetchAdminMenu = async () => {
-    // Vérifier si l'utilisateur est authentifié
-    if (!isAuthenticated) {
-      setError('Vous devez être connecté pour accéder au menu admin');
-      setLoading(false);
-      return;
+  // Fonction helper pour construire les URLs avec le projectId si disponible
+  const buildUrl = (path) => {
+    if (selectedProjectId) {
+      return `${path}?projectId=${selectedProjectId}`;
     }
-
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      setError('Token d\'authentification manquant');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/admin-menu/', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'include',
-      });
-
-      // Vérifier si la réponse est du JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Réponse non-JSON reçue. Vérifiez l\'authentification.');
-      }
-
-      const data = await response.json();
-
-      // Gérer les erreurs d'authentification/autorisation
-      if (data.error) {
-        throw new Error(data.message || data.error);
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Session expirée. Veuillez vous reconnecter.');
-        } else if (response.status === 403) {
-          throw new Error('Vous n\'avez pas les permissions pour accéder à l\'administration.');
-        }
-        throw new Error(`Erreur HTTP: ${response.status} - ${data.message || 'Erreur serveur'}`);
-      }
-
-      setAdminApps(data);
-      setError(null);
-    } catch (err) {
-      console.error('Erreur lors du chargement du menu admin:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    return path;
   };
-  
-
-  // Charger le menu quand l'utilisateur est authentifié
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchAdminMenu();
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user]);
 
   const toggleMenu = (menuKey) => {
     setOpenMenus(prev => ({
@@ -90,176 +25,339 @@ const SidebarAdmin = () => {
     }));
   };
 
-  const isActiveLink = (path) => {
-    return location.pathname === path ? 'active' : '';
+  // NOUVELLE FONCTION UNIFIÉE pour vérifier si un lien est actif
+  const isLinkActive = (path) => {
+    const currentPath = location.pathname;
+    const searchParams = new URLSearchParams(location.search);
+    const currentProjectId = searchParams.get('projectId');
+
+    // Vérifie si le chemin correspond exactement
+    if (currentPath === path) {
+      return 'active';
+    }
+    
+    // Vérifie si le chemin actuel est une route imbriquée (ex: /admin/core/configurationtest/5/)
+    if (currentPath.startsWith(path + '/')) {
+      return 'active';
+    }
+    
+    // Si on a un projectId dans l'URL, on le compare
+    if (selectedProjectId && currentProjectId) {
+      return currentPath === path && currentProjectId === selectedProjectId ? 'active' : '';
+    }
+
+    return '';
   };
 
-  // Fonction pour obtenir l'icône appropriée selon le type d'application
-  const getAppIcon = (appLabel) => {
-    const iconMap = {
-      'reporting_section': 'ti ti-chart-line',
-      'gestion_patrimoine': 'ti ti-building',
-      'testing_monitoring': 'ti ti-bug',
-      'gestion_societe': 'ti ti-building-factory',
-      'auth_section': 'ti ti-users'
-    };
-    return iconMap[appLabel] || 'ti ti-folder';
+  // Vérifie si un parent est actif (pour les routes imbriquées)
+  const isActiveParent = (paths) => {
+    const currentPath = location.pathname;
+    return paths.some(path => currentPath.startsWith(path)) ? 'active' : '';
   };
 
-  // Fonction pour obtenir l'icône appropriée selon le modèle
-  const getModelIcon = (objectName, appLabel) => {
-    const iconMap = {
-      // Dashboard & Vue Globale
-      'VueGlobale': 'ti ti-report',
-      'Dashboard': 'ti ti-dashboard',
-      
-      // Gestion du Patrimoine
-      'Configuration': 'ti ti-settings',
-      'Projet': 'ti ti-clipboard',
-      'EmailNotification': 'ti ti-mail',
-      'Axe': 'ti ti-sitemap',
-      'SousAxe': 'ti ti-social',
-      
-      // Testing & Monitoring
-      'Script': 'ti ti-code',
-      'ConfigurationTest': 'ti ti-tool',
-      'ExecutionTest': 'ti ti-calendar',
-      'ExecutionResult': 'ti ti-chart-dots',
-      
-      // Gestion Société
-      'Societe': 'ti ti-building',
-      'SecteurActivite': 'ti ti-tournament',
-      
-      // Administration & Autorisation
-      'Group': 'ti ti-layout',
-      'CustomUser': 'ti ti-user'
-    };
-    return iconMap[objectName] || 'ti ti-table';
+  const logout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setUser(null);
+    setIsAuthenticated(false);
+    navigate('/login');
   };
 
-  // Fonction pour rendre les éléments du menu admin
-  const renderAdminMenuItems = () => {
-    // Si l'utilisateur n'est pas authentifié
-    if (!isAuthenticated) {
-      return (
-        <li className="pc-item">
-          <div className="pc-link text-warning">
-            <span className="pc-micon">
-              <i className="ti ti-login"></i>
-            </span>
-            <span className="pc-mtext">
-              <Link to="/login" className="text-decoration-none text-warning">
-                Connectez-vous pour accéder au menu admin
-              </Link>
-            </span>
-          </div>
-        </li>
-      );
-    }
+  const hasAdminAccess = () => {
+    if (!user) return false;
+    if (!user.is_staff) return false;
+    return user.is_superuser || user.groups?.some(g => g.toLowerCase() === "administrateur");
+  };
 
-    if (loading) {
-      return (
-        <li className="pc-item">
-          <div className="pc-link">
-            <span className="pc-micon">
-              <i className="ti ti-loader ti-spin"></i>
-            </span>
-            <span className="pc-mtext">Chargement du menu admin...</span>
-          </div>
-        </li>
-      );
-    }
-
-    if (error) {
-      return (
-        <>
-          <li className="pc-item">
-            <div className="pc-link text-danger">
-              <span className="pc-micon">
-                <i className="ti ti-alert-circle"></i>
-              </span>
-              <span className="pc-mtext">{error}</span>
-            </div>
-          </li>
-          <li className="pc-item">
-            <button 
-              className="pc-link btn btn-link text-start w-100 text-primary" 
-              onClick={fetchAdminMenu}
-              disabled={loading}
-            >
-              <span className="pc-micon">
-                <i className="ti ti-refresh"></i>
-              </span>
-              <span className="pc-mtext">Réessayer</span>
-            </button>
-          </li>
-        </>
-      );
-    }
-
-    if (!adminApps || adminApps.length === 0) {
-      return (
-        <li className="pc-item">
-          <div className="pc-link text-muted">
-            <span className="pc-micon">
-              <i className="ti ti-folder-off"></i>
-            </span>
-            <span className="pc-mtext">Aucun menu admin disponible</span>
-          </div>
-        </li>
-      );
-    }
-
-    return adminApps.map((app, appIndex) => (
-      <React.Fragment key={`app-${appIndex}`}>
-        {/* Titre de l'application */}
-        <li className="pc-item pc-caption">
-          <label>{app.name}</label>
-          <i className={getAppIcon(app.app_label)}></i>
-        </li>
-
-        {/* Modèles de l'application */}
-        {app.models && app.models.map((model, modelIndex) => {
-          return (
-            <li key={`model-${appIndex}-${modelIndex}`} className="pc-item">
-              <Link 
-                to={model.admin_url} 
-                className={`pc-link ${isActiveLink(model.admin_url)}`}
-              >
-                <span className="pc-micon">
-                  <i className={getModelIcon(model.object_name, app.app_label)}></i>
-                </span>
-                <span className="pc-mtext">{model.name}</span>
-                
-                {model.view_only && (
-                  <span className="badge bg-secondary ms-2" title="Lecture seule">
-                    <i className="ti ti-eye"></i>
-                  </span>
-                )}
-              </Link>
-            </li>
-          );
-        })}
-      </React.Fragment>
-    ));
+  const hasSuperAdminAccess = () => {
+    return user?.is_superuser;
   };
 
   return (
     <nav className="pc-sidebar">
       <div className="navbar-wrapper">
         <div className="m-header">
-          <Link to="/dashboard" className="b-brand text-primary">
-            <img src={logo}  width="160px" className="img-fluid logo-lg" alt="logo" />
+          <Link to="/" className="b-brand text-primary">
+            <img src={logo} width="160px" className="img-fluid logo-lg" alt="logo" />
           </Link>
         </div>
-        <div className="navbar-content" style={{ 
-          height: 'calc(100vh - 80px)', 
+        <div className="navbar-content" style={{
+          height: 'calc(100vh - 80px)',
           overflowY: 'auto',
           overflowX: 'hidden'
         }}>
           <ul className="pc-navbar">
-            {/* Menu Admin Dynamique */}
-            {renderAdminMenuItems()}            
+            {/* Accueil */}
+            <li className="pc-item">
+              <Link to={buildUrl("/")} className={`pc-link ${isLinkActive('/')}`}>
+                <span className="pc-micon">
+                  <i className="ti ti-home"></i>
+                </span>
+                <span className="pc-mtext">Accueil</span>
+              </Link>
+            </li>
+
+            {/* Tableau de bord */}
+            {isAuthenticated && user?.is_staff && (
+              <li className="pc-item">
+                <Link to={buildUrl("/dashboard")} className={`pc-link ${isLinkActive('/dashboard')}`}>
+                  <span className="pc-micon">
+                    <i className="ti ti-dashboard"></i>
+                  </span>
+                  <span className="pc-mtext">Tableau de bord</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Menu Administration */}
+            {isAuthenticated && hasAdminAccess() && (
+              <>
+                <li className="pc-item pc-caption">
+                  <label>Administration</label>
+                  <i className="ti ti-settings"></i>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/customuser/")}
+                    className={`pc-link ${isLinkActive('/admin/core/customuser')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-users"></i>
+                    </span>
+                    <span className="pc-mtext">Utilisateurs</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/societe/")}
+                    className={`pc-link ${isLinkActive('/admin/core/societe')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-building"></i>
+                    </span>
+                    <span className="pc-mtext">Sociétés</span>
+                  </Link> 
+                </li>
+
+                {hasSuperAdminAccess() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/groupepersonnalise/")}
+                      className={`pc-link ${isLinkActive('/admin/core/groupepersonnalise')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-layout-grid"></i>
+                      </span>
+                      <span className="pc-mtext">Groupes</span>
+                    </Link>
+                  </li>
+                )}
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/secteuractivite/")}
+                    className={`pc-link ${isLinkActive('/admin/core/secteuractivite')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-tournament"></i>
+                    </span>
+                    <span className="pc-mtext">Secteurs d'activité</span>
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Menu Gestion de Patrimoine */}
+            {isAuthenticated && hasAdminAccess() && (
+              <>
+                <li className="pc-item pc-caption">
+                  <label>Gestion de Patrimoine</label>
+                  <i className="ti ti-building"></i>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/projet/")}
+                    className={`pc-link ${isLinkActive('/admin/core/projet')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-clipboard"></i>
+                    </span>
+                    <span className="pc-mtext">Projets</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/axe/")}
+                    className={`pc-link ${isLinkActive('/admin/core/axe')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-sitemap"></i>
+                    </span>
+                    <span className="pc-mtext">Axes</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/sousaxe/")}
+                    className={`pc-link ${isLinkActive('/admin/core/sousaxe')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-social"></i>
+                    </span>
+                    <span className="pc-mtext">Sous-axes</span>
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Menu Testing & Monitoring */}
+            {isAuthenticated && user?.is_staff && (
+              <>
+                <li className="pc-item pc-caption">
+                  <label>Testing & Monitoring</label>
+                  <i className="ti ti-bug"></i>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/script/")}
+                    className={`pc-link ${isLinkActive('/admin/core/script')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-code"></i>
+                    </span>
+                    <span className="pc-mtext">Scripts</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/configurationtest/")}
+                    className={`pc-link ${isLinkActive('/admin/core/configurationtest')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-tool"></i>
+                    </span>
+                    <span className="pc-mtext">Configuration des tests</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/executiontest/")}
+                    className={`pc-link ${isLinkActive('/admin/core/executiontest')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-calendar"></i>
+                    </span>
+                    <span className="pc-mtext">Exécution des tests</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/executionresult/")}
+                    className={`pc-link ${isLinkActive('/admin/core/executionresult')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-chart-dots"></i>
+                    </span>
+                    <span className="pc-mtext">Résultats des tests</span>
+                  </Link>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/vueglobale/")}
+                    className={`pc-link ${isLinkActive('/admin/core/vueglobale')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-report"></i>
+                    </span>
+                    <span className="pc-mtext">Vue globale</span>
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Menu Configuration */}
+            {isAuthenticated && hasAdminAccess() && (
+              <>
+                <li className="pc-item pc-caption">
+                  <label>Configuration</label>
+                  <i className="ti ti-settings"></i>
+                </li>
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/emailnotification/")}
+                    className={`pc-link ${isLinkActive('/admin/core/emailnotification')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-mail"></i>
+                    </span>
+                    <span className="pc-mtext">Notifications Email</span>
+                  </Link>
+                </li> 
+
+                <li className="pc-item">
+                  <Link
+                    to={buildUrl("/admin/core/configuration/")}
+                    className={`pc-link ${isLinkActive('/admin/core/configuration')}`}
+                  >
+                    <span className="pc-micon">
+                      <i className="ti ti-adjustments"></i>
+                    </span>
+                    <span className="pc-mtext">Paramètres</span>
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Profil utilisateur (visible pour tous les utilisateurs connectés) */}
+            {isAuthenticated && (
+              <li className="pc-item">
+                <Link to="/userprofile" className={`pc-link ${isLinkActive('/userprofile')}`}>
+                  <span className="pc-micon">
+                    <i className="ti ti-user"></i>
+                  </span>
+                  <span className="pc-mtext">Mon profil</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Déconnexion (visible pour tous les utilisateurs connectés) */}
+            {isAuthenticated && (
+              <li className="pc-item isactivecolor">
+                <button
+                  className="pc-link text-danger w-100 text-start border-0 bg-transparent"
+                  onClick={logout}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="pc-micon">
+                    <i className="ti ti-logout"></i>
+                  </span>
+                  <span className="pc-mtext">Déconnexion</span>
+                </button>
+              </li>
+            )}
+
+            {/* Connexion (visible seulement pour les utilisateurs non connectés) */}
+            {!isAuthenticated && (
+              <li className="pc-item">
+                <Link to="/login" className={`pc-link text-primary ${isLinkActive('/login')}`}>
+                  <span className="pc-micon">
+                    <i className="ti ti-login"></i>
+                  </span>
+                  <span className="pc-mtext">Connexion</span>
+                </Link>
+              </li>
+            )}
           </ul>
         </div>
       </div>

@@ -233,7 +233,7 @@ const FiltreGestionSociete = ({ societes, onFilterChange, user }) => {
                     </div>
 
                     {/* Filtre par projets */}
-                    <div className="col-md-3">
+                    {/* <div className="col-md-3">
                         <label className="form-label small fw-bold d-block">
                             <i className="ti ti-folders me-1"></i>
                             Projets associés
@@ -275,13 +275,13 @@ const FiltreGestionSociete = ({ societes, onFilterChange, user }) => {
                                 Sans
                             </label>
                         </div>
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Ligne 2 : Filtres Avancés et Tri */}
                 <div className="row g-3 align-items-end">
                     {/* Filtre audit - Sociétés sans admin */}
-                    {isSuperAdmin && (
+                    {/* {isSuperAdmin && (
                         <div className="col-md-3">
                             <div className="form-check form-switch">
                                 <input
@@ -301,7 +301,7 @@ const FiltreGestionSociete = ({ societes, onFilterChange, user }) => {
                                 </small>
                             </div>
                         </div>
-                    )}
+                    )} */}
 
                     {/* Tri des résultats */}
                     <div className="col-md-4">
@@ -311,11 +311,11 @@ const FiltreGestionSociete = ({ societes, onFilterChange, user }) => {
                         </label>
                         <div className="btn-group w-100" role="group">
                             {[
-                                { key: 'nom', label: 'Nom', icon: 'ti ti-sort-a-z' },
+                                { key: 'nom', label: 'Nom', icon: 'ti ti-sort-ascending-letters' },
                                 { key: 'admin', label: 'Admin', icon: 'ti ti-user' },
                                 { key: 'employes', label: 'Employés', icon: 'ti ti-users' },
                                 { key: 'projets', label: 'Projets', icon: 'ti ti-folders' },
-                                { key: 'secteur', label: 'Secteur', icon: 'ti ti-category' }
+                                { key: 'secteur', label: 'Secteur', icon: 'ti ti-adjustments-horizontal' }
                             ].map(({ key, label, icon }) => (
                                 <button
                                     key={key}

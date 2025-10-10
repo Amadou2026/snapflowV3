@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import HeaderAdmin from '../admin/HeaderAdmin';
 import SidebarAdmin from '../admin/SidebarAdmin';
@@ -12,44 +12,91 @@ import withReactContent from 'sweetalert2-react-content';
 const MySwal = withReactContent(Swal);
 
 const GestionResultatTest = ({ user, logout }) => {
+    const location = useLocation();
     const [resultats, setResultats] = useState([]);
     const [filteredResultats, setFilteredResultats] = useState([]);
     const [displayedResultats, setDisplayedResultats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedResultat, setSelectedResultat] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [projectIdFromUrl, setProjectIdFromUrl] = useState(null); // ID du projet depuis l'URL
+    const [projets, setProjets] = useState([]); // Liste des projets pour faire la correspondance ID/Nom
 
     // États pour la pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
 
     useEffect(() => {
-        fetchResultats();
-    }, []);
+        // Extraire le paramètre projectId de l'URL
+        const searchParams = new URLSearchParams(location.search);
+        const projectId = searchParams.get('projectId');
+        
+        if (projectId) {
+            setProjectIdFromUrl(parseInt(projectId));
+        } else {
+            setProjectIdFromUrl(null);
+        }
+        
+        fetchData();
+    }, [location.search]);
 
     // Mettre à jour l'affichage paginé quand les résultats filtrés changent
     useEffect(() => {
         updateDisplayedResultats();
     }, [filteredResultats, currentPage]);
 
-    const fetchResultats = async () => {
+    // Filtrer les résultats par projet si projectId est dans l'URL
+    useEffect(() => {
+        if (projectIdFromUrl && resultats.length > 0 && projets.length > 0) {
+            // Trouver le nom du projet correspondant à l'ID
+            const projet = projets.find(p => p.id === projectIdFromUrl);
+            const projetNom = projet ? projet.nom : null;
+            
+            if (projetNom) {
+                const filtered = resultats.filter(resultat => {
+                    // Comparer avec le nom du projet
+                    return resultat.projet_nom === projetNom;
+                });
+                setFilteredResultats(filtered);
+                setCurrentPage(1); // Retour à la première page lors du filtrage
+            } else {
+                // Si le projet n'est pas trouvé, afficher un message vide
+                setFilteredResultats([]);
+            }
+        } else if (!projectIdFromUrl && resultats.length > 0) {
+            // Si pas de projectId dans l'URL, utiliser tous les résultats
+            setFilteredResultats(resultats);
+        }
+    }, [resultats, projets, projectIdFromUrl]);
+
+    const fetchData = async () => {
         try {
-            const response = await api.get('execution-resultats/');
-            console.log('📊 DONNÉES RÉSULTATS:', response.data);
-            setResultats(response.data);
-            setFilteredResultats(response.data);
+            // Charger les résultats et les projets en parallèle
+            const [resultatsResponse, projetsResponse] = await Promise.all([
+                api.get('execution-resultats/'),
+                api.get('projets/')
+            ]);
+            
+            console.log('📊 DONNÉES RÉSULTATS:', resultatsResponse.data);
+            console.log('📊 DONNÉES PROJETS:', projetsResponse.data);
+            
+            setResultats(resultatsResponse.data);
+            setProjets(projetsResponse.data);
+            setFilteredResultats(resultatsResponse.data);
         } catch (error) {
-            console.error('Erreur lors du chargement des résultats:', error);
-            showErrorAlert('Erreur lors du chargement des résultats');
+            console.error('Erreur lors du chargement des données:', error);
+            showErrorAlert('Erreur lors du chargement des données');
         } finally {
             setLoading(false);
         }
     };
 
-    // Fonction pour gérer les changements de filtre
+    // Fonction pour gérer les changements de filtre (désactivée si projectId est dans l'URL)
     const handleFilterChange = (filteredData) => {
-        setFilteredResultats(filteredData);
-        setCurrentPage(1); // Retour à la première page lors du filtrage
+        if (!projectIdFromUrl) {
+            setFilteredResultats(filteredData);
+            setCurrentPage(1); // Retour à la première page lors du filtrage
+        }
     };
 
     const updateDisplayedResultats = () => {
@@ -179,6 +226,13 @@ const GestionResultatTest = ({ user, logout }) => {
         });
     };
 
+    // Obtenir le nom du projet depuis l'ID dans l'URL
+    const getProjectNameFromUrl = () => {
+        if (!projectIdFromUrl) return '';
+        const projet = projets.find(p => p.id === projectIdFromUrl);
+        return projet ? projet.nom : `Projet #${projectIdFromUrl}`;
+    };
+
     if (loading) {
         return (
             <div className="dashboard-wrapper">
@@ -229,7 +283,26 @@ const GestionResultatTest = ({ user, logout }) => {
                                         </div>
                                         <div className="col-md-12">
                                             <div className="page-header-title">
-                                                <h2 className="mb-0">Gestion des résultats de test</h2>
+                                                <h2 className="mb-0">
+                                                    Gestion des résultats de test
+                                                    {projectIdFromUrl && (
+                                                        <span className="badge bg-primary ms-2">
+                                                            {getProjectNameFromUrl()}
+                                                        </span>
+                                                    )}
+                                                </h2>
+                                                {user.is_superuser && (
+                                                    <p className="text-success mb-0">
+                                                        <i className="ti ti-shield-check me-1"></i>
+                                                        Mode Super Admin - Tous les résultats visibles
+                                                    </p>
+                                                )}
+                                                {projectIdFromUrl && (
+                                                    <p className="text-info mb-0">
+                                                        <i className="ti ti-filter me-1"></i>
+                                                        Affichage filtré pour le projet "{getProjectNameFromUrl()}"
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -237,12 +310,15 @@ const GestionResultatTest = ({ user, logout }) => {
                             </div>
                             {/* End Breadcrumb */}
 
-                            {/* Filtres */}
-                            <FiltreResultatTest 
-                                resultats={resultats}
-                                onFilterChange={handleFilterChange}
-                                user={user}
-                            />
+                            {/* Filtres (masqué si projectId est dans l'URL) */}
+                            {!projectIdFromUrl && (
+                                <FiltreResultatTest 
+                                    resultats={resultats}
+                                    onFilterChange={handleFilterChange}
+                                    user={user}
+                                    projets={projets} // Ajout des projets pour le filtre
+                                />
+                            )}
 
                             {/* Main Content */}
                             <div className="row">
@@ -329,7 +405,9 @@ const GestionResultatTest = ({ user, logout }) => {
                                                         <p className="text-muted">
                                                             {resultats.length === 0 ?
                                                                 'Aucun résultat de test trouvé.' :
-                                                                'Aucun résultat ne correspond aux critères de filtrage.'
+                                                                projectIdFromUrl ?
+                                                                    `Aucun résultat trouvé pour le projet "${getProjectNameFromUrl()}".` :
+                                                                    'Aucun résultat ne correspond aux critères de filtrage.'
                                                             }
                                                         </p>
                                                     </div>

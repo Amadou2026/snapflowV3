@@ -131,17 +131,23 @@ class SecteurActivite(models.Model):
         return self.nom
 
 
+# models.py
+
 class Societe(models.Model):
     nom = models.CharField(max_length=255)
-    num_siret = models.CharField(max_length=14, blank=True, null=True)
-    url = models.URLField(
-        blank=True, null=True, help_text="URL du site web de la société"
-    )
+    
+    # --- CHAMPS SUPPRIMÉS ---
+    # num_siret = models.CharField(max_length=14, blank=True, null=True)
+    # url = models.URLField(
+    #     blank=True, null=True, help_text="URL du site web de la société"
+    # )
+    # --- FIN DES CHAMPS SUPPRIMÉS ---
+
     secteur_activite = models.ForeignKey(
         "SecteurActivite", on_delete=models.SET_NULL, null=True, blank=True
     )
     admin = models.ForeignKey(
-        settings.AUTH_USER_MODEL,  # MAINTENANT settings EST IMPORTÉ
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -150,11 +156,10 @@ class Societe(models.Model):
     )
     projets = models.ManyToManyField("Projet", blank=True, related_name="societes")
     employes = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,  # MAINTENANT settings EST IMPORTÉ
+        settings.AUTH_USER_MODEL,
         blank=True,
         related_name="societes_employes",
     )
-    # Ajout des dates de création et modification
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
 
@@ -207,8 +212,25 @@ class Script(models.Model):
         return f"{self.axe.nom}/{self.sous_axe.nom}/{self.nom}"
 
 
+
+
 class EmailNotification(models.Model):
     email = models.EmailField()
+    
+    # NOUVEAUX CHAMPS
+    prenom = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="Prénom"
+    )
+    nom = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="Nom"
+    )
+    
     societe = models.ForeignKey(
         "Societe",
         on_delete=models.CASCADE,
@@ -225,7 +247,8 @@ class EmailNotification(models.Model):
     )
     date_creation = models.DateTimeField(auto_now_add=True)
     est_actif = models.BooleanField(
-        default=True, help_text="Indique si cet email reçoit des notifications"
+        default=True, 
+        help_text="Indique si cet email reçoit des notifications"
     )
 
     class Meta:
@@ -236,7 +259,14 @@ class EmailNotification(models.Model):
     def __str__(self):
         status = "✓" if self.est_actif else "✗"
         societe_nom = self.societe.nom if self.societe else "Aucune société"
+        
+        # On affiche le nom complet s'il existe, sinon juste l'email
+        if self.prenom or self.nom:
+            nom_complet = f"{self.prenom or ''} {self.nom or ''}".strip()
+            return f"{nom_complet} ({self.email}) ({societe_nom}) {status}"
+        
         return f"{self.email} ({societe_nom}) {status}"
+
 
     # Alternative plus simple si vous préférez :
     # def __str__(self):
@@ -643,3 +673,40 @@ class RedmineProject(models.Model):
     class Meta:
         verbose_name = "Projet Redmine"
         verbose_name_plural = "Projets Redmine"
+
+
+
+# Script à problème
+class ProblemeScript(models.Model):
+    TYPE_PROBLEME_CHOICES = [
+        ('timeout', 'Timeout'),
+        ('configuration_invalide', 'Configuration invalide'),
+        ('element_non_trouve', 'Élément non trouvé'),
+        ('erreur_reseau', 'Erreur réseau'),
+        ('resource_non_disponible', 'Resource non disponible'),
+        ('autre', 'Autre'),
+    ]
+    
+    STATUT_CHOICES = [
+        ('critique', 'Critique'),
+        ('en_attente_resolution', 'En attente de résolution'),
+        ('surveille', 'Surveillé'),
+        ('resolu', 'Résolu'),
+    ]
+    
+    script = models.ForeignKey('Script', on_delete=models.CASCADE, related_name='problemes')
+    type_probleme = models.CharField(max_length=30, choices=TYPE_PROBLEME_CHOICES)
+    description = models.TextField()
+    frequence_probleme = models.CharField(max_length=100, help_text="Description de la fréquence du problème")
+    derniere_execution = models.DateTimeField(null=True, blank=True)
+    statut = models.CharField(max_length=30, choices=STATUT_CHOICES, default='en_attente_resolution')
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Problème de script"
+        verbose_name_plural = "Problèmes de scripts"
+        ordering = ['-date_creation']
+    
+    def __str__(self):
+        return f"{self.script.nom} - {self.get_type_probleme_display()}"

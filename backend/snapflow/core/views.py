@@ -12,6 +12,7 @@ from rest_framework.filters import SearchFilter
 from rest_framework.filters import OrderingFilter
 from django.db.models import Q
 from rest_framework.exceptions import ValidationError, PermissionDenied
+from django.db.models import Prefetch
 
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -45,7 +46,7 @@ from .models import (
 
 # Import des serializers (sélectifs pour éviter les circularités)
 from .serializers import (
-    AxeSerializer, ConfigurationSerializer, SousAxeSerializer, ScriptSerializer, ProjetSerializer,
+    AxeSerializer, ConfigurationSerializer, ProblemeScriptSerializer, ProjetDetailSerializer, SousAxeSerializer, ScriptSerializer, ProjetSerializer,
     ConfigurationTestSerializer, ExecutionTestSerializer, ExecutionTestExportSerializer,
     EmailNotificationSerializer, GroupePersonnaliseSerializer, SecteurActiviteSerializer,
     CustomUserSerializer, SocieteSerializer, SocieteListSerializer, SocieteDetailSerializer,
@@ -101,23 +102,111 @@ class ScriptViewSet(viewsets.ModelViewSet):
         return queryset.filter(projet__societes=user.societe)
 
 
-class ProjetViewSet(viewsets.ModelViewSet):
-    queryset = Projet.objects.all()
-    serializer_class = ProjetSerializer
-    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            queryset = Projet.objects.all()
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.db.models import Q
+from .models import ProblemeScript, Projet
+from .serializers import ProblemeScriptSerializer
+import logging
+
+logger = logging.getLogger(__name__)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def scripts_problemes(request):
+    """
+    API pour récupérer les scripts présentant des problèmes d'exécution
+    """
+    try:
+        user = request.user
+        
+        # Récupérer les problèmes de scripts existants
+        probleme_scripts = ProblemeScript.objects.select_related(
+            'script', 'script__projet', 'script__projet__societes'
+        ).filter(statut__in=['critique', 'en_attente_resolution', 'surveille'])
+        
+        # Si l'utilisateur n'est pas superadmin, filtrer selon ses permissions
+        if not user.is_superuser:
+            if hasattr(user, 'societe') and user.societe:
+                probleme_scripts = probleme_scripts.filter(
+                    script__projet__societes=user.societe
+                )
+            else:
+                # Filtrer selon les projets de l'utilisateur
+                projets_acces = Projet.objects.filter(
+                    Q(charge_de_compte=user) |
+                    Q(societe__admin=user) |
+                    Q(societe__employes=user)
+                ).distinct()
+                probleme_scripts = probleme_scripts.filter(
+                    script__projet__in=projets_acces
+                )
+        
+        # Serializer les données
+        serializer = ProblemeScriptSerializer(probleme_scripts, many=True)
+        
+        logger.info(f"📊 Récupération de {len(serializer.data)} scripts avec problèmes pour l'utilisateur {user.username}")
+        
+        return Response(serializer.data)
+    
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de la récupération des scripts avec problèmes: {str(e)}")
+        return Response(
+            {'error': f'Erreur lors de la récupération des scripts avec problèmes: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def forcer_detection_problemes(request):
+    """
+    API pour forcer la détection des problèmes (manuellement)
+    """
+    try:
+        from .jobs import detecter_scripts_problemes
+        
+        # Exécuter la détection
+        success = detecter_scripts_problemes()
+        
+        if success:
+            return Response({
+                'message': 'Détection des problèmes terminée avec succès',
+                'status': 'success'
+            })
         else:
-            queryset = Projet.objects.filter(charge_de_compte=user)
+            return Response({
+                'message': 'Erreur lors de la détection des problèmes',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de la détection forcée: {str(e)}")
+        return Response(
+            {'error': f'Erreur lors de la détection forcée: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-        projet_id = self.request.GET.get("projet_id")
-        if projet_id:
-            queryset = queryset.filter(id=projet_id)
 
-        return queryset
+
+# class ProjetViewSet(viewsets.ModelViewSet):
+#     queryset = Projet.objects.all()
+#     serializer_class = ProjetSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         if user.is_superuser:
+#             queryset = Projet.objects.all()
+#         else:
+#             queryset = Projet.objects.filter(charge_de_compte=user)
+
+#         projet_id = self.request.GET.get("projet_id")
+#         if projet_id:
+#             queryset = queryset.filter(id=projet_id)
+
+#         return queryset
 
 
 class ConfigurationTestViewSet(viewsets.ModelViewSet):
@@ -625,6 +714,7 @@ def api_configurations_to_execute(request):
         'configurations_to_execute': data,
         'total_count': len(data)
     })
+
 
 
 @require_http_methods(["GET"])
@@ -1409,3 +1499,254 @@ class ConfigurationViewSet(viewsets.ModelViewSet):
                 {"detail": "Aucune configuration trouvée pour votre société."},
                 status=status.HTTP_404_NOT_FOUND
             )
+            
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+class ProjetViewSet(viewsets.ModelViewSet):
+    queryset = Projet.objects.all()
+    serializer_class = ProjetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            queryset = Projet.objects.all()
+        else:
+            # Récupérer les projets où l'utilisateur est charge_de_compte
+            # OU les projets de sa société
+            queryset = Projet.objects.filter(
+                Q(charge_de_compte=user) | 
+                Q(societes=user.societe)
+            ).distinct()
+
+        projet_id = self.request.GET.get("projet_id")
+        if projet_id:
+            queryset = queryset.filter(id=projet_id)
+
+        return queryset
+
+    @action(detail=True, methods=['get'], url_path='detail-complet')
+    def detail_complet(self, request, pk=None):
+        """
+        Endpoint pour récupérer tous les détails d'un projet
+        """
+        try:
+            projet = self.get_object()
+            
+            # Vérifier les permissions
+            if not request.user.is_superuser:
+                if not projet.societes.filter(id=request.user.societe.id).exists():
+                    return Response(
+                        {"detail": "Vous n'avez pas accès à ce projet"}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
+            serializer = ProjetDetailSerializer(projet, context={'request': request})
+            return Response(serializer.data)
+            
+        except Projet.DoesNotExist:
+            return Response(
+                {"detail": "Projet non trouvé"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['get'])
+    def configurations(self, request, pk=None):
+        """Récupérer toutes les configurations d'un projet"""
+        projet = self.get_object()
+        # CORRECTION: Utiliser ConfigurationTest avec filtre sur projet
+        configurations = ConfigurationTest.objects.filter(projet=projet).select_related('societe')
+        serializer = ConfigurationTestSerializer(configurations, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def scripts(self, request, pk=None):
+        """Récupérer tous les scripts d'un projet"""
+        projet = self.get_object()
+        scripts = projet.scripts.all().select_related('axe', 'sous_axe')
+        serializer = ScriptSerializer(scripts, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def executions(self, request, pk=None):
+        """Récupérer les exécutions d'un projet"""
+        projet = self.get_object()
+        executions = ExecutionTest.objects.filter(
+            configuration__projet=projet
+        ).select_related('configuration').order_by('-started_at')[:50]
+        
+        serializer = ExecutionTestSerializer(executions, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def statistiques(self, request, pk=None):
+        """Récupérer les statistiques d'un projet"""
+        projet = self.get_object()
+        
+        # CORRECTION: Utiliser ConfigurationTest avec filtre sur projet
+        configurations = ConfigurationTest.objects.filter(projet=projet)
+        executions = ExecutionTest.objects.filter(configuration__projet=projet)
+        
+        # Statistiques par statut
+        stats_par_statut = executions.values('statut').annotate(
+            count=Count('id')
+        ).order_by('statut')
+        
+        # Évolutions temporelles (30 derniers jours)
+        date_limite = timezone.now() - timedelta(days=30)
+        executions_recentes = executions.filter(started_at__gte=date_limite)
+        
+        evolutions = executions_recentes.annotate(
+            date=TruncDate('started_at')
+        ).values('date').annotate(
+            total=Count('id'),
+            reussis=Count('id', filter=Q(statut='done')),
+            echecs=Count('id', filter=Q(statut='error'))
+        ).order_by('date')
+        
+        data = {
+            'basics': {
+                'total_configurations': configurations.count(),
+                'configurations_actives': configurations.filter(is_active=True).count(),
+                'total_scripts': projet.scripts.count(),
+                'total_executions': executions.count(),
+                'societes_associees': projet.societes.count(),
+            },
+            'par_statut': list(stats_par_statut),
+            'evolutions': list(evolutions),
+            'taux_reussite': round(
+                (executions.filter(statut='done').count() / executions.count() * 100) 
+                if executions.count() > 0 else 0, 
+                2
+            )
+        }
+        
+        return Response(data)
+
+# Vue API dédiée pour la page projet détaillée
+class ProjetDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, projet_id):
+        """
+        Vue principale pour la page détaillée d'un projet
+        Retourne toutes les données nécessaires pour l'affichage
+        """
+        try:
+            # Optimisation des requêtes avec prefetch_related et select_related
+            projet = Projet.objects.select_related('charge_de_compte').prefetch_related(
+                'societes',
+                'scripts',
+                'scripts__axe',
+                'scripts__sous_axe',
+                'configurations_test',
+                'configurations_test__societe',
+                'configurations_test__scripts',
+                'configurations_test__emails_notification',
+                Prefetch(
+                    'configurations_test__executiontest_set',
+                    queryset=ExecutionTest.objects.select_related('configuration').order_by('-started_at'),
+                    to_attr='executions_recentes'
+                )
+            ).get(id=projet_id)
+            
+            # Vérification des permissions
+            if not request.user.is_superuser:
+                if not projet.societes.filter(id=request.user.societe.id).exists():
+                    return Response(
+                        {"detail": "Accès non autorisé à ce projet"}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
+            # Ajout du contexte pour les calculs optimisés
+            context = {
+                'request': request,
+                'projet_id': projet_id
+            }
+            
+            serializer = ProjetDetailSerializer(projet, context=context)
+            return Response(serializer.data)
+            
+        except Projet.DoesNotExist:
+            return Response(
+                {"detail": "Projet non trouvé"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+            
+            
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_projet_actif(request):
+    """Définir le projet actif dans la session"""
+    projet_id = request.data.get('projet_id')
+    
+    if projet_id:
+        try:
+            projet = Projet.objects.get(id=projet_id)
+            
+            # Vérifier les permissions
+            if not request.user.is_superuser:
+                if not projet.societes.filter(id=request.user.societe.id).exists():
+                    return Response(
+                        {"detail": "Vous n'avez pas accès à ce projet"}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
+            # Stocker l'ID du projet dans la session
+            request.session['projet_actif'] = projet_id
+            request.session.save()
+            
+            return Response({
+                "success": True,
+                "message": f"Projet '{projet.nom}' défini comme actif",
+                "projet_id": projet_id,
+                "projet_nom": projet.nom
+            })
+            
+        except Projet.DoesNotExist:
+            return Response(
+                {"detail": "Projet non trouvé"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    return Response(
+        {"detail": "ID de projet requis"}, 
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_projet_actif(request):
+    """Récupérer le projet actif de la session"""
+    projet_id = request.session.get('projet_actif')
+    
+    if projet_id:
+        try:
+            projet = Projet.objects.get(id=projet_id)
+            
+            # Vérifier que l'utilisateur a toujours accès à ce projet
+            if not request.user.is_superuser:
+                if not projet.societes.filter(id=request.user.societe.id).exists():
+                    # Supprimer le projet de la session si plus d'accès
+                    del request.session['projet_actif']
+                    return Response({"projet_actif": None})
+            
+            return Response({
+                "projet_actif": {
+                    "id": projet.id,
+                    "nom": projet.nom,
+                    "url": projet.url
+                }
+            })
+            
+        except Projet.DoesNotExist:
+            # Supprimer le projet de la session s'il n'existe plus
+            del request.session['projet_actif']
+            return Response({"projet_actif": None})
+    
+    return Response({"projet_actif": None})
+
+

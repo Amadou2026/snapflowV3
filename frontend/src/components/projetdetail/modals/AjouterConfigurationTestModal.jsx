@@ -20,7 +20,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     // États pour les données de référence
     const [societes, setSocietes] = useState([]);
     const [projets, setProjets] = useState([]);
-    const [allScripts, setAllScripts] = useState([]); // Tous les scripts chargés
+    const [scripts, setScripts] = useState([]);
     const [emails, setEmails] = useState([]);
     const [loadingReferences, setLoadingReferences] = useState(false);
 
@@ -39,11 +39,6 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
         }
     }, [show]);
 
-    // Mettre à jour les scripts disponibles quand le projet ou les scripts sélectionnés changent
-    useEffect(() => {
-        updateScriptsDisponibles();
-    }, [formData.projet, allScripts, formData.scripts]);
-
     const loadReferenceData = async () => {
         setLoadingReferences(true);
         try {
@@ -51,15 +46,19 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             const societesResponse = await api.get('societe/');
             setSocietes(societesResponse.data);
 
-            // Si l'utilisateur n'est pas super admin, pré-sélectionner sa société par défaut
-            if (!isSuperAdmin && user?.societe) {
-                setFormData(prev => ({ ...prev, societe: user.societe.id }));
+            // Si l'utilisateur n'est pas superadmin, filtrer les sociétés auxquelles il a accès
+            if (!isSuperAdmin && user.societe) {
+                const societeUtilisateur = societesResponse.data.find(s => s.id === user.societe.id);
+                if (societeUtilisateur) {
+                    setSocietes([societeUtilisateur]);
+                    setFormData(prev => ({ ...prev, societe: user.societe.id }));
+                }
             }
 
-            // Charger tous les projets
+            // Charger TOUS les projets (seront filtrés par société ensuite)
             await loadProjets();
 
-            // Charger tous les scripts
+            // Charger TOUS les scripts (seront filtrés par projet ensuite)
             await loadScripts();
 
             // Charger les emails de notification actifs
@@ -77,6 +76,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
 
     const loadProjets = async () => {
         try {
+            // Charger tous les projets
             const projetsResponse = await api.get('projets/');
             setProjets(projetsResponse.data);
         } catch (error) {
@@ -86,92 +86,50 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
 
     const loadScripts = async () => {
         try {
+            // Charger tous les scripts
             const scriptsResponse = await api.get('scripts/');
-            setAllScripts(scriptsResponse.data);
-            // Initialiser les scripts disponibles avec tous les scripts
+            setScripts(scriptsResponse.data);
             setScriptsDisponibles(scriptsResponse.data);
         } catch (error) {
             console.error('Erreur lors du chargement des scripts:', error);
         }
     };
 
-    const updateScriptsDisponibles = () => {
-        if (formData.projet) {
-            // Filtrer les scripts par projet
-            const scriptsFiltres = allScripts.filter(script => 
-                script.projet === parseInt(formData.projet)
-            );
+    const loadScriptsParProjet = async (projetId) => {
+        try {
+            // Charger les scripts spécifiques au projet sélectionné
+            const scriptsResponse = await api.get(`scripts/?projet=${projetId}`);
+            setScripts(scriptsResponse.data);
+            setScriptsDisponibles(scriptsResponse.data);
             
-            // Vérifier si des scripts sélectionnés n'appartiennent pas au nouveau projet
-            const scriptsSelectionnesHorsProjet = formData.scripts.filter(scriptId => {
-                const script = allScripts.find(s => s.id === scriptId);
-                return script && script.projet !== parseInt(formData.projet);
-            });
-            
-            // Si des scripts sélectionnés n'appartiennent pas au nouveau projet, les retirer de la sélection
-            if (scriptsSelectionnesHorsProjet.length > 0) {
-                const nouveauxScriptsSelectionnes = formData.scripts.filter(scriptId => 
-                    !scriptsSelectionnesHorsProjet.includes(scriptId)
-                );
-                
-                setFormData(prev => ({
-                    ...prev,
-                    scripts: nouveauxScriptsSelectionnes
-                }));
-            }
-            
-            // Exclure les scripts déjà sélectionnés qui appartiennent au projet
-            const scriptsDisponiblesFiltres = scriptsFiltres.filter(script => 
-                !formData.scripts.includes(script.id)
-            );
-            
-            setScriptsDisponibles(scriptsDisponiblesFiltres);
-            
-            // Mettre à jour les scripts sélectionnés pour correspondre aux IDs dans formData.scripts
-            const scriptsSelectionnesFiltres = allScripts.filter(script => 
-                formData.scripts.includes(script.id) && 
-                script.projet === parseInt(formData.projet)
-            );
-            
-            setScriptsSelectionnes(scriptsSelectionnesFiltres);
-            
-        } else {
-            // Si aucun projet n'est sélectionné, montrer tous les scripts non sélectionnés
-            const scriptsNonSelectionnes = allScripts.filter(script => 
-                !formData.scripts.includes(script.id)
-            );
-            setScriptsDisponibles(scriptsNonSelectionnes);
-            
-            // Mettre à jour les scripts sélectionnés
-            const scriptsSelectionnesFiltres = allScripts.filter(script => 
-                formData.scripts.includes(script.id)
-            );
-            setScriptsSelectionnes(scriptsSelectionnesFiltres);
+            // Réinitialiser les scripts sélectionnés quand le projet change
+            setFormData(prev => ({ ...prev, scripts: [] }));
+            setScriptsSelectionnes([]);
+        } catch (error) {
+            console.error('Erreur lors du chargement des scripts du projet:', error);
         }
     };
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
 
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+
+        // Si la société change, filtrer les projets
         if (name === 'societe') {
-            // Quand la société change, on met à jour la société et on réinitialise le projet
             setFormData(prev => ({ 
                 ...prev, 
                 societe: value,
                 projet: '' // Réinitialiser le projet sélectionné
             }));
-        } else if (name === 'projet') {
-            // Quand le projet change, on met à jour le projet
-            setFormData(prev => ({ 
-                ...prev, 
-                projet: value
-            }));
-        } else {
-            // Pour les autres champs, comportement normal
-            setFormData(prev => ({
-                ...prev,
-                [name]: type === 'checkbox' ? checked : value
-            }));
+        }
+
+        // Si le projet change, charger les scripts de ce projet
+        if (name === 'projet' && value) {
+            loadScriptsParProjet(value);
         }
 
         // Si is_active change, ajuster la date d'activation
@@ -194,7 +152,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     // Gestion des scripts (ManyToMany)
     const ajouterScript = (scriptId) => {
         const scriptIdInt = parseInt(scriptId);
-        const script = allScripts.find(s => s.id === scriptIdInt);
+        const script = scripts.find(s => s.id === scriptIdInt);
         
         if (script && !formData.scripts.includes(scriptIdInt)) {
             const nouveauxScripts = [...formData.scripts, scriptIdInt];
@@ -202,16 +160,26 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                 ...prev,
                 scripts: nouveauxScripts
             }));
+            
+            setScriptsSelectionnes(prev => [...prev, script]);
+            setScriptsDisponibles(prev => prev.filter(s => s.id !== scriptIdInt));
         }
     };
 
     const retirerScript = (scriptId) => {
         const scriptIdInt = parseInt(scriptId);
+        const script = scripts.find(s => s.id === scriptIdInt);
+        
         const nouveauxScripts = formData.scripts.filter(id => id !== scriptIdInt);
         setFormData(prev => ({
             ...prev,
             scripts: nouveauxScripts
         }));
+        
+        setScriptsSelectionnes(prev => prev.filter(s => s.id !== scriptIdInt));
+        if (script) {
+            setScriptsDisponibles(prev => [...prev, script]);
+        }
     };
 
     const ajouterTousScripts = () => {
@@ -221,6 +189,9 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             ...prev,
             scripts: nouveauxScripts
         }));
+        
+        setScriptsSelectionnes(prev => [...prev, ...scriptsDisponibles]);
+        setScriptsDisponibles([]);
     };
 
     const retirerTousScripts = () => {
@@ -228,6 +199,9 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             ...prev,
             scripts: []
         }));
+        
+        setScriptsDisponibles(prev => [...prev, ...scriptsSelectionnes]);
+        setScriptsSelectionnes([]);
     };
 
     // Gestion des emails (ManyToMany)
@@ -379,7 +353,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const resetForm = () => {
         setFormData({
             nom: '',
-            societe: !isSuperAdmin && user?.societe ? user.societe.id : '',
+            societe: !isSuperAdmin && user.societe ? user.societe.id : '',
             projet: '',
             periodicite: '2h',
             is_active: true,
@@ -388,7 +362,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             scripts: [],
             emails_notification: []
         });
-        setScriptsDisponibles(allScripts);
+        setScriptsDisponibles(scripts);
         setScriptsSelectionnes([]);
         setEmailsDisponibles(emails);
         setEmailsSelectionnes([]);
@@ -403,15 +377,15 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     // Filtrer les projets par société sélectionnée
     const projetsFiltres = formData.societe 
         ? projets.filter(projet => {
+            // Vérifier si le projet appartient à la société sélectionnée
             return projet.societes && projet.societes.some(s => s.id === parseInt(formData.societe));
         })
-        : projets;
+        : [];
 
-    // Fonction pour obtenir le nom du projet à partir de son ID
-    const getNomProjet = (projetId) => {
-        const projet = projets.find(p => p.id === projetId);
-        return projet ? projet.nom : 'Projet inconnu';
-    };
+    // Filtrer les sociétés accessibles
+    const societesAccessibles = isSuperAdmin 
+        ? societes 
+        : societes.filter(s => s.id === user.societe?.id);
 
     if (!show) return null;
 
@@ -499,6 +473,9 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                             <div className="mb-3">
                                                 <label htmlFor="societe" className="form-label">
                                                     Société *
+                                                    {!isSuperAdmin && (
+                                                        <small className="text-muted ms-1">(Votre société)</small>
+                                                    )}
                                                 </label>
                                                 <select
                                                     className={`form-select ${errors.societe ? 'is-invalid' : ''}`}
@@ -506,19 +483,19 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                     name="societe"
                                                     value={formData.societe}
                                                     onChange={handleInputChange}
-                                                    disabled={loading}
+                                                    disabled={loading || societesAccessibles.length === 0}
                                                 >
                                                     <option value="">Sélectionner une société</option>
-                                                    {societes.map(societe => (
+                                                    {societesAccessibles.map(societe => (
                                                         <option key={societe.id} value={societe.id}>
                                                             {societe.nom}
                                                         </option>
                                                     ))}
                                                 </select>
-                                                {!isSuperAdmin && user?.societe && (
-                                                    <small className="form-text text-muted">
-                                                        Votre société est sélectionnée par défaut
-                                                    </small>
+                                                {societesAccessibles.length === 0 && (
+                                                    <div className="form-text text-warning">
+                                                        Aucune société disponible
+                                                    </div>
                                                 )}
                                                 {errors.societe && (
                                                     <div className="invalid-feedback">
@@ -538,7 +515,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                     name="projet"
                                                     value={formData.projet}
                                                     onChange={handleInputChange}
-                                                    disabled={loading || !formData.societe}
+                                                    disabled={loading || !formData.societe || projetsFiltres.length === 0}
                                                 >
                                                     <option value="">Sélectionner un projet</option>
                                                     {projetsFiltres.map(projet => (
@@ -547,9 +524,17 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                         </option>
                                                     ))}
                                                 </select>
-                                                {projetsFiltres.length === 0 && formData.societe && (
+                                                {!formData.societe ? (
+                                                    <div className="form-text text-info">
+                                                        Veuillez d'abord sélectionner une société
+                                                    </div>
+                                                ) : projetsFiltres.length === 0 ? (
                                                     <div className="form-text text-warning">
                                                         Aucun projet disponible pour cette société
+                                                    </div>
+                                                ) : (
+                                                    <div className="form-text text-success">
+                                                        {projetsFiltres.length} projet(s) disponible(s)
                                                     </div>
                                                 )}
                                                 {errors.projet && (
@@ -646,129 +631,133 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                             <div className="mb-3">
                                                 <label className="form-label">
                                                     Scripts à exécuter *
+                                                    {formData.projet && (
+                                                        <small className="text-muted ms-2">
+                                                            (Projet: {projets.find(p => p.id === parseInt(formData.projet))?.nom})
+                                                        </small>
+                                                    )}
                                                 </label>
                                                 
-                                                <div className="row">
-                                                    {/* Scripts disponibles */}
-                                                    <div className="col-md-5">
-                                                        <div className="card">
-                                                            <div className="card-header d-flex justify-content-between align-items-center">
-                                                                <span>Scripts disponibles ({scriptsDisponibles.length})</span>
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-sm btn-outline-primary"
-                                                                    onClick={ajouterTousScripts}
-                                                                    disabled={scriptsDisponibles.length === 0 || loading}
-                                                                >
-                                                                    Tout ajouter →
-                                                                </button>
-                                                            </div>
-                                                            <div className="card-body p-0">
-                                                                <div 
-                                                                    className="list-group list-group-flush"
-                                                                    style={{ maxHeight: '200px', overflowY: 'auto' }}
-                                                                >
-                                                                    {scriptsDisponibles.map(script => (
-                                                                        <div 
-                                                                            key={script.id}
-                                                                            className="list-group-item d-flex justify-content-between align-items-center"
-                                                                        >
-                                                                            <div>
-                                                                                <strong>{script.nom}</strong>
-                                                                                <br />
-                                                                                <small className="text-muted">
-                                                                                    Axe: {script.axe_nom} | Sous-axe: {script.sous_axe_nom}
-                                                                                    <br />
-                                                                                    Projet: {getNomProjet(script.projet)}
-                                                                                    <br />
-                                                                                    Priorité: {script.priorite_nom}
-                                                                                </small>
-                                                                            </div>
-                                                                            <button
-                                                                                type="button"
-                                                                                className="btn btn-sm btn-success"
-                                                                                onClick={() => ajouterScript(script.id)}
-                                                                                disabled={loading}
+                                                {!formData.projet ? (
+                                                    <div className="alert alert-info">
+                                                        <i className="ti ti-info-circle me-2"></i>
+                                                        Veuillez d'abord sélectionner un projet pour voir les scripts disponibles
+                                                    </div>
+                                                ) : (
+                                                    <div className="row">
+                                                        {/* Scripts disponibles */}
+                                                        <div className="col-md-5">
+                                                            <div className="card">
+                                                                <div className="card-header d-flex justify-content-between align-items-center">
+                                                                    <span>Scripts disponibles ({scriptsDisponibles.length})</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-outline-primary"
+                                                                        onClick={ajouterTousScripts}
+                                                                        disabled={scriptsDisponibles.length === 0 || loading}
+                                                                    >
+                                                                        Tout ajouter →
+                                                                    </button>
+                                                                </div>
+                                                                <div className="card-body p-0">
+                                                                    <div 
+                                                                        className="list-group list-group-flush"
+                                                                        style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                                    >
+                                                                        {scriptsDisponibles.map(script => (
+                                                                            <div 
+                                                                                key={script.id}
+                                                                                className="list-group-item d-flex justify-content-between align-items-center"
                                                                             >
-                                                                                <i className="ti ti-plus"></i>
-                                                                            </button>
-                                                                        </div>
-                                                                    ))}
-                                                                    {scriptsDisponibles.length === 0 && (
-                                                                        <div className="list-group-item text-center text-muted">
-                                                                            {formData.projet 
-                                                                                ? 'Aucun script disponible pour ce projet' 
-                                                                                : 'Sélectionnez d\'abord un projet pour voir les scripts disponibles'
-                                                                            }
-                                                                        </div>
-                                                                    )}
+                                                                                <div>
+                                                                                    <strong>{script.nom}</strong>
+                                                                                    <br />
+                                                                                    <small className="text-muted">
+                                                                                        {script.axe?.nom && `${script.axe.nom} / `}
+                                                                                        {script.sous_axe?.nom && `${script.sous_axe.nom} / `}
+                                                                                        {script.priorite && `Priorité: ${script.get_priorite_display || script.priorite}`}
+                                                                                    </small>
+                                                                                </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-sm btn-success"
+                                                                                    onClick={() => ajouterScript(script.id)}
+                                                                                    disabled={loading}
+                                                                                >
+                                                                                    <i className="ti ti-plus"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        ))}
+                                                                        {scriptsDisponibles.length === 0 && (
+                                                                            <div className="list-group-item text-center text-muted">
+                                                                                Aucun script disponible pour ce projet
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Boutons de transfert */}
+                                                        <div className="col-md-2 d-flex align-items-center justify-content-center">
+                                                            <div className="text-center">
+                                                                <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Scripts sélectionnés */}
+                                                        <div className="col-md-5">
+                                                            <div className="card">
+                                                                <div className="card-header d-flex justify-content-between align-items-center">
+                                                                    <span>Scripts sélectionnés ({scriptsSelectionnes.length})</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-outline-danger"
+                                                                        onClick={retirerTousScripts}
+                                                                        disabled={scriptsSelectionnes.length === 0 || loading}
+                                                                    >
+                                                                        ← Tout retirer
+                                                                    </button>
+                                                                </div>
+                                                                <div className="card-body p-0">
+                                                                    <div 
+                                                                        className="list-group list-group-flush"
+                                                                        style={{ maxHeight: '200px', overflowY: 'auto' }}
+                                                                    >
+                                                                        {scriptsSelectionnes.map(script => (
+                                                                            <div 
+                                                                                key={script.id}
+                                                                                className="list-group-item d-flex justify-content-between align-items-center"
+                                                                            >
+                                                                                <div>
+                                                                                    <strong>{script.nom}</strong>
+                                                                                    <br />
+                                                                                    <small className="text-muted">
+                                                                                        {script.axe?.nom && `${script.axe.nom} / `}
+                                                                                        {script.sous_axe?.nom && `${script.sous_axe.nom}`}
+                                                                                    </small>
+                                                                                </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-sm btn-danger"
+                                                                                    onClick={() => retirerScript(script.id)}
+                                                                                    disabled={loading}
+                                                                                >
+                                                                                    <i className="ti ti-minus"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        ))}
+                                                                        {scriptsSelectionnes.length === 0 && (
+                                                                            <div className="list-group-item text-center text-muted">
+                                                                                Aucun script sélectionné
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-
-                                                    {/* Boutons de transfert */}
-                                                    <div className="col-md-2 d-flex align-items-center justify-content-center">
-                                                        <div className="text-center">
-                                                            <i className="ti ti-arrow-right" style={{ fontSize: '1.5rem' }}></i>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Scripts sélectionnés */}
-                                                    <div className="col-md-5">
-                                                        <div className="card">
-                                                            <div className="card-header d-flex justify-content-between align-items-center">
-                                                                <span>Scripts sélectionnés ({scriptsSelectionnes.length})</span>
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-sm btn-outline-danger"
-                                                                    onClick={retirerTousScripts}
-                                                                    disabled={scriptsSelectionnes.length === 0 || loading}
-                                                                >
-                                                                    ← Tout retirer
-                                                                </button>
-                                                            </div>
-                                                            <div className="card-body p-0">
-                                                                <div 
-                                                                    className="list-group list-group-flush"
-                                                                    style={{ maxHeight: '200px', overflowY: 'auto' }}
-                                                                >
-                                                                    {scriptsSelectionnes.map(script => (
-                                                                        <div 
-                                                                            key={script.id}
-                                                                            className="list-group-item d-flex justify-content-between align-items-center"
-                                                                        >
-                                                                            <div>
-                                                                                <strong>{script.nom}</strong>
-                                                                                <br />
-                                                                                <small className="text-muted">
-                                                                                    Axe: {script.axe_nom} | Sous-axe: {script.sous_axe_nom}
-                                                                                    <br />
-                                                                                    Projet: {getNomProjet(script.projet)}
-                                                                                    <br />
-                                                                                    Priorité: {script.priorite_nom}
-                                                                                </small>
-                                                                            </div>
-                                                                            <button
-                                                                                type="button"
-                                                                                className="btn btn-sm btn-danger"
-                                                                                onClick={() => retirerScript(script.id)}
-                                                                                disabled={loading}
-                                                                            >
-                                                                                <i className="ti ti-minus"></i>
-                                                                            </button>
-                                                                        </div>
-                                                                    ))}
-                                                                    {scriptsSelectionnes.length === 0 && (
-                                                                        <div className="list-group-item text-center text-muted">
-                                                                            Aucun script sélectionné
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                )}
                                                 
                                                 <small className="form-text text-muted">
                                                     {scriptsSelectionnes.length} script(s) sélectionné(s) pour cette configuration
@@ -816,11 +805,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                             className="list-group-item d-flex justify-content-between align-items-center"
                                                                         >
                                                                             <div>
-                                                                                {/* MODIFIÉ : Affiche le nom complet si disponible */}
-                                                                                <strong>{email.nom_complet || email.email}</strong>
-                                                                                {email.nom_complet && (
-                                                                                    <><br /><small className="text-muted">{email.email}</small></>
-                                                                                )}
+                                                                                <strong>{email.email}</strong>
                                                                                 <br />
                                                                                 <small className={`badge bg-${email.est_actif ? 'success' : 'danger'}`}>
                                                                                     {email.est_actif ? 'Actif' : 'Inactif'}
@@ -879,11 +864,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                         >
                                                                             <div>
                                                                                 <i className="ti ti-mail me-2 text-muted"></i>
-                                                                                {/* MODIFIÉ : Affiche le nom complet si disponible */}
-                                                                                <strong>{email.nom_complet || email.email}</strong>
-                                                                                {email.nom_complet && (
-                                                                                    <><br /><small className="text-muted">{email.email}</small></>
-                                                                                )}
+                                                                                {email.email}
                                                                                 <br />
                                                                                 <small className={`badge bg-${email.est_actif ? 'success' : 'danger'}`}>
                                                                                     {email.est_actif ? 'Actif' : 'Inactif'}

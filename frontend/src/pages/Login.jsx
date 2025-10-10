@@ -9,6 +9,7 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   // Utiliser le context global
@@ -16,6 +17,10 @@ const Login = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   const handleSubmit = async (e) => {
@@ -38,10 +43,14 @@ const Login = () => {
       setUser(profileData);
       setIsAuthenticated(true);
 
-      // Navigation avec un petit délai pour s'assurer que le context est mis à jour
-      setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 100);
+      // Redirection en fonction du rôle
+      if (profileData.is_staff || profileData.is_superuser) {
+        // Rediriger les superadmins et staff vers la VueGlobale
+        navigate('/admin/core/vueglobale/');
+      } else {
+        // Rediriger les autres utilisateurs vers leur dashboard
+        navigate('/dashboard');
+      }
 
     } catch (err) {
       console.error(err.response || err);
@@ -90,15 +99,25 @@ const Login = () => {
 
                 <div className="form-group mb-3">
                   <label>Password</label>
-                  <input
-                    type="password"
-                    name="password"
-                    className="form-control"
-                    placeholder="Password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                  />
+                  <div className="position-relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      className="form-control"
+                      placeholder="Password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-link position-absolute end-0 top-50 translate-middle-y"
+                      onClick={togglePasswordVisibility}
+                      style={{ textDecoration: 'none', zIndex: 10 }}
+                    >
+                      <i className={`feather ${showPassword ? 'icon-eye-off' : 'icon-eye'}`}></i>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="d-grid mt-4">

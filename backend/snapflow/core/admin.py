@@ -419,16 +419,25 @@ class CustomUserAdmin(BaseUserAdmin):
 
 
 # 🔹 2. Override de la méthode get_app_list pour réorganiser le menu
+# 🔹 2. Override de la méthode get_app_list pour réorganiser le menu
 original_get_app_list = admin.AdminSite.get_app_list
 
 def custom_get_app_list(self, request, app_label=None):
     app_list = original_get_app_list(self, request, app_label)
     
+    # Récupérer l'ID du projet depuis la session
+    projet_id = request.session.get('projet_actif')
+    
     # Nouvelle organisation du menu
     reordered_app_list = []
     
-    # Debut    
-     # 1. Gestion du Profil (section personnalisée)
+    # Fonction helper pour construire les URLs avec projet_id
+    def build_url(base_path, model_name=None):
+        if projet_id:
+            return f"{base_path}?projet_id={projet_id}"
+        return base_path
+    
+    # Début - Dashboard & Vue Globale
     reporting_section = {
         'name': 'Dashboard & Vue Globale',
         'app_label': 'reporting_section',
@@ -438,90 +447,83 @@ def custom_get_app_list(self, request, app_label=None):
     reporting_models_custom = {
         'VueGlobale': 'Vue Globale',
         'Dashboard': 'Suivi des Campagnes de Test',
-        
-        
     }
+    
     for model_name, custom_name in reporting_models_custom.items():
         model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
         if model:
+            base_url = f'/admin/core/{model_name.lower()}/'
             reporting_section['models'].append({
                 'name': custom_name,
                 'object_name': model_name,
-                'admin_url': f'/admin/core/{model_name.lower()}/',
+                'admin_url': build_url(base_url),
                 'view_only': False
             })
     
     if reporting_section['models']:
         reordered_app_list.append(reporting_section)
-            
     # Fin
     
-    # Debut
+    # Début - Gestion du Patrimoine
+    gestion_patrimoine = {
+        'name': 'Gestion du Patrimoine',
+        'app_label': 'gestion_patrimoine',
+        'models': []
+    }
     
-    # 2. Gestion du Patrimoine
-        gestion_patrimoine = {
-            'name': 'Gestion du Patrimoine',
-            'app_label': 'gestion_patrimoine',
-            'models': []
-        }
-        
-        gestion_patrimoine_custom = {
-            'Configuration': 'Paramètres Globaux',
-            'Projet': 'Gestion des Projets',
-            'EmailNotification': 'Mailing & Notifications',
-            'Axe': 'Gestion des Axes',
-            'SousAxe': 'Gestion des Sous-Axes'
-            
-        }
-        for model_name, custom_name in gestion_patrimoine_custom.items():
-            model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
-            if model:
-                gestion_patrimoine['models'].append({
-                    'name': custom_name,
-                    'object_name': model_name,
-                    'admin_url': f'/admin/core/{model_name.lower()}/',
-                    'view_only': False
-                })
-        
-        if gestion_patrimoine['models']:
-            reordered_app_list.append(gestion_patrimoine)
-        
+    gestion_patrimoine_custom = {
+        'Configuration': 'Paramètres Globaux',
+        'Projet': 'Gestion des Projets',
+        'EmailNotification': 'Mailing & Notifications',
+        'Axe': 'Gestion des Axes',
+        'SousAxe': 'Gestion des Sous-Axes'
+    }
+    
+    for model_name, custom_name in gestion_patrimoine_custom.items():
+        model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
+        if model:
+            base_url = f'/admin/core/{model_name.lower()}/'
+            gestion_patrimoine['models'].append({
+                'name': custom_name,
+                'object_name': model_name,
+                'admin_url': build_url(base_url),
+                'view_only': False
+            })
+    
+    if gestion_patrimoine['models']:
+        reordered_app_list.append(gestion_patrimoine)
     # Fin
     
-    # Debut
+    # Début - Testing & Monitoring
+    testing_monitoring = {
+        'name': 'Testing & Monitoring',
+        'app_label': 'testing_monitoring',
+        'models': []
+    }
     
-    # 3. Testing & Monitoring
-        testing_monitoring = {
-            'name': 'Testing & Monitoring',
-            'app_label': 'testing_monitoring',
-            'models': []
-        }
-        
-        testing_monitoring_custom = {
-            'Script': 'Gestion des Scripts',
-            'ConfigurationTest': 'Configuration des Tests',
-            'ExecutionTest': 'Exécution des Tests',
-            'ExecutionResult': 'Résultats des Tests',            
-        }
-        for model_name, custom_name in testing_monitoring_custom.items():
-            model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
-            if model:
-                testing_monitoring['models'].append({
-                    'name': custom_name,
-                    'object_name': model_name,
-                    'admin_url': f'/admin/core/{model_name.lower()}/',
-                    'view_only': False
-                })
-        
-        if testing_monitoring['models']:
-            reordered_app_list.append(testing_monitoring)
+    testing_monitoring_custom = {
+        'Script': 'Gestion des Scripts',
+        'ConfigurationTest': 'Configuration des Tests',
+        'ExecutionTest': 'Exécution des Tests',
+        'ExecutionResult': 'Résultats des Tests',            
+    }
     
+    for model_name, custom_name in testing_monitoring_custom.items():
+        model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == model_name), None)
+        if model:
+            base_url = f'/admin/core/{model_name.lower()}/'
+            testing_monitoring['models'].append({
+                'name': custom_name,
+                'object_name': model_name,
+                'admin_url': build_url(base_url),
+                'view_only': False
+            })
     
+    if testing_monitoring['models']:
+        reordered_app_list.append(testing_monitoring)
     # Fin
     
-    # Debut
-    
-    # 🔑 Nouvelle section : Gestion Société
+    # Début - Gestion Société
     societe_section = {
         'name': 'Gestion Société',
         'app_label': 'gestion_societe',
@@ -534,10 +536,11 @@ def custom_get_app_list(self, request, app_label=None):
         None
     )
     if societe_model:
+        base_url = '/admin/core/societe/'
         societe_section['models'].append({
             'name': 'Sociétés',
             'object_name': 'Societe',
-            'admin_url': '/admin/core/societe/',
+            'admin_url': build_url(base_url),
             'view_only': False
         })
 
@@ -547,85 +550,51 @@ def custom_get_app_list(self, request, app_label=None):
         None
     )
     if secteur_model:
+        base_url = '/admin/core/secteuractivite/'
         societe_section['models'].append({
             'name': "Secteurs d'activité",
             'object_name': 'SecteurActivite',
-            'admin_url': '/admin/core/secteuractivite/',
+            'admin_url': build_url(base_url),
             'view_only': False
         })
 
-    # Ajouter la section si elle contient des modèles
     if societe_section['models']:
         reordered_app_list.append(societe_section)
-
-        
     # Fin
     
-     # Debut
-    
-    # 🔑 4. Administration & Autorisation
+    # Début - Administration & Autorisation
     auth_section = {
         'name': 'Administration & Autorisation',
         'app_label': 'auth_section',
         'models': []
     }
     
-    
-    
     # Ajouter Group
     group_model = next((m for m in app_list if m['app_label'] == 'auth' for model in m['models'] if model['object_name'] == 'Group'), None)
     if group_model:
+        base_url = '/admin/core/groupepersonnalise/'
         auth_section['models'].append({
             'name': 'Groupes',
             'object_name': 'Group',
-            'admin_url': '/admin/core/groupepersonnalise/',
+            'admin_url': build_url(base_url),
             'view_only': False
         })
-        
-    
     
     # Ajouter CustomUser
     custom_user_model = next((m for m in app_list if m['app_label'] == 'core' for model in m['models'] if model['object_name'] == 'CustomUser'), None)
     if custom_user_model:
+        base_url = '/admin/core/customuser/'
         auth_section['models'].append({
             'name': 'Utilisateurs',
             'object_name': 'CustomUser',
-            'admin_url': '/admin/core/customuser/',
+            'admin_url': build_url(base_url),
             'view_only': False
         })
     
     if auth_section['models']:
         reordered_app_list.append(auth_section)
-        
     # Fin
-        
-    # 👤 6. Gestion du Profil (section personnalisée)
-    # profile_section = {
-    #     'name': 'Gestion du Profil',
-    #     'app_label': 'profile_section',
-    #     'models': [
-    #         {
-    #             'name': 'Gérer mon compte',
-    #             'object_name': 'CustomUser',
-    #             'admin_url': f'/admin/core/customuser/{request.user.id}/change/',
-    #             'view_only': False,
-    #         },
-    #         {
-    #             'name': 'Modifier mot de passe',
-    #             'object_name': 'PasswordChange',
-    #             'admin_url': '/admin/password_change/',
-    #             'view_only': False,
-    #         }
-    #     ]
-    # }
-    
-    # reordered_app_list.append(profile_section)
-    
-    # Ajouter les autres apps (comme auth, etc.)
-    for app in app_list:
-        if app['app_label'] not in ['auth', 'core']:
-            reordered_app_list.append(app)
-    
+
     return reordered_app_list
 
 # 🔹 3. Appliquer le monkey patch
@@ -1143,11 +1112,22 @@ class ExecutionResultAdmin(admin.ModelAdmin):
 
 @admin.register(EmailNotification)
 class EmailNotificationAdmin(admin.ModelAdmin):
-    list_display = ('email', 'societe', 'created_by', 'est_actif', 'date_creation')
+    # MODIFIÉ : Affiche le nom complet, puis l'email
+    list_display = ('get_full_name', 'email', 'societe', 'created_by', 'est_actif', 'date_creation')
     list_filter = ('societe', 'created_by', 'est_actif', 'date_creation')
-    search_fields = ('email', 'societe__nom')
+    
+    # MODIFIÉ : Ajout des champs de nom et prénom à la recherche
+    search_fields = ('email', 'prenom', 'nom', 'societe__nom')
+    
     list_editable = ('est_actif',)
     readonly_fields = ('created_by', 'date_creation')
+    
+    # NOUVEAU : Méthode pour afficher le nom complet de manière lisible
+    def get_full_name(self, obj):
+        if obj.prenom or obj.nom:
+            return f"{obj.prenom or ''} {obj.nom or ''}".strip()
+        return "Nom non renseigné"
+    get_full_name.short_description = 'Nom complet'
     
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -1166,6 +1146,7 @@ class EmailNotificationAdmin(admin.ModelAdmin):
             # Limiter les sociétés à celles dont l'utilisateur est admin
             kwargs["queryset"] = Societe.objects.filter(admin=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 logger = logging.getLogger(__name__)
 
@@ -1733,17 +1714,25 @@ class ConfigurationAdmin(admin.ModelAdmin):
 class SecteurActiviteAdmin(admin.ModelAdmin):
     list_display = ('nom',) 
     
+# admin.py
+
 @admin.register(Societe)
 class SocieteAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'num_siret', 'secteur_activite', 'admin', 'display_projets', 'nombre_projets')
-    filter_horizontal = ('employes', 'projets')  # Ajoutez 'projets' ici
-    list_filter = ('secteur_activite', 'projets')  # Optionnel: ajoutez aux filtres
-    search_fields = ('nom', 'num_siret', 'admin__email', 'projets__nom')  # Corrigez 'projet__nom' en 'projets__nom'
+    # --- MODIFIÉ : Suppression de 'num_siret' ---
+    list_display = ('nom', 'secteur_activite', 'admin', 'display_projets', 'nombre_projets')
+    # --- FIN DE LA MODIFICATION ---
+
+    filter_horizontal = ('employes', 'projets')
+    list_filter = ('secteur_activite', 'projets')
+    
+    # --- MODIFIÉ : Suppression de 'num_siret' ---
+    search_fields = ('nom', 'admin__email', 'projets__nom')
+    # --- FIN DE LA MODIFICATION ---
     
     def display_projets(self, obj):
         """Affiche la liste des projets dans l'admin"""
         return ", ".join([projet.nom for projet in obj.projets.all()])
-    display_projets.short_description = 'Projets'  # Nom de la colonne dans l'admin
+    display_projets.short_description = 'Projets'
     
     def nombre_projets(self, obj):
         """Affiche le nombre de projets"""
@@ -1762,11 +1751,7 @@ class SocieteAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
-        """
-        Limite les champs manytomany selon les permissions
-        """
         if db_field.name == "employes" and not request.user.is_superuser:
-            # Logique existante pour les employés
             if request.resolver_match.url_name.endswith('change'):
                 obj_id = request.resolver_match.kwargs.get('object_id')
                 if obj_id:
@@ -1779,15 +1764,9 @@ class SocieteAdmin(admin.ModelAdmin):
                 kwargs["queryset"] = CustomUser.objects.filter(societe=request.user.societe)
         
         elif db_field.name == "projets" and not request.user.is_superuser:
-            # Limiter les projets selon les permissions de l'utilisateur
-            # Adaptez cette logique selon vos besoins
             if hasattr(request.user, 'projets_access'):
                 kwargs["queryset"] = request.user.projets_access.all()
             else:
-                # Par défaut, montrer tous les projets ou limiter selon votre logique métier
                 kwargs["queryset"] = Projet.objects.all()
                 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
-
-
-

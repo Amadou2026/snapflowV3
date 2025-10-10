@@ -95,3 +95,5 @@ def execute_pending_tests():
 
     logger.info(f"✅ Fin vérification des tests")
     print(f"✅ Fin vérification des tests")
+    
+    
