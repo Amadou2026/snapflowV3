@@ -229,20 +229,6 @@ const GestionSocietes = ({ user, logout }) => {
         });
     };
 
-    // Fonction pour formater l'URL
-    const formatUrl = (url) => {
-        if (!url) return 'Non renseigné';
-        const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
-        return formattedUrl;
-    };
-
-    // Fonction pour raccourcir l'affichage de l'URL
-    const displayUrl = (url) => {
-        if (!url) return 'Non renseigné';
-        const cleanUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-        return cleanUrl.length > 30 ? cleanUrl.substring(0, 30) + '...' : cleanUrl;
-    };
-
     // Fonction pour afficher les projets
     const displayProjets = (projets) => {
         if (!projets || projets.length === 0) {
@@ -371,10 +357,8 @@ const GestionSocietes = ({ user, logout }) => {
                                                         <tr>
                                                             <th>#</th>
                                                             <th>Société</th>
-                                                            <th>SIRET</th>
                                                             <th>Secteur d'activité</th>
                                                             <th>Projets</th>
-                                                            <th>Site Web</th>
                                                             <th>Employés</th>
                                                             <th className="text-center">Actions</th>
                                                         </tr>
@@ -394,11 +378,6 @@ const GestionSocietes = ({ user, logout }) => {
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                </td>
-                                                                <td>
-                                                                    <span className="badge bg-light-secondary">
-                                                                        {societe.num_siret || 'Non renseigné'}
-                                                                    </span>
                                                                 </td>
                                                                 <td>
                                                                     {societe.secteur_activite ? (
@@ -421,22 +400,6 @@ const GestionSocietes = ({ user, logout }) => {
                                                                     </div>
                                                                 </td>
                                                                 <td>
-                                                                    {societe.url ? (
-                                                                        <a
-                                                                            href={formatUrl(societe.url)}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="text-primary"
-                                                                            title={societe.url}
-                                                                        >
-                                                                            <i className="ti ti-external-link me-1"></i>
-                                                                            {displayUrl(societe.url)}
-                                                                        </a>
-                                                                    ) : (
-                                                                        <span className="text-muted">Non renseigné</span>
-                                                                    )}
-                                                                </td>
-                                                                <td>
                                                                     <div className="d-flex align-items-center">
                                                                         <i className="ti ti-users me-1 text-muted"></i>
                                                                         <span className="badge bg-light-warning">
@@ -454,7 +417,7 @@ const GestionSocietes = ({ user, logout }) => {
                                                                         >
                                                                             <i className="ti ti-eye f-18"></i>
                                                                         </button>
-                                                                        
+                                                                
                                                                         {/* Bouton Modifier - Pour SuperAdmin ET Admin de la société */}
                                                                         {canEditSociete(societe) && (
                                                                             <button
@@ -465,7 +428,7 @@ const GestionSocietes = ({ user, logout }) => {
                                                                                 <i className="ti ti-edit-circle f-18"></i>
                                                                             </button>
                                                                         )}
-                                                                        
+                                                                
                                                                         {/* Bouton Supprimer - Seulement pour SuperAdmin */}
                                                                         {isSuperAdmin && (
                                                                             <button

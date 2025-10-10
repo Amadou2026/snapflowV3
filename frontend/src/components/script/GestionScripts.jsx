@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import AjouterScriptModal from './modals/AjouterScriptModal';
 import ModifierScriptModal from './modals/ModifierScriptModal';
@@ -13,6 +13,7 @@ import withReactContent from 'sweetalert2-react-content';
 const MySwal = withReactContent(Swal);
 
 const GestionScripts = ({ user, logout }) => {
+    const location = useLocation();
     const [scripts, setScripts] = useState([]);
     const [filteredScripts, setFilteredScripts] = useState([]);
     const [projets, setProjets] = useState([]); // Projets affectés à l'utilisateur
@@ -24,6 +25,7 @@ const GestionScripts = ({ user, logout }) => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedProjet, setSelectedProjet] = useState('all'); // Projet sélectionné dans le filtre
+    const [projectIdFromUrl, setProjectIdFromUrl] = useState(null); // ID du projet depuis l'URL
 
     // Options de priorité
     const priorityOptions = {
@@ -35,8 +37,19 @@ const GestionScripts = ({ user, logout }) => {
     };
 
     useEffect(() => {
+        // Extraire le paramètre projectId de l'URL
+        const searchParams = new URLSearchParams(location.search);
+        const projectId = searchParams.get('projectId');
+        
+        if (projectId) {
+            setProjectIdFromUrl(parseInt(projectId));
+            setSelectedProjet(parseInt(projectId));
+        } else {
+            setProjectIdFromUrl(null);
+        }
+        
         fetchData();
-    }, [user]);
+    }, [user, location.search]);
 
     const fetchData = async () => {
         try {
@@ -67,29 +80,41 @@ const GestionScripts = ({ user, logout }) => {
         }
     };
 
-    // Filtrer les scripts quand la sélection de projet change
+    // Filtrer les scripts quand la sélection de projet change ou quand les données sont chargées
     useEffect(() => {
-        if (selectedProjet === 'all') {
-            // Afficher tous les scripts des projets de l'utilisateur
+        if (projectIdFromUrl) {
+            // Si un projectId est dans l'URL, filtrer uniquement pour ce projet
             const filtered = scripts.filter(script => {
                 const scriptProjetId = getProjetId(script.projet);
-                return projets.some(projet => projet.id === scriptProjetId);
+                return scriptProjetId === projectIdFromUrl;
             });
             setFilteredScripts(filtered);
         } else {
-            // Filtrer par projet spécifique
-            const projetId = parseInt(selectedProjet);
-            const filtered = scripts.filter(script => {
-                const scriptProjetId = getProjetId(script.projet);
-                return scriptProjetId === projetId;
-            });
-            setFilteredScripts(filtered);
+            // Sinon, utiliser le filtre normal
+            if (selectedProjet === 'all') {
+                // Afficher tous les scripts des projets de l'utilisateur
+                const filtered = scripts.filter(script => {
+                    const scriptProjetId = getProjetId(script.projet);
+                    return projets.some(projet => projet.id === scriptProjetId);
+                });
+                setFilteredScripts(filtered);
+            } else {
+                // Filtrer par projet spécifique
+                const projetId = parseInt(selectedProjet);
+                const filtered = scripts.filter(script => {
+                    const scriptProjetId = getProjetId(script.projet);
+                    return scriptProjetId === projetId;
+                });
+                setFilteredScripts(filtered);
+            }
         }
-    }, [scripts, selectedProjet, projets]);
+    }, [scripts, selectedProjet, projets, projectIdFromUrl]);
 
-    // Gestion du changement de filtre
+    // Gestion du changement de filtre (désactivé si projectId est dans l'URL)
     const handleProjetFilterChange = (projetId) => {
-        setSelectedProjet(projetId);
+        if (!projectIdFromUrl) {
+            setSelectedProjet(projetId);
+        }
     };
 
     const handleDeleteScript = async (scriptId) => {
@@ -267,6 +292,13 @@ const GestionScripts = ({ user, logout }) => {
     // Vérifier si l'utilisateur peut ajouter des scripts
     const canAddScript = user.is_superuser || projets.length > 0;
 
+    // Obtenir le nom du projet depuis l'ID dans l'URL
+    const getProjectNameFromUrl = () => {
+        if (!projectIdFromUrl) return '';
+        const projet = projets.find(p => p.id === projectIdFromUrl);
+        return projet ? projet.nom : `Projet #${projectIdFromUrl}`;
+    };
+
     if (loading) {
         return (
             <div className="dashboard-wrapper">
@@ -317,7 +349,14 @@ const GestionScripts = ({ user, logout }) => {
                                         </div>
                                         <div className="col-md-12">
                                             <div className="page-header-title">
-                                                <h2 className="mb-0">Gestion des scripts</h2>
+                                                <h2 className="mb-0">
+                                                    Gestion des scripts
+                                                    {projectIdFromUrl && (
+                                                        <span className="badge bg-primary ms-2">
+                                                            {getProjectNameFromUrl()}
+                                                        </span>
+                                                    )}
+                                                </h2>
                                                 {projets.length > 0 && (
                                                     <p className="text-muted mb-0">
                                                         {user.is_superuser 
@@ -332,6 +371,12 @@ const GestionScripts = ({ user, logout }) => {
                                                         Mode Super Admin - Tous les scripts visibles
                                                     </p>
                                                 )}
+                                                {projectIdFromUrl && (
+                                                    <p className="text-info mb-0">
+                                                        <i className="ti ti-filter me-1"></i>
+                                                        Affichage filtré pour le projet "{getProjectNameFromUrl()}"
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -339,39 +384,41 @@ const GestionScripts = ({ user, logout }) => {
                             </div>
                             {/* End Breadcrumb */}
 
-                            {/* Filtre par projet */}
-                            <div className="row mb-4">
-                                <div className="col-sm-12">
-                                    <div className="card">
-                                        <div className="card-body">
-                                            <div className="row align-items-center">
-                                                <div className="col-md-6">
-                                                    <h6 className="mb-0">
-                                                        <i className="ti ti-filter me-2"></i>
-                                                        Filtre par projet
-                                                    </h6>
-                                                </div>
-                                                <div className="col-md-6">
-                                                    <select 
-                                                        className="form-select"
-                                                        value={selectedProjet}
-                                                        onChange={(e) => handleProjetFilterChange(e.target.value)}
-                                                    >
-                                                        <option value="all">
-                                                            {user.is_superuser ? 'Tous les projets' : 'Tous mes projets'}
-                                                        </option>
-                                                        {projets.map(projet => (
-                                                            <option key={projet.id} value={projet.id}>
-                                                                {projet.nom}
+                            {/* Filtre par projet (masqué si projectId est dans l'URL) */}
+                            {!projectIdFromUrl && (
+                                <div className="row mb-4">
+                                    <div className="col-sm-12">
+                                        <div className="card">
+                                            <div className="card-body">
+                                                <div className="row align-items-center">
+                                                    <div className="col-md-6">
+                                                        <h6 className="mb-0">
+                                                            <i className="ti ti-filter me-2"></i>
+                                                            Filtre par projet
+                                                        </h6>
+                                                    </div>
+                                                    <div className="col-md-6">
+                                                        <select 
+                                                            className="form-select"
+                                                            value={selectedProjet}
+                                                            onChange={(e) => handleProjetFilterChange(e.target.value)}
+                                                        >
+                                                            <option value="all">
+                                                                {user.is_superuser ? 'Tous les projets' : 'Tous mes projets'}
                                                             </option>
-                                                        ))}
-                                                    </select>
+                                                            {projets.map(projet => (
+                                                                <option key={projet.id} value={projet.id}>
+                                                                    {projet.nom}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Main Content */}
                             <div className="row">
@@ -506,9 +553,11 @@ const GestionScripts = ({ user, logout }) => {
                                                         <p className="text-muted">
                                                             {scripts.length === 0 
                                                                 ? 'Aucun script trouvé dans le système.'
-                                                                : selectedProjet === 'all'
-                                                                    ? 'Aucun script trouvé dans vos projets.'
-                                                                    : `Aucun script trouvé pour le projet "${getProjetName(selectedProjet)}".`
+                                                                : projectIdFromUrl
+                                                                    ? `Aucun script trouvé pour le projet "${getProjectNameFromUrl()}".`
+                                                                    : selectedProjet === 'all'
+                                                                        ? 'Aucun script trouvé dans vos projets.'
+                                                                        : `Aucun script trouvé pour le projet "${getProjetName(selectedProjet)}".`
                                                             }
                                                         </p>
                                                         {canAddScript && scripts.length === 0 && (
@@ -541,6 +590,7 @@ const GestionScripts = ({ user, logout }) => {
                                 sousAxes={sousAxes}
                                 priorityOptions={priorityOptions}
                                 isSuperAdmin={user.is_superuser}
+                                preselectedProjetId={projectIdFromUrl} // Pré-sélectionner le projet si ID dans l'URL
                             />
                         )}
 

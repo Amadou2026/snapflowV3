@@ -1,6 +1,13 @@
 import React from 'react';
 
 const ViewMailModal = ({ show, onClose, email }) => {
+    // NOUVEAU : Fonction pour obtenir les initiales du nom
+    const getInitials = (prenom, nom) => {
+        const firstInitial = prenom ? prenom.charAt(0).toUpperCase() : '';
+        const lastInitial = nom ? nom.charAt(0).toUpperCase() : '';
+        return `${firstInitial}${lastInitial}` || 'NA';
+    };
+
     const handleClose = () => {
         onClose();
     };
@@ -27,15 +34,44 @@ const ViewMailModal = ({ show, onClose, email }) => {
                             <div className="col-12">
                                 <div className="card bg-light border-0">
                                     <div className="card-body">
+                                        {/* MODIFIÉ : Affiche le nom complet et l'email */}
                                         <div className="row align-items-center mb-4">
                                             <div className="col-auto">
                                                 <div className="wid-60 hei-60 rounded-circle bg-primary d-flex align-items-center justify-content-center">
-                                                    <i className="ti ti-mail text-white f-24"></i>
+                                                    {email.prenom || email.nom ? (
+                                                        <span className="text-white f-24 fw-bold">
+                                                            {getInitials(email.prenom, email.nom)}
+                                                        </span>
+                                                    ) : (
+                                                        <i className="ti ti-user text-white f-24"></i>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="col">
-                                                <h4 className="mb-1">{email.email}</h4>
-                                                <p className="text-muted mb-0">Email de notification</p>
+                                                <h4 className="mb-1">
+                                                    {email.nom_complet || 'Nom non renseigné'}
+                                                </h4>
+                                                <p className="text-muted mb-0">{email.email}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* NOUVEAU : Ligne pour afficher le prénom et le nom séparément si besoin */}
+                                        <div className="row">
+                                            <div className="col-md-6">
+                                                <div className="mb-3">
+                                                    <label className="form-label fw-semibold">Prénom</label>
+                                                    <p className="form-control-plaintext">
+                                                        {email.prenom || 'Non renseigné'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="col-md-6">
+                                                <div className="mb-3">
+                                                    <label className="form-label fw-semibold">Nom</label>
+                                                    <p className="form-control-plaintext">
+                                                        {email.nom || 'Non renseigné'}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
 

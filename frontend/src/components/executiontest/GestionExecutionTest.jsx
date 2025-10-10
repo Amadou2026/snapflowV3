@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import HeaderAdmin from '../admin/HeaderAdmin';
 import SidebarAdmin from '../admin/SidebarAdmin';
@@ -12,44 +12,91 @@ import withReactContent from 'sweetalert2-react-content';
 const MySwal = withReactContent(Swal);
 
 const GestionExecutionTest = ({ user, logout }) => {
+    const location = useLocation();
     const [executions, setExecutions] = useState([]);
     const [filteredExecutions, setFilteredExecutions] = useState([]);
     const [displayedExecutions, setDisplayedExecutions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedExecution, setSelectedExecution] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [projectIdFromUrl, setProjectIdFromUrl] = useState(null); // ID du projet depuis l'URL
+    const [projets, setProjets] = useState([]); // Liste des projets pour faire la correspondance ID/Nom
 
     // États pour la pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
 
     useEffect(() => {
-        fetchExecutions();
-    }, []);
+        // Extraire le paramètre projectId de l'URL
+        const searchParams = new URLSearchParams(location.search);
+        const projectId = searchParams.get('projectId');
+        
+        if (projectId) {
+            setProjectIdFromUrl(parseInt(projectId));
+        } else {
+            setProjectIdFromUrl(null);
+        }
+        
+        fetchData();
+    }, [location.search]);
 
     // Mettre à jour l'affichage paginé quand les executions filtrées changent
     useEffect(() => {
         updateDisplayedExecutions();
     }, [filteredExecutions, currentPage]);
 
-    const fetchExecutions = async () => {
+    // Filtrer les exécutions par projet si projectId est dans l'URL
+    useEffect(() => {
+        if (projectIdFromUrl && executions.length > 0 && projets.length > 0) {
+            // Trouver le nom du projet correspondant à l'ID
+            const projet = projets.find(p => p.id === projectIdFromUrl);
+            const projetNom = projet ? projet.nom : null;
+            
+            if (projetNom) {
+                const filtered = executions.filter(execution => {
+                    // Comparer avec le nom du projet
+                    return execution.projet_nom === projetNom;
+                });
+                setFilteredExecutions(filtered);
+                setCurrentPage(1); // Retour à la première page lors du filtrage
+            } else {
+                // Si le projet n'est pas trouvé, afficher un message vide
+                setFilteredExecutions([]);
+            }
+        } else if (!projectIdFromUrl && executions.length > 0) {
+            // Si pas de projectId dans l'URL, utiliser toutes les exécutions
+            setFilteredExecutions(executions);
+        }
+    }, [executions, projets, projectIdFromUrl]);
+
+    const fetchData = async () => {
         try {
-            const response = await api.get('executions/');
-            console.log('📊 DONNÉES EXECUTIONS:', response.data);
-            setExecutions(response.data);
-            setFilteredExecutions(response.data);
+            // Charger les exécutions et les projets en parallèle
+            const [executionsResponse, projetsResponse] = await Promise.all([
+                api.get('executions/'),
+                api.get('projets/')
+            ]);
+            
+            console.log('📊 DONNÉES EXECUTIONS:', executionsResponse.data);
+            console.log('📊 DONNÉES PROJETS:', projetsResponse.data);
+            
+            setExecutions(executionsResponse.data);
+            setProjets(projetsResponse.data);
+            setFilteredExecutions(executionsResponse.data);
         } catch (error) {
-            console.error('Erreur lors du chargement des exécutions:', error);
-            showErrorAlert('Erreur lors du chargement des exécutions');
+            console.error('Erreur lors du chargement des données:', error);
+            showErrorAlert('Erreur lors du chargement des données');
         } finally {
             setLoading(false);
         }
     };
 
-    // Fonction pour gérer les changements de filtre
+    // Fonction pour gérer les changements de filtre (désactivée si projectId est dans l'URL)
     const handleFilterChange = (filteredData) => {
-        setFilteredExecutions(filteredData);
-        setCurrentPage(1); // Retour à la première page lors du filtrage
+        if (!projectIdFromUrl) {
+            setFilteredExecutions(filteredData);
+            setCurrentPage(1); // Retour à la première page lors du filtrage
+        }
     };
 
     const updateDisplayedExecutions = () => {
@@ -196,6 +243,13 @@ const GestionExecutionTest = ({ user, logout }) => {
         }
     };
 
+    // Obtenir le nom du projet depuis l'ID dans l'URL
+    const getProjectNameFromUrl = () => {
+        if (!projectIdFromUrl) return '';
+        const projet = projets.find(p => p.id === projectIdFromUrl);
+        return projet ? projet.nom : `Projet #${projectIdFromUrl}`;
+    };
+
     if (loading) {
         return (
             <div className="dashboard-wrapper">
@@ -246,7 +300,26 @@ const GestionExecutionTest = ({ user, logout }) => {
                                         </div>
                                         <div className="col-md-12">
                                             <div className="page-header-title">
-                                                <h2 className="mb-0">Gestion des configurations</h2>
+                                                <h2 className="mb-0">
+                                                    Les battéries de test exécutées
+                                                    {projectIdFromUrl && (
+                                                        <span className="badge bg-primary ms-2">
+                                                            {getProjectNameFromUrl()}
+                                                        </span>
+                                                    )}
+                                                </h2>
+                                                {user.is_superuser && (
+                                                    <p className="text-success mb-0">
+                                                        <i className="ti ti-shield-check me-1"></i>
+                                                        Mode Super Admin - Toutes les exécutions visibles
+                                                    </p>
+                                                )}
+                                                {projectIdFromUrl && (
+                                                    <p className="text-info mb-0">
+                                                        <i className="ti ti-filter me-1"></i>
+                                                        Affichage filtré pour le projet "{getProjectNameFromUrl()}"
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -254,12 +327,15 @@ const GestionExecutionTest = ({ user, logout }) => {
                             </div>
                             {/* End Breadcrumb */}
 
-                            {/* Filtres */}
-                            <FiltreExecutionTest 
-                                executions={executions}
-                                onFilterChange={handleFilterChange}
-                                user={user}
-                            />
+                            {/* Filtres (masqué si projectId est dans l'URL) */}
+                            {!projectIdFromUrl && (
+                                <FiltreExecutionTest 
+                                    executions={executions}
+                                    onFilterChange={handleFilterChange}
+                                    user={user}
+                                    projets={projets} // Ajout des projets pour le filtre
+                                />
+                            )}
 
                             {/* Main Content */}
                             <div className="row">
@@ -291,7 +367,7 @@ const GestionExecutionTest = ({ user, logout }) => {
                                                                 </td>
                                                                 <td>
                                                                     <span className="badge bg-light-primary">
-                                                                        {execution.projet_nom|| 'N/A'}
+                                                                        {execution.projet_nom || 'N/A'}
                                                                     </span>
                                                                 </td>
                                                                 <td>
@@ -357,7 +433,9 @@ const GestionExecutionTest = ({ user, logout }) => {
                                                         <p className="text-muted">
                                                             {executions.length === 0 ?
                                                                 'Aucune exécution de test trouvée.' :
-                                                                'Aucune exécution ne correspond aux critères de filtrage.'
+                                                                projectIdFromUrl ?
+                                                                    `Aucune exécution trouvée pour le projet "${getProjectNameFromUrl()}".` :
+                                                                    'Aucune exécution ne correspond aux critères de filtrage.'
                                                             }
                                                         </p>
                                                     </div>

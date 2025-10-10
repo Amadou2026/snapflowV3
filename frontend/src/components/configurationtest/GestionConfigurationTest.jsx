@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import AjouterConfigurationTestModal from './modals/AjouterConfigurationTestModal';
 import ModifierConfigurationTestModal from './modals/ModifierConfigurationTestModal';
@@ -8,6 +8,7 @@ import FiltreGestionConfigurationTest from './FiltreGestionConfigurationTest';
 import HeaderAdmin from '../admin/HeaderAdmin';
 import SidebarAdmin from '../admin/SidebarAdmin';
 import FooterAdmin from '../admin/FooterAdmin';
+import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -27,6 +28,10 @@ const GestionConfigurationTest = ({ user, logout }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(7);
 
+    // Récupération du contexte d'authentification
+    const { selectedProjectId: contextProjectId } = useContext(AuthContext);
+    const location = useLocation();
+
     // Vérifier si l'utilisateur est superadmin
     const isSuperAdmin = user?.is_superuser;
 
@@ -36,29 +41,58 @@ const GestionConfigurationTest = ({ user, logout }) => {
     };
 
     useEffect(() => {
-        fetchConfigurations();
-    }, []);
+        // Extraire le projectId de l'URL
+        const urlParams = new URLSearchParams(location.search);
+        const urlProjectId = urlParams.get('projectId');
+        
+        // Priorité : URL > Contexte
+        const projectId = urlProjectId || contextProjectId;
+        
+        fetchConfigurations(projectId);
+    }, [location.search, contextProjectId]);
 
-    // Mettre à jour l'affichage paginé quand les configurations filtrées changent
-    useEffect(() => {
-        updateDisplayedConfigurations();
-    }, [filteredConfigurations, currentPage]);
-
-    const fetchConfigurations = async () => {
+    // Fonction pour récupérer toutes les configurations puis filtrer côté client
+    const fetchConfigurations = async (projectId = null) => {
         try {
+            setLoading(true);
             const response = await api.get('configuration-tests/');
             console.log('📊 DONNÉES CONFIGURATIONS:', response.data);
-            setConfigurations(response.data);
-            setFilteredConfigurations(response.data);
+            
+            let configurationsToShow = response.data;
+            
+            // Filtrer par projet si un projectId est spécifié
+            if (projectId) {
+                const projectIdNum = parseInt(projectId);
+                configurationsToShow = response.data.filter(config => 
+                    config.projet?.id === projectIdNum
+                );
+                console.log(`🔍 Configurations filtrées pour le projet ${projectId}:`, configurationsToShow);
+            }
+            
+            setConfigurations(configurationsToShow);
+            setFilteredConfigurations(configurationsToShow);
         } catch (error) {
             console.error('Erreur lors du chargement des configurations:', error);
             showErrorAlert('Erreur lors du chargement des configurations de test');
         } finally {
             setLoading(false);
         }
-
     };
-    // 
+
+    // Mettre à jour l'affichage paginé quand les configurations filtrées changent
+    useEffect(() => {
+        updateDisplayedConfigurations();
+    }, [filteredConfigurations, currentPage]);
+
+    const updateDisplayedConfigurations = () => {
+        // Calculer les index de début et fin pour la pagination
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentItems = filteredConfigurations.slice(indexOfFirstItem, indexOfLastItem);
+
+        setDisplayedConfigurations(currentItems);
+    };
+
     // Fonction pour activer une configuration
     const handleActivateConfiguration = async (configurationId) => {
         try {
@@ -173,16 +207,6 @@ const GestionConfigurationTest = ({ user, logout }) => {
                 showErrorAlert('Erreur lors de l\'exécution de la configuration');
             }
         }
-    };
-
-    // 
-    const updateDisplayedConfigurations = () => {
-        // Calculer les index de début et fin pour la pagination
-        const indexOfLastItem = currentPage * itemsPerPage;
-        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-        const currentItems = filteredConfigurations.slice(indexOfFirstItem, indexOfLastItem);
-
-        setDisplayedConfigurations(currentItems);
     };
 
     // Calculer le nombre total de pages
@@ -531,13 +555,11 @@ const GestionConfigurationTest = ({ user, logout }) => {
                                                                 </td>
                                                                 <td>
                                                                     <span className="badge bg-light-info">
-                                                                        {/* Maintenant configuration.societe contient l'objet complet */}
                                                                         {configuration.societe?.nom || 'Non spécifiée'}
                                                                     </span>
                                                                 </td>
                                                                 <td>
                                                                     <span className="badge bg-light-primary">
-                                                                        {/* Maintenant configuration.projet contient l'objet complet */}
                                                                         {configuration.projet?.nom || 'Non spécifié'}
                                                                     </span>
                                                                 </td>
@@ -615,7 +637,6 @@ const GestionConfigurationTest = ({ user, logout }) => {
                                                                                 </button>
                                                                             )
                                                                         )}
-                                                                       
 
                                                                         {/* Bouton Supprimer - Pour utilisateurs autorisés */}
                                                                         {canEditConfiguration(configuration) && (

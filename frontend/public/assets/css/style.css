@@ -16510,7 +16510,7 @@ pre[class*=language-] > code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  /* width: 34px; */
   height: 34px;
   border-radius: 4px;
   color: var(--pc-header-color);

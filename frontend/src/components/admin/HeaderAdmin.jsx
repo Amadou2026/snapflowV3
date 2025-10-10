@@ -1,16 +1,23 @@
 import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import avatar2 from '../../assets/img/user/avatar-2.jpg';
 import { AuthContext } from '../../context/AuthContext';
-import { useSidebar } from '../../hooks/useSidebar'; // Import du hook
+import { useSidebar } from '../../hooks/useSidebar';
+import api from '../../services/api';
 
 const HeaderAdmin = ({ user }) => {
-  const { isAuthenticated } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { isAuthenticated, selectProject, selectedProjectId } = useContext(AuthContext);
   const [showMessageDropdown, setShowMessageDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showProjectsDropdown, setShowProjectsDropdown] = useState(false);
+  const [showSocieteDropdown, setShowSocieteDropdown] = useState(false);
   const [activeProfileTab, setActiveProfileTab] = useState('profile');
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Utilisation du hook useSidebar
+  const [userProjects, setUserProjects] = useState([]);
+  const [userSocietes, setUserSocietes] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingSocietes, setLoadingSocietes] = useState(false);
+
   const {
     isSidebarHidden,
     isMobileSidebarActive,
@@ -18,22 +25,89 @@ const HeaderAdmin = ({ user }) => {
     toggleMobileSidebar
   } = useSidebar();
 
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadUserSocietes();
+      loadUserProjects();
+    }
+  }, [isAuthenticated, user]);
+
+  const loadUserSocietes = async () => {
+    try {
+      setLoadingSocietes(true);
+      const response = await api.get('societe/');
+      setUserSocietes(response.data);
+    } catch (error) {
+      console.error('Erreur chargement sociétés:', error);
+      setUserSocietes([]);
+    } finally {
+      setLoadingSocietes(false);
+    }
+  };
+
+  const loadUserProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await api.get('projets/');
+      setUserProjects(response.data);
+    } catch (error) {
+      console.error('Erreur chargement projets:', error);
+      setUserProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
   const toggleMessageDropdown = () => {
     setShowMessageDropdown(!showMessageDropdown);
     setShowProfileDropdown(false);
+    setShowProjectsDropdown(false);
+    setShowSocieteDropdown(false);
   };
 
   const toggleProfileDropdown = () => {
     setShowProfileDropdown(!showProfileDropdown);
     setShowMessageDropdown(false);
+    setShowProjectsDropdown(false);
+    setShowSocieteDropdown(false);
   };
 
-  // Fermer les dropdowns quand on clique en dehors
+  const toggleProjectsDropdown = () => {
+    setShowProjectsDropdown(!showProjectsDropdown);
+    setShowMessageDropdown(false);
+    setShowProfileDropdown(false);
+    setShowSocieteDropdown(false);
+  };
+
+  const toggleSocieteDropdown = () => {
+    setShowSocieteDropdown(!showSocieteDropdown);
+    setShowMessageDropdown(false);
+    setShowProfileDropdown(false);
+    setShowProjectsDropdown(false);
+  };
+
+  const handleProjectClick = (project) => {
+    // Stocker le projet sélectionné dans le contexte
+    selectProject(project.id, project);
+
+    // Navigation vers la page détaillée du projet
+    navigate(`/projets/${project.id}`);
+    setShowProjectsDropdown(false);
+  };
+
+const handleSocieteClick = (societe) => {
+    // Navigation vers la page de la société avec l'ID en paramètre
+    navigate(`/admin/core/societe/${societe.id}/`);
+    setShowSocieteDropdown(false);
+};
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.dropdown')) {
         setShowMessageDropdown(false);
         setShowProfileDropdown(false);
+        setShowProjectsDropdown(false);
+        setShowSocieteDropdown(false);
       }
     };
 
@@ -41,30 +115,16 @@ const HeaderAdmin = ({ user }) => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Fermer la sidebar mobile quand on redimensionne la fenêtre
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 1024) {
-        // Le hook gère déjà cet état, mais on peut forcer la fermeture si nécessaire
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   return (
     <header className="pc-header">
       <div className="header-wrapper">
-        {/* Mobile Media Block start */}
         <div className="me-auto pc-mob-drp">
           <ul className="list-unstyled">
-            {/* Bouton DESKTOP - Cache la sidebar */}
             <li className="pc-h-item pc-sidebar-collapse">
-              <a 
-                href="#" 
-                className="pc-head-link ms-0" 
-                id="sidebar-hide" 
+              <a
+                href="#"
+                className="pc-head-link ms-0"
+                id="sidebar-hide"
                 onClick={(e) => {
                   e.preventDefault();
                   toggleSidebar();
@@ -73,12 +133,11 @@ const HeaderAdmin = ({ user }) => {
                 <i className="ti ti-menu-2"></i>
               </a>
             </li>
-            
-            {/* Bouton MOBILE - Ouvre la sidebar en overlay */}
+
             <li className="pc-h-item pc-sidebar-popup">
-              <a 
-                href="#" 
-                className="pc-head-link ms-0" 
+              <a
+                href="#"
+                className="pc-head-link ms-0"
                 id="mobile-collapse"
                 onClick={(e) => {
                   e.preventDefault();
@@ -88,54 +147,227 @@ const HeaderAdmin = ({ user }) => {
                 <i className="ti ti-menu-2"></i>
               </a>
             </li>
-            
-            {/* Recherche mobile */}
-            <li className="dropdown pc-h-item d-inline-flex d-md-none">
-              <a
-                className="pc-head-link dropdown-toggle arrow-none m-0"
-                href="#"
-                role="button"
-                aria-haspopup="false"
-                aria-expanded="false"
-              >
-                <i className="ti ti-search"></i>
-              </a>
-              <div className="dropdown-menu pc-h-dropdown drp-search">
-                <div className="px-3">
-                  <div className="form-group mb-0 d-flex align-items-center">
-                    <i className="feather feather-search"></i>
-                    <input
-                      type="search"
-                      className="form-control border-0 shadow-none"
-                      placeholder="Search here. . ."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </li>
-            
-            {/* Recherche desktop */}
-            <li className="pc-h-item d-none d-md-inline-flex">
-              <div className="header-search">
-                <i className="feather feather-search icon-search"></i>
-                <input
-                  type="search"
-                  className="form-control"
-                  placeholder="Search here. . ."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </li>
           </ul>
         </div>
-        {/* Mobile Media Block end */}
 
         <div className="ms-auto">
           <ul className="list-unstyled">
-            {/* Messages Dropdown */}
+            {/* Dropdown Société */}
+            {/* <li className="dropdown pc-h-item">
+              <a
+                className="pc-head-link dropdown-toggle arrow-none me-0"
+                href="#"
+                role="button"
+                aria-haspopup="false"
+                aria-expanded={showSocieteDropdown}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSocieteDropdown();
+                }}
+              >
+                <span className="text-primary fw-bold">Sociétés</span>
+                <span className="badge bg-primary ms-1">{userSocietes.length}</span>
+              </a>
+              {showSocieteDropdown && (
+                <div className="dropdown-menu dropdown-notification dropdown-menu-end pc-h-dropdown show">
+                  <div className="dropdown-header d-flex align-items-center justify-content-between">
+                    <h5 className="m-0">Sociétés</h5>
+                    <a
+                      href="#!"
+                      className="pc-head-link bg-transparent"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowSocieteDropdown(false);
+                      }}
+                    >
+                      <i className="ti ti-x text-danger"></i>
+                    </a>
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <div
+                    className="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
+                    style={{ maxHeight: 'calc(100vh - 215px)' }}
+                  >
+                    {loadingSocietes ? (
+                      <div className="text-center py-3">
+                        <div className="spinner-border spinner-border-sm" role="status">
+                          <span className="visually-hidden">Chargement...</span>
+                        </div>
+                        <p className="text-muted mt-2 mb-0">Chargement des sociétés...</p>
+                      </div>
+                    ) : userSocietes.length === 0 ? (
+                      <div className="text-center py-3">
+                        <i className="ti ti-building-off text-muted" style={{ fontSize: '2rem' }}></i>
+                        <p className="text-muted mt-2 mb-0">Aucune société trouvée</p>
+                      </div>
+                    ) : (
+                      <div className="list-group list-group-flush w-100">
+                        {userSocietes.map((societe) => (
+                          <a
+                            key={societe.id}
+                            className="list-group-item list-group-item-action cursor-pointer"
+                            onClick={() => handleSocieteClick(societe)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className="flex-shrink-0">
+                                <div className="bg-light rounded p-2">
+                                  <i className="ti ti-building text-primary"></i>
+                                </div>
+                              </div>
+                              <div className="flex-grow-1 ms-3">
+                                <h6 className="mb-1 text-dark">{societe.nom}</h6>
+                                <div className="d-flex align-items-center">
+                                  <small className="text-muted">
+                                    {societe.secteur_activite || 'N/A'}
+                                  </small>
+                                  {societe.admin && (
+                                    <small className="text-muted ms-2">
+                                      • Admin: {societe.admin.first_name} {societe.admin.last_name}
+                                    </small>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <i className="ti ti-chevron-right text-muted"></i>
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <div className="text-center py-2">
+                    <a href="/admin/core/societe/" className="link-primary">
+                      Voir toutes les sociétés
+                    </a>
+                  </div>
+                </div>
+              )}
+            </li> */}
+
+            {/* Espace entre les dropdowns */}
+            {/* <li className="pc-h-item d-none d-md-inline-flex">
+              <span className="text-muted mx-3">|</span>
+            </li> */}
+
+            {/* Dropdown Projets */}
+            <li className="dropdown pc-h-item">
+              <a
+                className="pc-head-link dropdown-toggle arrow-none me-0"
+                href="#"
+                role="button"
+                aria-haspopup="false"
+                aria-expanded={showProjectsDropdown}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleProjectsDropdown();
+                }}
+              >
+                <span className="text-success fw-bold">Projets</span>
+                <span className="badge bg-success ms-1">{userProjects.length}</span>
+              </a>
+              {showProjectsDropdown && (
+                <div className="dropdown-menu dropdown-notification dropdown-menu-end pc-h-dropdown show">
+                  <div className="dropdown-header d-flex align-items-center justify-content-between">
+                    <h5 className="m-0">Projets</h5>
+                    <a
+                      href="#!"
+                      className="pc-head-link bg-transparent"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowProjectsDropdown(false);
+                      }}
+                    >
+                      <i className="ti ti-x text-danger"></i>
+                    </a>
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <div
+                    className="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
+                    style={{ maxHeight: 'calc(100vh - 215px)' }}
+                  >
+                    {loadingProjects ? (
+                      <div className="text-center py-3">
+                        <div className="spinner-border spinner-border-sm" role="status">
+                          <span className="visually-hidden">Chargement...</span>
+                        </div>
+                        <p className="text-muted mt-2 mb-0">Chargement des projets...</p>
+                      </div>
+                    ) : userProjects.length === 0 ? (
+                      <div className="text-center py-3">
+                        <i className="ti ti-folder-off text-muted" style={{ fontSize: '2rem' }}></i>
+                        <p className="text-muted mt-2 mb-0">Aucun projet trouvé</p>
+                      </div>
+                    ) : (
+                      <div className="list-group list-group-flush w-100">
+                        {userProjects.map((project) => (
+                          <a
+                            key={project.id}
+                            className={`list-group-item list-group-item-action cursor-pointer ${selectedProjectId === project.id ? 'active' : ''
+                              }`}
+                            onClick={() => handleProjectClick(project)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className="flex-shrink-0">
+                                {project.logo ? (
+                                  <img
+                                    src={project.logo}
+                                    alt={project.nom}
+                                    className=""
+                                    style={{
+                                      width: '30px',
+                                      height: '30px',
+                                      borderRadius: '100px !important'
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="bg-light rounded p-2">
+                                    <i className="ti ti-folder text-primary"></i>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-grow-1 ms-3">
+                                <h6 className="mb-1 text-dark">{project.nom}</h6>
+                                <div className="d-flex align-items-center">
+                                  <small className="text-muted">
+                                    {project.societes && project.societes.length > 0
+                                      ? `${project.societes.length} société(s)`
+                                      : 'Aucune société'
+                                    }
+                                  </small>
+                                  {project.charge_de_compte_nom && (
+                                    <small className="text-muted ms-2">
+                                      • Chargé: {project.charge_de_compte_nom}
+                                    </small>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0">
+                                {selectedProjectId === project.id ? (
+                                  <i className="ti ti-check text-success"></i>
+                                ) : (
+                                  <i className="ti ti-chevron-right text-muted"></i>
+                                )}
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <div className="text-center py-2">
+                    <a href="/admin/core/projet/" className="link-primary">
+                      Voir tous les projets
+                    </a>
+                  </div>
+                </div>
+              )}
+            </li>
+
             <li className="dropdown pc-h-item">
               <a
                 className="pc-head-link dropdown-toggle arrow-none me-0"
@@ -150,50 +382,8 @@ const HeaderAdmin = ({ user }) => {
               >
                 <i className="ti ti-mail"></i>
               </a>
-              {showMessageDropdown && (
-                <div className="dropdown-menu dropdown-notification dropdown-menu-end pc-h-dropdown show">
-                  <div className="dropdown-header d-flex align-items-center justify-content-between">
-                    <h5 className="m-0">Message</h5>
-                    <a
-                      href="#!"
-                      className="pc-head-link bg-transparent"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setShowMessageDropdown(false);
-                      }}
-                    >
-                      <i className="ti ti-x text-danger"></i>
-                    </a>
-                  </div>
-                  <div className="dropdown-divider"></div>
-                  <div
-                    className="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
-                    style={{ maxHeight: 'calc(100vh - 215px)' }}
-                  >
-                    <div className="list-group list-group-flush w-100">
-                      <a className="list-group-item list-group-item-action">
-                        <div className="d-flex">
-                          <div className="flex-shrink-0">
-                            <img src={avatar2} alt="user-image" className="user-avtar" />
-                          </div>
-                          <div className="flex-grow-1 ms-1">
-                            <span className="float-end text-muted">3:00 AM</span>
-                            <p className="text-body mb-1">It's <b>Cristina danny's</b> birthday today.</p>
-                            <span className="text-muted">2 min ago</span>
-                          </div>
-                        </div>
-                      </a>
-                    </div>
-                  </div>
-                  <div className="dropdown-divider"></div>
-                  <div className="text-center py-2">
-                    <a href="#!" className="link-primary">View all</a>
-                  </div>
-                </div>
-              )}
             </li>
 
-            {/* User Profile Dropdown */}
             <li className="dropdown pc-h-item header-user-profile">
               <a
                 className="pc-head-link dropdown-toggle arrow-none me-0"
@@ -206,7 +396,7 @@ const HeaderAdmin = ({ user }) => {
                   toggleProfileDropdown();
                 }}
               >
-                <img src={avatar2} alt="user-image" className="user-avtar" />
+                {/* <img src={avatar2} alt="user-image" className="user-avtar" /> */}
                 <span>{user?.first_name} {user?.last_name}</span>
               </a>
               {showProfileDropdown && (
@@ -221,8 +411,8 @@ const HeaderAdmin = ({ user }) => {
                         <div className="mb-2">
                           {user?.groups && user.groups.length > 0
                             ? user.groups.map((g, idx) => (
-                                <span key={idx} className="badge bg-info me-1">{g}</span>
-                              ))
+                              <span key={idx} className="badge bg-info me-1">{g}</span>
+                            ))
                             : <span className="badge bg-light text-dark">Aucun rôle</span>
                           }
                         </div>
@@ -241,7 +431,7 @@ const HeaderAdmin = ({ user }) => {
                       </a>
                     </div>
                   </div>
-                  
+
                   <ul className="nav drp-tabs nav-fill nav-tabs" role="tablist">
                     <li className="nav-item" role="presentation">
                       <button
@@ -250,7 +440,7 @@ const HeaderAdmin = ({ user }) => {
                         role="tab"
                         onClick={() => setActiveProfileTab('profile')}
                       >
-                        <i className="ti ti-user"></i> Profile
+                        <i className="ti ti-user"></i> Profil
                       </button>
                     </li>
                     <li className="nav-item" role="presentation">
@@ -264,7 +454,7 @@ const HeaderAdmin = ({ user }) => {
                       </button>
                     </li>
                   </ul>
-                  
+
                   <div className="tab-content">
                     <div
                       className={`tab-pane fade ${activeProfileTab === 'profile' ? 'show active' : ''}`}
@@ -289,12 +479,8 @@ const HeaderAdmin = ({ user }) => {
                           ) : null}
                         </>
                       )}
-                      <a href="#!" className="dropdown-item">
-                        <i className="ti ti-wallet"></i>
-                        <span>Billing</span>
-                      </a>
-                      <a 
-                        href="#!" 
+                      <a
+                        href="#!"
                         className="dropdown-item"
                         onClick={(e) => {
                           e.preventDefault();
@@ -306,7 +492,7 @@ const HeaderAdmin = ({ user }) => {
                         <span>Logout</span>
                       </a>
                     </div>
-                    
+
                     <div
                       className={`tab-pane fade ${activeProfileTab === 'setting' ? 'show active' : ''}`}
                       role="tabpanel"
@@ -322,14 +508,6 @@ const HeaderAdmin = ({ user }) => {
                       <a href="#!" className="dropdown-item">
                         <i className="ti ti-lock"></i>
                         <span>Privacy Center</span>
-                      </a>
-                      <a href="#!" className="dropdown-item">
-                        <i className="ti ti-messages"></i>
-                        <span>Feedback</span>
-                      </a>
-                      <a href="#!" className="dropdown-item">
-                        <i className="ti ti-list"></i>
-                        <span>History</span>
                       </a>
                     </div>
                   </div>

@@ -1,3 +1,6 @@
+from django.utils import timezone
+from datetime import timedelta
+import datetime  # Pour le timezone si nécessaire
 from rest_framework import serializers
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth import get_user_model
@@ -6,6 +9,7 @@ from .models import (
     Axe, SousAxe, Script, Projet, EmailNotification, 
     ConfigurationTest, ExecutionTest,Configuration
 )
+from django.db import models
 
 User = get_user_model()
 
@@ -20,13 +24,13 @@ class SocieteLightSerializer(serializers.ModelSerializer):
     """Serializer léger pour éviter les circularités"""
     class Meta:
         model = Societe
-        fields = ['id', 'nom', 'num_siret', 'url']
+        fields = ['id', 'nom']
 
 class ProjetLightSerializer(serializers.ModelSerializer):
     """Version basique pour éviter les circularités"""
     class Meta:
         model = Projet
-        fields = ['id', 'nom', 'url', 'logo']
+        fields = ['id', 'nom', 'logo']
 
 # === SERIALIZERS UTILISATEURS ===
 
@@ -211,6 +215,45 @@ class SocieteSerializer(serializers.ModelSerializer):
             } for e in obj.employes.all()
         ]
 
+# serializers.py
+
+# === SERIALIZERS SOCIETES ===
+
+class SocieteSerializer(serializers.ModelSerializer):
+    secteur_activite = serializers.CharField(source='secteur_activite.nom', read_only=True)
+    admin = serializers.SerializerMethodField()
+    employes = serializers.SerializerMethodField()
+    projets = ProjetLightSerializer(many=True, read_only=True)
+    nombre_projets = serializers.ReadOnlyField()
+    nombre_employes = serializers.ReadOnlyField(source='employes.count')
+    
+    class Meta:
+        model = Societe
+        # --- MODIFIÉ : Suppression de 'num_siret' et 'url' ---
+        fields = [
+            'id', 'nom', 'secteur_activite', 'admin', 'projets', 'employes', 
+            'nombre_projets', 'nombre_employes'
+        ]
+        # --- FIN DE LA MODIFICATION ---
+    
+    def get_admin(self, obj):
+        if obj.admin:
+            return {
+                'id': obj.admin.id,
+                'full_name': obj.admin.get_full_name(),
+                'email': obj.admin.email
+            }
+        return None
+
+    def get_employes(self, obj):
+        return [
+            {
+                'id': e.id,
+                'full_name': e.get_full_name(),
+                'email': e.email
+            } for e in obj.employes.all()
+        ]
+# Societe serializers
 class SocieteListSerializer(serializers.ModelSerializer):
     secteur_activite = serializers.CharField(source='secteur_activite.nom', read_only=True)
     admin_nom = serializers.CharField(source='admin.get_full_name', read_only=True)
@@ -219,10 +262,12 @@ class SocieteListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Societe
+        # --- MODIFIÉ : Suppression de 'num_siret' et 'url' ---
         fields = [
-            'id', 'nom', 'num_siret', 'url', 'secteur_activite',
+            'id', 'nom', 'secteur_activite',
             'admin_nom', 'nombre_projets', 'nombre_employes'
         ]
+        # --- FIN DE LA MODIFICATION ---
 
 class SocieteDetailSerializer(serializers.ModelSerializer):
     secteur_activite = serializers.CharField(source='secteur_activite.nom', read_only=True)
@@ -232,17 +277,17 @@ class SocieteDetailSerializer(serializers.ModelSerializer):
     nombre_projets = serializers.ReadOnlyField()
     nombre_employes = serializers.ReadOnlyField(source='employes.count')
     
-    # Version simplifiée - laisser Django gérer le format
     date_creation = serializers.DateTimeField(read_only=True)
     date_modification = serializers.DateTimeField(read_only=True)
     
     class Meta:
         model = Societe
+        # --- MODIFIÉ : Suppression de 'num_siret' et 'url' ---
         fields = [
-            'id', 'nom', 'num_siret', 'url',
-            'secteur_activite', 'admin', 'projets', 'employes',
+            'id', 'nom', 'secteur_activite', 'admin', 'projets', 'employes',
             'nombre_projets', 'nombre_employes', 'date_creation', 'date_modification'
         ]
+        # --- FIN DE LA MODIFICATION ---
     
     def get_admin(self, obj):
         if obj.admin:
@@ -281,10 +326,11 @@ class SocieteCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Societe
+        # --- MODIFIÉ : Suppression de 'num_siret' et 'url' ---
         fields = [
-            'id', 'nom', 'num_siret', 'url',
-            'secteur_activite', 'admin', 'projets'
+            'id', 'nom', 'secteur_activite', 'admin', 'projets'
         ]
+        # --- FIN DE LA MODIFICATION ---
 
     def create(self, validated_data):
         projets_data = validated_data.pop('projets', [])
@@ -303,7 +349,7 @@ class SocieteUpdateSerializer(serializers.ModelSerializer):
         many=True,
         required=False
     )
-    employes = serializers.PrimaryKeyRelatedField(  # AJOUTEZ CE CHAMP
+    employes = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(),
         many=True,
         required=False
@@ -311,25 +357,24 @@ class SocieteUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Societe
+        # --- MODIFIÉ : Suppression de 'num_siret' et 'url' ---
         fields = [
-            'id', 'nom', 'num_siret', 'url', 'secteur_activite', 'projets', 'employes'  # AJOUTEZ 'employes'
+            'id', 'nom', 'secteur_activite', 'projets', 'employes'
         ]
+        # --- FIN DE LA MODIFICATION ---
 
     def update(self, instance, validated_data):
-        # Extraire les données ManyToMany
         projets_data = validated_data.pop('projets', None)
-        employes_data = validated_data.pop('employes', None)  # AJOUTEZ CETTE LIGNE
+        employes_data = validated_data.pop('employes', None)
         
-        # Mettre à jour les champs standards
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         
-        # Mettre à jour les relations ManyToMany
         if projets_data is not None:
             instance.projets.set(projets_data)
         
-        if employes_data is not None:  # AJOUTEZ CE BLOC
+        if employes_data is not None:
             instance.employes.set(employes_data)
         
         return instance
@@ -361,22 +406,34 @@ class ScriptSerializer(serializers.ModelSerializer):
             'projet', 'priorite', 'priorite_nom'
         ]
 
+
+
 class EmailNotificationSerializer(serializers.ModelSerializer):
+    # CHAMPS EXISTANTS
     societe_nom = serializers.CharField(source='societe.nom', read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
-    statut = serializers.CharField(source='get_statut_display', read_only=True)
+    
+    # NOUVEAUX CHAMPS
+    nom_complet = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = EmailNotification
+        # MODIFIÉ : Ajout de 'prenom', 'nom' et 'nom_complet'
         fields = [
-            'id', 'email', 'societe', 'societe_nom', 'created_by', 
-            'created_by_name', 'est_actif', 'statut', 'date_creation'
+            'id', 'email', 'prenom', 'nom', 'nom_complet', 'societe', 'societe_nom', 
+            'created_by', 'created_by_name', 'est_actif', 'date_creation'
         ]
         read_only_fields = ['created_by', 'date_creation']
 
+    # NOUVEAU : Méthode pour calculer le nom complet
+    def get_nom_complet(self, obj):
+        if obj.prenom or obj.nom:
+            return f"{obj.prenom or ''} {obj.nom or ''}".strip()
+        return None
+
     def get_statut_display(self, obj):
         return "Actif" if obj.est_actif else "Inactif"
-
+    
     def validate(self, data):
         # Validation pour s'assurer que l'email n'existe pas déjà pour cette société
         email = data.get('email')
@@ -701,3 +758,435 @@ class ExecutionResultSerializer(serializers.ModelSerializer):
             'log_fichier', 'commentaire', 'configuration_nom', 
             'projet_nom', 'started_at'
         ]
+        
+#
+
+class ProjetDetailSerializer(serializers.ModelSerializer):
+    """Serializer détaillé pour un projet avec toutes ses données"""
+    charge_de_compte = CustomUserSerializer(read_only=True)
+    societes = SocieteListSerializer(many=True, read_only=True)
+    nombre_societes = serializers.ReadOnlyField()
+    
+    # Configurations de test
+    configurations_test = serializers.SerializerMethodField()
+    configurations_actives = serializers.SerializerMethodField()
+    
+    # Scripts
+    scripts = ScriptSerializer(many=True, read_only=True)
+    scripts_par_axe = serializers.SerializerMethodField()
+    scripts_statistiques = serializers.SerializerMethodField()
+    
+    # Statistiques avancées
+    statistiques = serializers.SerializerMethodField()
+    statistiques_avancees = serializers.SerializerMethodField()
+    
+    # Exécutions
+    dernieres_executions = serializers.SerializerMethodField()
+    prochaines_executions = serializers.SerializerMethodField()
+    executions_par_statut = serializers.SerializerMethodField()
+    
+    # Informations temporelles
+    activite_recente = serializers.SerializerMethodField()
+    tendances = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Projet
+        fields = [
+            'id', 'id_redmine', 'nom', 'url', 'logo', 'contrat',
+            'charge_de_compte', 'id_redmine_charge_de_compte',
+            'societes', 'nombre_societes',
+            'configurations_test', 'configurations_actives',
+            'scripts', 'scripts_par_axe', 'scripts_statistiques',
+            'statistiques', 'statistiques_avancees',
+            'dernieres_executions', 'prochaines_executions', 'executions_par_statut',
+            'activite_recente', 'tendances'
+        ]
+
+    def get_configurations_test(self, obj):
+        """Récupérer toutes les configurations de test du projet avec plus de détails"""
+        configurations = ConfigurationTest.objects.filter(projet=obj).select_related(
+            'societe'
+        ).prefetch_related('scripts', 'emails_notification')
+        
+        return ConfigurationTestDetailSerializer(configurations, many=True).data
+
+    def get_configurations_actives(self, obj):
+        """Récupérer les configurations actives avec détails"""
+        configurations = ConfigurationTest.objects.filter(
+            projet=obj, 
+            is_active=True
+        ).select_related('societe').prefetch_related('scripts')
+        
+        return ConfigurationTestListSerializer(configurations, many=True).data
+
+    def get_scripts_par_axe(self, obj):
+        """Organiser les scripts par axe/sous-axe avec plus de détails"""
+        scripts = obj.scripts.all().select_related('axe', 'sous_axe')
+        result = {}
+        
+        for script in scripts:
+            axe_nom = script.axe.nom if script.axe else "Non classé"
+            sous_axe_nom = script.sous_axe.nom if script.sous_axe else "Non classé"
+            
+            if axe_nom not in result:
+                result[axe_nom] = {
+                    'id': script.axe.id if script.axe else None,
+                    'description': script.axe.description if script.axe else "",
+                    'sous_axes': {}
+                }
+            
+            if sous_axe_nom not in result[axe_nom]['sous_axes']:
+                result[axe_nom]['sous_axes'][sous_axe_nom] = {
+                    'id': script.sous_axe.id if script.sous_axe else None,
+                    'description': script.sous_axe.description if script.sous_axe else "",
+                    'scripts': []
+                }
+            
+            # Statistiques d'exécution pour ce script
+            executions_script = ExecutionTest.objects.filter(
+                configuration__scripts=script
+            )
+            total_executions = executions_script.count()
+            reussites = executions_script.filter(statut='done').count()
+            
+            result[axe_nom]['sous_axes'][sous_axe_nom]['scripts'].append({
+                'id': script.id,
+                'nom': script.nom,
+                'priorite': script.get_priorite_display(),
+                'priorite_valeur': script.priorite,
+                'fichier_url': script.fichier.url if script.fichier else None,
+                'fichier_nom': script.fichier.name.split('/')[-1] if script.fichier else None,
+                'total_executions': total_executions,
+                'taux_reussite': round((reussites / total_executions * 100) if total_executions > 0 else 0, 2),
+                'date_creation': script.fichier.created if hasattr(script.fichier, 'created') else None
+            })
+        
+        return result
+
+    def get_scripts_statistiques(self, obj):
+        """Statistiques détaillées sur les scripts"""
+        scripts = obj.scripts.all()
+        executions = ExecutionTest.objects.filter(configuration__projet=obj)
+        
+        return {
+            'total_scripts': scripts.count(),
+            'par_priorite': {
+                'basse': scripts.filter(priorite=1).count(),
+                'normale': scripts.filter(priorite=2).count(),
+                'haute': scripts.filter(priorite=3).count(),
+                'urgente': scripts.filter(priorite=4).count(),
+                'immediate': scripts.filter(priorite=5).count(),
+            },
+            'scripts_avec_executions': scripts.filter(
+                id__in=executions.values('configuration__scripts')
+            ).distinct().count(),
+            'scripts_sans_executions': scripts.exclude(
+                id__in=executions.values('configuration__scripts')
+            ).count()
+        }
+
+    def get_statistiques(self, obj):
+        """Calculer les statistiques de base du projet"""
+        configurations = ConfigurationTest.objects.filter(projet=obj)
+        executions = ExecutionTest.objects.filter(configuration__projet=obj)
+        
+        total_executions = executions.count()
+        executions_reussies = executions.filter(statut='done').count()
+        
+        return {
+            'total_configurations': configurations.count(),
+            'configurations_actives': configurations.filter(is_active=True).count(),
+            'total_scripts': obj.scripts.count(),
+            'total_executions': total_executions,
+            'executions_reussies': executions_reussies,
+            'executions_echecs': executions.filter(statut='error').count(),
+            'executions_en_cours': executions.filter(statut='running').count(),
+            'executions_attente': executions.filter(statut='pending').count(),
+            'societes_associees': obj.societes.count(),
+            'taux_reussite': round(
+                (executions_reussies / total_executions * 100) 
+                if total_executions > 0 else 0, 
+                2
+            )
+        }
+
+    def get_statistiques_avancees(self, obj):
+        """Statistiques avancées avec analyse temporelle"""
+        executions = ExecutionTest.objects.filter(configuration__projet=obj)
+        
+        # CORRECTION: Utiliser timezone du module django.utils
+        trente_jours = timezone.now() - timedelta(days=30)
+        executions_30j = executions.filter(started_at__gte=trente_jours)
+        
+        # Temps moyen d'exécution
+        durees = []
+        for exec in executions.filter(ended_at__isnull=False, started_at__isnull=False):
+            duree = exec.ended_at - exec.started_at
+            durees.append(duree.total_seconds())
+        
+        duree_moyenne = sum(durees) / len(durees) if durees else 0
+        
+        return {
+            'executions_30j': executions_30j.count(),
+            'taux_reussite_30j': round(
+                (executions_30j.filter(statut='done').count() / executions_30j.count() * 100)
+                if executions_30j.count() > 0 else 0, 2
+            ),
+            'duree_moyenne_execution': round(duree_moyenne / 60, 2),  # en minutes
+            'configurations_avec_erreurs': ConfigurationTest.objects.filter(
+                projet=obj,
+                executiontest__statut='error'
+            ).distinct().count(),
+            'scripts_plus_utilises': self._get_scripts_plus_utilises(obj)
+        }
+
+    def _get_scripts_plus_utilises(self, obj):
+        """Retourne les scripts les plus utilisés dans les configurations"""
+        from django.db.models import Count
+        
+        scripts = obj.scripts.annotate(
+            nb_configurations=Count('configurationtest')
+        ).order_by('-nb_configurations')[:5]
+        
+        return [
+            {
+                'id': script.id,
+                'nom': script.nom,
+                'nb_configurations': script.nb_configurations,
+                'axe': script.axe.nom if script.axe else "Non classé"
+            }
+            for script in scripts
+        ]
+
+    def get_dernieres_executions(self, obj):
+        """Récupérer les 15 dernières exécutions avec plus de détails"""
+        executions = ExecutionTest.objects.filter(
+            configuration__projet=obj
+        ).select_related('configuration', 'configuration__societe').order_by('-started_at')[:15]
+        
+        return ExecutionTestDetailSerializer(executions, many=True).data
+
+    def get_prochaines_executions(self, obj):
+        """Récupérer les prochaines exécutions programmées avec plus de détails"""
+        configurations_actives = ConfigurationTest.objects.filter(
+            projet=obj, 
+            is_active=True
+        ).select_related('societe').prefetch_related('scripts')
+        
+        prochaines = []
+        
+        for config in configurations_actives:
+            next_exec = config.get_next_execution_time()
+            if next_exec:
+                # CORRECTION: Utiliser timezone.now()
+                time_until = next_exec - timezone.now()
+                
+                prochaines.append({
+                    'configuration_id': config.id,
+                    'configuration_nom': config.nom,
+                    'societe_id': config.societe.id,
+                    'societe_nom': config.societe.nom,
+                    'next_execution': next_exec,
+                    'scripts_count': config.scripts.count(),
+                    'periodicite': config.get_periodicite_display(),
+                    'time_until_execution': str(time_until).split('.')[0] if time_until else "N/A"
+                })
+        
+        # Trier par date
+        prochaines.sort(key=lambda x: x['next_execution'])
+        return prochaines[:10]  # Retourner les 10 prochaines
+
+    def get_executions_par_statut(self, obj):
+        """Répartition des exécutions par statut"""
+        executions = ExecutionTest.objects.filter(configuration__projet=obj)
+        
+        # Méthode 1: Calcul simple sans Window (recommandé)
+        total = executions.count()
+        statuts = executions.values('statut').annotate(
+            count=models.Count('id')
+        )
+        
+        result = {}
+        for statut in statuts:
+            count = statut['count']
+            result[statut['statut']] = {
+                'count': count,
+                'pourcentage': round((count / total * 100), 2) if total > 0 else 0,
+                'label': dict(ExecutionTest.STATUS_CHOICES).get(statut['statut'], statut['statut'])
+            }
+        
+        return result
+
+    def get_activite_recente(self, obj):
+        """Activité récente du projet (7 derniers jours)"""
+        # CORRECTION: Utiliser timezone du module django.utils
+        sept_jours = timezone.now() - timedelta(days=7)
+        
+        executions_recentes = ExecutionTest.objects.filter(
+            configuration__projet=obj,
+            started_at__gte=sept_jours
+        )
+        
+        derniere_execution = executions_recentes.order_by('-started_at').first()
+        
+        return {
+            'executions_total_7j': executions_recentes.count(),
+            'executions_reussies_7j': executions_recentes.filter(statut='done').count(),
+            'executions_echouees_7j': executions_recentes.filter(statut='error').count(),
+            'derniere_execution': derniere_execution.started_at if derniere_execution else None,
+            'configurations_actives_7j': ConfigurationTest.objects.filter(
+                projet=obj,
+                is_active=True,
+                date_creation__gte=sept_jours
+            ).count()
+        }
+
+    def get_tendances(self, obj):
+        """Tendances sur les 30 derniers jours"""
+        tendances = []
+        # CORRECTION: Utiliser timezone.now() pour la date d'aujourd'hui
+        aujourd_hui = timezone.now().date()
+        
+        for i in range(30, -1, -1):
+            date = aujourd_hui - timedelta(days=i)
+            executions_jour = ExecutionTest.objects.filter(
+                configuration__projet=obj,
+                started_at__date=date
+            )
+            
+            tendances.append({
+                'date': date,
+                'total': executions_jour.count(),
+                'reussites': executions_jour.filter(statut='done').count(),
+                'echecs': executions_jour.filter(statut='error').count()
+            })
+        
+        return tendances
+
+class ConfigurationTestDetailSerializer(serializers.ModelSerializer):
+    """Serializer détaillé pour les configurations de test"""
+    societe = SocieteListSerializer(read_only=True)
+    scripts = ScriptSerializer(many=True, read_only=True)
+    emails_notification = serializers.SerializerMethodField()
+    prochaine_execution = serializers.SerializerMethodField()
+    derniere_execution_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ConfigurationTest
+        fields = [
+            'id', 'nom', 'societe', 'scripts', 'periodicite', 'is_active',
+            'last_execution', 'date_activation', 'date_desactivation',
+            'emails_notification', 'prochaine_execution', 'derniere_execution_info',
+            'date_creation', 'date_modification'
+        ]
+    
+    def get_emails_notification(self, obj):
+        return list(obj.emails_notification.filter(est_actif=True).values_list('email', flat=True))
+    
+    def get_prochaine_execution(self, obj):
+        return obj.get_next_execution_time()
+    
+    def get_derniere_execution_info(self, obj):
+        derniere_exec = ExecutionTest.objects.filter(configuration=obj).order_by('-started_at').first()
+        if derniere_exec:
+            return {
+                'id': derniere_exec.id,
+                'statut': derniere_exec.statut,
+                'started_at': derniere_exec.started_at,
+                'ended_at': derniere_exec.ended_at,
+                'duree': str(derniere_exec.ended_at - derniere_exec.started_at).split('.')[0] if derniere_exec.ended_at and derniere_exec.started_at else None
+            }
+        return None
+
+class ExecutionTestDetailSerializer(serializers.ModelSerializer):
+    """Serializer détaillé pour les exécutions de test"""
+    configuration_nom = serializers.CharField(source='configuration.nom', read_only=True)
+    societe_nom = serializers.CharField(source='configuration.societe.nom', read_only=True)
+    duree = serializers.SerializerMethodField()
+    scripts_executes = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ExecutionTest
+        fields = [
+            'id', 'configuration', 'configuration_nom', 'societe_nom',
+            'statut', 'started_at', 'ended_at', 'duree',
+            'log_fichier', 'rapport', 'ticket_redmine_id', 'scripts_executes'
+        ]
+    
+    def get_duree(self, obj):
+        if obj.ended_at and obj.started_at:
+            return str(obj.ended_at - obj.started_at).split('.')[0]
+        return None
+    
+    def get_scripts_executes(self, obj):
+        resultats = ExecutionResult.objects.filter(execution=obj).select_related('script')
+        return [
+            {
+                'script_id': res.script.id,
+                'script_nom': res.script.nom,
+                'statut': res.statut,
+                'commentaire': res.commentaire
+            }
+            for res in resultats
+        ]
+#    
+        
+
+    
+class ConfigurationTestListSerializer(serializers.ModelSerializer):
+    """Serializer léger pour les listes de configurations"""
+    societe = serializers.StringRelatedField()
+    scripts_count = serializers.SerializerMethodField()
+    last_execution_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ConfigurationTest
+        fields = [
+            'id', 'nom', 'societe', 'periodicite', 'is_active',
+            'last_execution', 'scripts_count', 'last_execution_status'
+        ]
+
+    def get_scripts_count(self, obj):
+        return obj.scripts.count()
+
+    def get_last_execution_status(self, obj):
+        last_execution = ExecutionTest.objects.filter(
+            configuration=obj
+        ).order_by('-started_at').first()
+        return last_execution.statut if last_execution else None
+
+class ExecutionTestListSerializer(serializers.ModelSerializer):
+    """Serializer léger pour les listes d'exécutions"""
+    configuration_nom = serializers.CharField(source='configuration.nom', read_only=True)
+    duree = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExecutionTest
+        fields = [
+            'id', 'configuration_nom', 'statut', 'started_at', 'ended_at',
+            'duree', 'ticket_redmine_id'
+        ]
+
+    def get_duree(self, obj):
+        if obj.started_at and obj.ended_at:
+            return obj.ended_at - obj.started_at
+        return None
+    
+# Script à probleme 
+from rest_framework import serializers
+from .models import ProblemeScript, Script, Projet, Societe
+
+class ProblemeScriptSerializer(serializers.ModelSerializer):
+    projet_nom = serializers.CharField(source='script.projet.nom', read_only=True)
+    projet_id = serializers.IntegerField(source='script.projet.id', read_only=True)
+    societe_nom = serializers.CharField(source='script.projet.societes.first.nom', read_only=True)
+    societe_id = serializers.IntegerField(source='script.projet.societes.first.id', read_only=True)
+    
+    class Meta:
+        model = ProblemeScript
+        fields = [
+            'id', 'script', 'type_probleme', 'description', 'frequence_probleme',
+            'derniere_execution', 'statut', 'date_creation', 'date_modification',
+            'projet_nom', 'projet_id', 'societe_nom', 'societe_id'
+        ]
+        read_only_fields = ['date_creation', 'date_modification']

@@ -198,6 +198,13 @@ const GestionMail = ({ user, logout }) => {
         });
     };
 
+    // Fonction pour obtenir les initiales du nom
+    const getInitials = (prenom, nom) => {
+        const firstInitial = prenom ? prenom.charAt(0).toUpperCase() : '';
+        const lastInitial = nom ? nom.charAt(0).toUpperCase() : '';
+        return `${firstInitial}${lastInitial}` || 'NA';
+    };
+
     if (loading) {
         return (
             <div className="dashboard-wrapper">
@@ -290,6 +297,7 @@ const GestionMail = ({ user, logout }) => {
                                                     <thead>
                                                         <tr>
                                                             <th>#</th>
+                                                            <th>Nom</th>
                                                             <th>Email</th>
                                                             <th>Société</th>
                                                             <th>Statut</th>
@@ -302,18 +310,30 @@ const GestionMail = ({ user, logout }) => {
                                                             <tr key={email.id}>
                                                                 <td>{indexOfFirstItem + index + 1}</td>
                                                                 <td>
-                                                                    <div className="row align-items-center">
-                                                                        <div className="col-auto pe-0">
-                                                                            <div className="wid-40 hei-40 rounded-circle bg-primary d-flex align-items-center justify-content-center">
-                                                                                <i className="ti ti-mail text-white"></i>
-                                                                            </div>
+                                                                    <div className="d-flex align-items-center">
+                                                                        <div className="avatar avatar-sm rounded-circle bg-primary bg-opacity-10 me-2">
+                                                                            {email.prenom || email.nom ? (
+                                                                                <span className="text-primary fw-bold">
+                                                                                    {getInitials(email.prenom, email.nom)}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <i className="ti ti-user text-primary"></i>
+                                                                            )}
                                                                         </div>
-                                                                        <div className="col">
-                                                                            <h6 className="mb-0">{email.email}</h6>
+                                                                        <div>
+                                                                            <h6 className="mb-0">
+                                                                                {email.nom_complet || 'Nom non renseigné'}
+                                                                            </h6>
                                                                             <small className="text-muted">
                                                                                 Créé par: {email.created_by_name || 'Utilisateur'}
                                                                             </small>
                                                                         </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div className="d-flex align-items-center">
+                                                                        <i className="ti ti-mail text-muted me-2"></i>
+                                                                        <span>{email.email}</span>
                                                                     </div>
                                                                 </td>
                                                                 <td>

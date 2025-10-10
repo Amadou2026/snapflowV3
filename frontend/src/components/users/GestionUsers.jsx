@@ -430,13 +430,13 @@ const GestionUsers = ({ user, logout }) => {
                                                                     <td>{globalIndex + 1}</td>
                                                                     <td>
                                                                         <div className="row align-items-center">
-                                                                            <div className="col-auto pe-0">
+                                                                            {/* <div className="col-auto pe-0">
                                                                                 <img
                                                                                     src={`/assets/img/user/avatar-${(globalIndex % 8) + 1}.jpg`}
                                                                                     alt="avatar"
                                                                                     className="wid-40 rounded-circle"
                                                                                 />
-                                                                            </div>
+                                                                            </div> */}
                                                                             <div className="col">
                                                                                 <h6 className="mb-0">{userItem.first_name} {userItem.last_name}</h6>
                                                                                 <p className="text-muted f-12 mb-0">{userItem.email}</p>

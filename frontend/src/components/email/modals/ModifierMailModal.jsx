@@ -3,7 +3,10 @@ import api from '../../../services/api';
 import { toast } from 'react-toastify';
 
 const ModifierMailModal = ({ show, onClose, onEmailUpdated, email }) => {
+    // MODIFIÉ : Ajout des champs prenom et nom
     const [formData, setFormData] = useState({
+        prenom: '',
+        nom: '',
         email: '',
         societe: '',
         est_actif: true
@@ -18,9 +21,12 @@ const ModifierMailModal = ({ show, onClose, onEmailUpdated, email }) => {
         }
     }, [show]);
 
+    // MODIFIÉ : Pré-remplit le formulaire avec les données de l'email, y compris le prénom et le nom
     useEffect(() => {
         if (email) {
             setFormData({
+                prenom: email.prenom || '',
+                nom: email.nom || '',
                 email: email.email || '',
                 societe: email.societe || '',
                 est_actif: email.est_actif !== undefined ? email.est_actif : true
@@ -79,6 +85,7 @@ const ModifierMailModal = ({ show, onClose, onEmailUpdated, email }) => {
 
         setLoading(true);
         try {
+            // L'API recevra maintenant les données mises à jour, y compris prenom et nom
             const response = await api.put(`email-notifications/${email.id}/`, formData);
             onEmailUpdated(response.data);
             setErrors({});
@@ -94,8 +101,21 @@ const ModifierMailModal = ({ show, onClose, onEmailUpdated, email }) => {
         }
     };
 
-    const handleClose = () => {
+    // NOUVEAU : Fonction pour réinitialiser le formulaire
+    const resetForm = () => {
+        setFormData({
+            prenom: '',
+            nom: '',
+            email: '',
+            societe: '',
+            est_actif: true
+        });
         setErrors({});
+    };
+
+    // MODIFIÉ : Appelle resetForm pour nettoyer le modal à la fermeture
+    const handleClose = () => {
+        resetForm();
         onClose();
     };
 
@@ -118,6 +138,52 @@ const ModifierMailModal = ({ show, onClose, onEmailUpdated, email }) => {
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
+                            {/* NOUVEAU : Ligne pour le Prénom et le Nom */}
+                            <div className="row">
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label htmlFor="prenom" className="form-label">
+                                            Prénom
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className={`form-control ${errors.prenom ? 'is-invalid' : ''}`}
+                                            id="prenom"
+                                            name="prenom"
+                                            value={formData.prenom}
+                                            onChange={handleInputChange}
+                                            placeholder="Oussem"
+                                        />
+                                        {errors.prenom && (
+                                            <div className="invalid-feedback">
+                                                {errors.prenom}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <div className="mb-3">
+                                        <label htmlFor="nom" className="form-label">
+                                            Nom
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className={`form-control ${errors.nom ? 'is-invalid' : ''}`}
+                                            id="nom"
+                                            name="nom"
+                                            value={formData.nom}
+                                            onChange={handleInputChange}
+                                            placeholder="Abid"
+                                        />
+                                        {errors.nom && (
+                                            <div className="invalid-feedback">
+                                                {errors.nom}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="row">
                                 <div className="col-12">
                                     <div className="mb-3">

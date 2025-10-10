@@ -85,6 +85,17 @@ footer {
   font-size: 0.9rem;
 }
 
+.pc-sidebar .pc-caption {
+    color: var(--pc-sidebar-caption-color);
+    display: block;
+    padding: 24px 24px 10px !important;
+    text-transform: capitalize;
+    position: relative;
+    line-height: 1.66;
+    font-size: 0.90rem;
+    font-weight: 500;
+}
+
 .header-search img {
   position: absolute;
   right: 1rem;
@@ -92,7 +103,15 @@ footer {
   transform: translateY(-50%);
   height: 18px;
 }
+.pc-item .pc-link.active {
+  background-color: rgb(59, 59, 59) !important;
+  color: white !important; /* optionnel, pour la lisibilité */
+}
 
+.list-group-item.active{
+  background-color: #c2bebe;
+  color: white !important;
+}
 .header-right {
   display: flex;
   align-items: center;
