@@ -304,7 +304,7 @@ const GestionSocietes = ({ user, logout }) => {
                                                     <Link to="/dashboard">Dashboard</Link>
                                                 </li>
                                                 <li className="breadcrumb-item" aria-current="page">
-                                                    Gestion des sociétés
+                                                    Gestion des sociétés Donia
                                                 </li>
                                             </ul>
                                         </div>

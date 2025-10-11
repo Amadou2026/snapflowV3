@@ -311,7 +311,7 @@ const VueGlobale = ({ user, logout }) => {
                     <div className="card-header d-flex justify-content-between align-items-center">
                         <h5 className="mb-0">
                             <i className="ti ti-building me-2"></i>
-                            Liste des sociétés et employés
+                            Liste des sociétés
                         </h5>
                         <span className="badge bg-primary">
                             {societes.length} société(s)
@@ -326,7 +326,7 @@ const VueGlobale = ({ user, logout }) => {
                                         <th>Secteur d'activité</th>
                                         <th>Admin</th>
                                         <th>Nb. Projets</th>
-                                        <th>Nb. Employés</th>
+                                        <th>Nb. Utilisateurs</th>
                                     </tr>
                                 </thead>
                                 <tbody>
