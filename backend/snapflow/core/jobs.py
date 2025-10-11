@@ -96,4 +96,23 @@ def execute_pending_tests():
     logger.info(f"✅ Fin vérification des tests")
     print(f"✅ Fin vérification des tests")
     
-    
+def detecter_scripts_problemes():
+    """
+    Cette fonction est censée détecter des problèmes dans les scripts d'exécution.
+    La logique exacte doit être implémentée ici.
+    """
+    # TODO: Implémenter la logique de détection ici
+    # Par exemple, parcourir les ExecutionResult avec un statut 'error'
+    # et créer des entrées dans un modèle de "Problème".
+    logger.info("Fonction detecter_scripts_problemes appelée (non implémentée).")
+    print("Fonction detecter_scripts_problemes appelée (non implémentée).")
+    pass  # Le mot-clé 'pass' signifie "ne fait rien". C'est un placeholder.
+
+def nettoyer_anciens_problemes_resolus():
+    """
+    Cette fonction est censée nettoyer les anciens problèmes qui ont été marqués comme résolus.
+    """
+    # TODO: Implémenter la logique de nettoyage ici
+    logger.info("Fonction nettoyer_anciens_problemes_resolus appelée (non implémentée).")
+    print("Fonction nettoyer_anciens_problemes_resolus appelée (non implémentée).")
+    pass
