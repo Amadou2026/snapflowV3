@@ -190,4 +190,7 @@ urlpatterns = [
     
     path('stats/scripts-problemes/', views.scripts_problemes, name='scripts-problemes'),
     # path('stats/detecter-scripts-problemes/', views.detecter_scripts_problemes, name='detecter-scripts-problemes'),
+    
+    # Redmine projet
+     path('redmine/fetch-project/<int:project_id>/', views.FetchRedmineProjectView.as_view(), name='fetch-redmine-project'),
 ]

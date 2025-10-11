@@ -1749,4 +1749,87 @@ def get_projet_actif(request):
     
     return Response({"projet_actif": None})
 
+# core/views.py RedmineProject
 
+# core/views.py
+
+import requests
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+class FetchRedmineProjectView(APIView):
+    """
+    API pour récupérer en direct les détails d'un projet depuis Redmine.
+    L'URL est : /api/redmine/fetch-project/<project_id>/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id):
+        try:
+            # 1. Récupérer la configuration Redmine de la société de l'utilisateur connecté
+            configuration = request.user.societe.configuration
+
+            if not configuration.redmine_url or not configuration.redmine_api_key:
+                return Response(
+                    {"error": "La configuration Redmine pour votre société est manquante (URL ou clé API)."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # 2. Préparer l'appel à l'API Redmine
+            redmine_url = configuration.redmine_url.rstrip('/')
+            redmine_project_url = f"{redmine_url}/projects/{project_id}.json"
+            
+            headers = {
+                'X-Redmine-API-Key': configuration.redmine_api_key,
+                'Content-Type': 'application/json'
+            }
+
+            # 3. Faire l'appel à l'API Redmine
+            response = requests.get(redmine_project_url, headers=headers, timeout=10)
+
+            # 4. Gérer les réponses d'erreur de Redmine
+            if response.status_code == 404:
+                return Response(
+                    {"error": f"Le projet avec l'ID {project_id} n'existe pas sur le serveur Redmine."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            if response.status_code == 401:
+                return Response(
+                    {"error": "La clé API Redmine configurée pour votre société est invalide."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            response.raise_for_status()  # Lève une exception pour les autres erreurs serveur
+
+            # 5. Si succès, extraire et formater les données
+            project_data = response.json().get('project', {})
+
+            formatted_data = {
+                "id_redmine": project_data.get('id'),
+                "nom": project_data.get('name'),
+                "identifier": project_data.get('identifier'),
+                "description": project_data.get('description'),
+                "url": project_data.get('homepage'),
+            }
+
+            return Response(formatted_data, status=status.HTTP_200_OK)
+
+        except requests.exceptions.RequestException as e:
+            # Gérer les erreurs de connexion (timeout, Redmine injoignable, etc.)
+            return Response(
+                {"error": f"Impossible de contacter le serveur Redmine : {str(e)}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except AttributeError:
+            # Gérer le cas où l'utilisateur ou sa société n'a pas de configuration
+            return Response(
+                {"error": "Votre utilisateur n'est pas lié à une société avec une configuration Redmine valide."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Une erreur inattendue est survenue : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

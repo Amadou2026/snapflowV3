@@ -1190,3 +1190,22 @@ class ProblemeScriptSerializer(serializers.ModelSerializer):
             'projet_nom', 'projet_id', 'societe_nom', 'societe_id'
         ]
         read_only_fields = ['date_creation', 'date_modification']
+        
+# core/serializers.py
+
+
+from .models import RedmineProject
+
+class RedmineProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RedmineProject
+        fields = [
+            'project_id', 
+            'name', 
+            'identifier', 
+            'description', 
+            'homepage', 
+            'parent_name', 
+            'status', 
+            'is_public'
+        ]
