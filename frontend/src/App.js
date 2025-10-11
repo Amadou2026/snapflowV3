@@ -29,30 +29,37 @@ import { useContext } from 'react';
 
 // Composant qui utilise le contexte
 const AppRoutes = () => {
-  const { user, isAuthenticated, setUser, setIsAuthenticated } = useContext(AuthContext);
+  const { 
+    user, 
+    isAuthenticated, 
+    setUser, 
+    setIsAuthenticated,
+    // Utiliser les fonctions de permission depuis le contexte
+    canViewDashboard,
+    canViewVueGlobale,
+    canManageSocietes,
+    canManageSecteursActivite,
+    canManageProjets,
+    canManageConfiguration,
+    canManageEmailNotifications,
+    canManageUsers,
+    canManageGroups,
+    canManageAxes,
+    canManageSousAxes,
+    canManageScripts,
+    canManageConfigurationTests,
+    canManageExecutionTests,
+    canManageExecutionResults,
+    // Fonctions pour la compatibilité
+    hasAdminAccess,
+    hasSuperAdminAccess
+  } = useContext(AuthContext);
 
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     setUser(null);
     setIsAuthenticated(false);
-  };
-
-  // Fonction pour vérifier les permissions d'accès admin
-  const hasAdminAccess = () => {
-    if (!user) return false;
-
-    // Si l'utilisateur n'est pas staff, il n'a pas accès aux pages admin
-    if (!user.is_staff) return false;
-
-    // Vérifier les permissions spécifiques
-    return user.is_superuser ||
-      user.groups?.some(g => g.toLowerCase() === "administrateur");
-  };
-
-  // Fonction pour vérifier l'accès super admin
-  const hasSuperAdminAccess = () => {
-    return user?.is_superuser;
   };
 
   return (
@@ -88,10 +95,11 @@ const AppRoutes = () => {
           path="/dashboard"
           element={
             isAuthenticated ? (
-              // Rediriger les utilisateurs non-staff vers l'accueil
-              user?.is_staff ? (
+              // Utiliser la fonction de permission spécifique
+              canViewDashboard() ? (
                 <VueGlobale user={user} logout={logout} />
               ) : (
+                // Rediriger vers l'accueil si pas d'accès
                 <Navigate to="/" replace />
               )
             ) : (
@@ -104,11 +112,11 @@ const AppRoutes = () => {
           path="/admin/core/customuser/"
           element={
             isAuthenticated ? (
-              // Vérifier si l'utilisateur a accès aux pages admin
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageUsers() ? (
                 <GestionUsers user={user} logout={logout} />
               ) : (
-                // Rediriger vers l'accueil si pas d'accès admin
+                // Rediriger vers l'accueil si pas d'accès
                 <Navigate to="/" replace />
               )
             ) : (
@@ -121,7 +129,8 @@ const AppRoutes = () => {
           path="/admin/core/secteuractivite/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageSecteursActivite() ? (
                 <GestionSecteur user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -136,7 +145,8 @@ const AppRoutes = () => {
           path="/admin/core/groupepersonnalise/"
           element={
             isAuthenticated ? (
-              hasSuperAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageGroups() ? (
                 <GestionGroupe user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -151,7 +161,8 @@ const AppRoutes = () => {
           path="/admin/core/societe/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageSocietes() ? (
                 <GestionSocietes user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -165,7 +176,8 @@ const AppRoutes = () => {
           path="/projets/:projetId"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageProjets() ? (
                 <PageProjet user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -180,7 +192,8 @@ const AppRoutes = () => {
           path="/admin/core/projet/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageProjets() ? (
                 <GestionProjets user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -194,7 +207,8 @@ const AppRoutes = () => {
           path="/admin/core/axe/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageAxes() ? (
                 <GestionAxe user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -208,7 +222,8 @@ const AppRoutes = () => {
           path="/admin/core/sousaxe/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageSousAxes() ? (
                 <GestionSousAxe user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -222,7 +237,8 @@ const AppRoutes = () => {
           path="/admin/core/script/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageScripts() ? (
                 <GestionScripts user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -236,7 +252,8 @@ const AppRoutes = () => {
           path="/admin/core/emailnotification/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageEmailNotifications() ? (
                 <GestionMail user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -250,7 +267,8 @@ const AppRoutes = () => {
           path="/admin/core/configuration/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageConfiguration() ? (
                 <GestionParametres user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -264,7 +282,8 @@ const AppRoutes = () => {
           path="/admin/core/executionresult/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canManageExecutionResults() ? (
                 <GestionResultatTest user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -293,7 +312,8 @@ const AppRoutes = () => {
           path="/admin/core/dashboard/"
           element={
             isAuthenticated ? (
-              hasAdminAccess() ? (
+              // Utiliser la fonction de permission spécifique
+              canViewDashboard() ? (
                 <Dashboard user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -310,7 +330,8 @@ const AppRoutes = () => {
           path="/admin/core/executiontest/"
           element={
             isAuthenticated ? (
-              user?.is_staff ? (
+              // Utiliser la fonction de permission spécifique
+              canManageExecutionTests() ? (
                 <GestionExecutionTest user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -324,7 +345,8 @@ const AppRoutes = () => {
           path="/admin/core/configurationtest/"
           element={
             isAuthenticated ? (
-              user?.is_staff ? (
+              // Utiliser la fonction de permission spécifique
+              canManageConfigurationTests() ? (
                 <GestionConfigurationTest user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
@@ -338,7 +360,8 @@ const AppRoutes = () => {
           path="/admin/core/vueglobale/"
           element={
             isAuthenticated ? (
-              user?.is_staff ? (
+              // Utiliser la fonction de permission spécifique
+              canViewVueGlobale() ? (
                 <VueGlobale user={user} logout={logout} />
               ) : (
                 <Navigate to="/" replace />
