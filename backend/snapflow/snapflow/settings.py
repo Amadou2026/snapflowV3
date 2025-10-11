@@ -142,9 +142,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'djangosnapflow',
         'USER': 'root',
-        'PASSWORD': 'root',
+        'PASSWORD': '',
         'HOST': 'localhost',
-        'PORT': '3306',        
+        'PORT': '3307',        
     }
 }
 

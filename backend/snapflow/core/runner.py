@@ -2,6 +2,7 @@
 import json
 import subprocess
 import os
+import sys
 import traceback
 from django.conf import settings
 from django.utils.timezone import now
@@ -123,8 +124,9 @@ def lancer_scripts_pour_execution(execution_id):
             logs.append(f"Execution du script: {script.nom}\n")
 
             try:
+                venv_python = sys.executable  # Python actuellement utilisé (celui du venv)
                 result = subprocess.run(
-                    ["python", path],
+                    [venv_python, path],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     timeout=300,

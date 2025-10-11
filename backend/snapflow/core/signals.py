@@ -1,7 +1,9 @@
+# core/signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from snapflow.core.runner import lancer_scripts_pour_execution
+# from snapflow.core.runner import lancer_scripts_pour_execution
+from .runner import lancer_scripts_pour_execution
 from .models import ExecutionTest, ExecutionResult
 from .jobs import detecter_scripts_problemes, nettoyer_anciens_problemes_resolus
 import threading
