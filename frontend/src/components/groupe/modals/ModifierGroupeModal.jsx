@@ -73,6 +73,24 @@ const ModifierGroupeModal = ({ show, onClose, onGroupeUpdated, groupe }) => {
             });
 
             setAvailablePermissions(permsArray);
+            
+            // Si nous avons un groupe, mettre à jour les permissions avec les IDs corrects
+            if (groupe && groupe.permissions) {
+                // Convertir les permissions du groupe en IDs numériques
+                const groupPermissionIds = groupe.permissions.map(perm => {
+                    // Si c'est déjà un ID numérique, le retourner
+                    if (typeof perm === 'number') return perm;
+                    
+                    // Sinon, utiliser le mapping
+                    const permName = perm.includes('.') ? perm : `core.${perm}`;
+                    return idMap[permName];
+                }).filter(id => id !== undefined);
+                
+                setFormData(prev => ({
+                    ...prev,
+                    permissions: groupPermissionIds
+                }));
+            }
         } catch (error) {
             console.error('Erreur lors du chargement des permissions:', error);
         }
@@ -345,19 +363,19 @@ const ModifierGroupeModal = ({ show, onClose, onGroupeUpdated, groupe }) => {
                                                 </h6>
                                                 <div className="row">
                                                     {groupPermissionsByApp[appLabel].map(permission => (
-                                                        <div key={permission.id} className="col-md-6 mb-2">
+                                                        <div key={permission.permId} className="col-md-6 mb-2">
                                                             <div className="form-check">
                                                                 <input
                                                                     className="form-check-input"
                                                                     type="checkbox"
-                                                                    id={`perm_${permission.id}`}
-                                                                    checked={formData.permissions.includes(permission.id)}
-                                                                    onChange={() => handlePermissionToggle(permission.id)}
+                                                                    id={`perm_${permission.permId}`}
+                                                                    checked={formData.permissions.includes(permission.permId)}
+                                                                    onChange={() => handlePermissionToggle(permission.permId)}
                                                                     disabled={loading}
                                                                 />
                                                                 <label 
                                                                     className="form-check-label" 
-                                                                    htmlFor={`perm_${permission.id}`}
+                                                                    htmlFor={`perm_${permission.permId}`}
                                                                     title={permission.display_name}
                                                                 >
                                                                     {permission.codename.replace(/_/g, ' ')}

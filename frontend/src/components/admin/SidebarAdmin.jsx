@@ -1,14 +1,37 @@
-import React, { useState, useEffect, useContext } from 'react';
+// src/components/SidebarAdmin.jsx
+import React, { useState, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import logo from '../../assets/img/snapflow.png'
+import logo from '../../assets/img/snapflow.png';
 import { TiArrowUnsorted } from "react-icons/ti";
 
 const SidebarAdmin = () => {
   const [openMenus, setOpenMenus] = useState({});
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, setIsAuthenticated, setUser, selectedProjectId } = useContext(AuthContext);
+  const { 
+    user, 
+    isAuthenticated, 
+    setIsAuthenticated, 
+    setUser, 
+    selectedProjectId,
+    // Utiliser les fonctions de permission depuis le contexte
+    canViewDashboard,
+    canViewVueGlobale,
+    canManageSocietes,
+    canManageSecteursActivite,
+    canManageProjets,
+    canManageConfiguration,
+    canManageEmailNotifications,
+    canManageUsers,
+    canManageGroups,
+    canManageAxes,
+    canManageSousAxes,
+    canManageScripts,
+    canManageConfigurationTests,
+    canManageExecutionTests,
+    canManageExecutionResults
+  } = useContext(AuthContext);
 
   // Fonction helper pour construire les URLs avec le projectId si disponible
   const buildUrl = (path) => {
@@ -63,16 +86,6 @@ const SidebarAdmin = () => {
     navigate('/login');
   };
 
-  const hasAdminAccess = () => {
-    if (!user) return false;
-    if (!user.is_staff) return false;
-    return user.is_superuser || user.groups?.some(g => g.toLowerCase() === "administrateur");
-  };
-
-  const hasSuperAdminAccess = () => {
-    return user?.is_superuser;
-  };
-
   return (
     <nav className="pc-sidebar">
       <div className="navbar-wrapper">
@@ -87,6 +100,12 @@ const SidebarAdmin = () => {
           overflowX: 'hidden'
         }}>
           <ul className="pc-navbar">
+            {/* Accueil & Vision globale */}
+            <li className="pc-item pc-caption">
+              <label>Accueil & Vision globale</label>
+              <i className="ti ti-home"></i>
+            </li>
+
             {/* Accueil */}
             <li className="pc-item">
               <Link to={buildUrl("/")} className={`pc-link ${isLinkActive('/')}`}>
@@ -98,7 +117,7 @@ const SidebarAdmin = () => {
             </li>
 
             {/* Tableau de bord */}
-            {isAuthenticated && user?.is_staff && (
+            {isAuthenticated && canViewDashboard() && (
               <li className="pc-item">
                 <Link to={buildUrl("/dashboard")} className={`pc-link ${isLinkActive('/dashboard')}`}>
                   <span className="pc-micon">
@@ -109,39 +128,124 @@ const SidebarAdmin = () => {
               </li>
             )}
 
-            {/* Menu Administration */}
-            {isAuthenticated && hasAdminAccess() && (
+            {/* Vue globale */}
+            {isAuthenticated && canViewVueGlobale() && (
+              <li className="pc-item">
+                <Link
+                  to={buildUrl("/admin/core/vueglobale/")}
+                  className={`pc-link ${isLinkActive('/admin/core/vueglobale')}`}
+                >
+                  <span className="pc-micon">
+                    <i className="ti ti-report"></i>
+                  </span>
+                  <span className="pc-mtext">Vue globale</span>
+                </Link>
+              </li>
+            )}
+
+            {/* Gestion de patrimoine & référentiels */}
+            {isAuthenticated && (canManageSocietes() || canManageSecteursActivite() || canManageProjets() || canManageConfiguration() || canManageEmailNotifications()) && (
               <>
                 <li className="pc-item pc-caption">
-                  <label>Administration</label>
-                  <i className="ti ti-settings"></i>
+                  <label>Gestion de patrimoine & référentiels</label>
+                  <i className="ti ti-building"></i>
                 </li>
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/customuser/")}
-                    className={`pc-link ${isLinkActive('/admin/core/customuser')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-users"></i>
-                    </span>
-                    <span className="pc-mtext">Utilisateurs</span>
-                  </Link>
+                {canManageSocietes() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/societe/")}
+                      className={`pc-link ${isLinkActive('/admin/core/societe')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-building"></i>
+                      </span>
+                      <span className="pc-mtext">Gestion Sociétés</span>
+                    </Link> 
+                  </li>
+                )}
+
+                {canManageSecteursActivite() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/secteuractivite/")}
+                      className={`pc-link ${isLinkActive('/admin/core/secteuractivite')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-tournament"></i>
+                      </span>
+                      <span className="pc-mtext">Gestion Secteurs d'activité</span>
+                    </Link>
+                  </li>
+                )}
+
+                {canManageProjets() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/projet/")}
+                      className={`pc-link ${isLinkActive('/admin/core/projet')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-clipboard"></i>
+                      </span>
+                      <span className="pc-mtext">Gestion des Projets</span>
+                    </Link>
+                  </li>
+                )}
+
+                {canManageConfiguration() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/configuration/")}
+                      className={`pc-link ${isLinkActive('/admin/core/configuration')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-adjustments"></i>
+                      </span>
+                      <span className="pc-mtext">Paramètres Projets</span>
+                    </Link>
+                  </li>
+                )}
+
+                {canManageEmailNotifications() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/emailnotification/")}
+                      className={`pc-link ${isLinkActive('/admin/core/emailnotification')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-mail"></i>
+                      </span>
+                      <span className="pc-mtext">Notifications Email</span>
+                    </Link>
+                  </li>
+                )}
+              </>
+            )}
+
+            {/* Gestion des Ressources Humaines */}
+            {isAuthenticated && (canManageUsers() || canManageGroups()) && (
+              <>
+                <li className="pc-item pc-caption">
+                  <label>Gestion des Ressources Humaines</label>
+                  <i className="ti ti-users"></i>
                 </li>
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/societe/")}
-                    className={`pc-link ${isLinkActive('/admin/core/societe')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-building"></i>
-                    </span>
-                    <span className="pc-mtext">Sociétés</span>
-                  </Link> 
-                </li>
+                {canManageUsers() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/customuser/")}
+                      className={`pc-link ${isLinkActive('/admin/core/customuser')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-users"></i>
+                      </span>
+                      <span className="pc-mtext">Gestion des Utilisateurs</span>
+                    </Link>
+                  </li>
+                )}
 
-                {hasSuperAdminAccess() && (
+                {canManageGroups() && (
                   <li className="pc-item">
                     <Link
                       to={buildUrl("/admin/core/groupepersonnalise/")}
@@ -150,185 +254,134 @@ const SidebarAdmin = () => {
                       <span className="pc-micon">
                         <i className="ti ti-layout-grid"></i>
                       </span>
-                      <span className="pc-mtext">Groupes</span>
+                      <span className="pc-mtext">Gestion des Groupes</span>
+                    </Link>
+                  </li>
+                )}
+              </>
+            )}
+
+            {/* Gestion des Axes */}
+            {isAuthenticated && (canManageAxes() || canManageSousAxes()) && (
+              <>
+                <li className="pc-item pc-caption">
+                  <label>Gestion des Axes</label>
+                  <i className="ti ti-sitemap"></i>
+                </li>
+
+                {canManageAxes() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/axe/")}
+                      className={`pc-link ${isLinkActive('/admin/core/axe')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-sitemap"></i>
+                      </span>
+                      <span className="pc-mtext">Axes de Test</span>
                     </Link>
                   </li>
                 )}
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/secteuractivite/")}
-                    className={`pc-link ${isLinkActive('/admin/core/secteuractivite')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-tournament"></i>
-                    </span>
-                    <span className="pc-mtext">Secteurs d'activité</span>
-                  </Link>
-                </li>
+                {canManageSousAxes() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/sousaxe/")}
+                      className={`pc-link ${isLinkActive('/admin/core/sousaxe')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-social"></i>
+                      </span>
+                      <span className="pc-mtext">Sous-axes de test</span>
+                    </Link>
+                  </li>
+                )}
               </>
             )}
 
-            {/* Menu Gestion de Patrimoine */}
-            {isAuthenticated && hasAdminAccess() && (
+            {/* Cycle de test & monitoring */}
+            {isAuthenticated && (canManageScripts() || canManageConfigurationTests() || canManageExecutionTests() || canManageExecutionResults()) && (
               <>
                 <li className="pc-item pc-caption">
-                  <label>Gestion de Patrimoine</label>
-                  <i className="ti ti-building"></i>
-                </li>
-
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/projet/")}
-                    className={`pc-link ${isLinkActive('/admin/core/projet')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-clipboard"></i>
-                    </span>
-                    <span className="pc-mtext">Projets</span>
-                  </Link>
-                </li>
-
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/axe/")}
-                    className={`pc-link ${isLinkActive('/admin/core/axe')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-sitemap"></i>
-                    </span>
-                    <span className="pc-mtext">Axes</span>
-                  </Link>
-                </li>
-
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/sousaxe/")}
-                    className={`pc-link ${isLinkActive('/admin/core/sousaxe')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-social"></i>
-                    </span>
-                    <span className="pc-mtext">Sous-axes</span>
-                  </Link>
-                </li>
-              </>
-            )}
-
-            {/* Menu Testing & Monitoring */}
-            {isAuthenticated && user?.is_staff && (
-              <>
-                <li className="pc-item pc-caption">
-                  <label>Testing & Monitoring</label>
+                  <label>Cycle de test & monitoring</label>
                   <i className="ti ti-bug"></i>
                 </li>
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/script/")}
-                    className={`pc-link ${isLinkActive('/admin/core/script')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-code"></i>
-                    </span>
-                    <span className="pc-mtext">Scripts</span>
-                  </Link>
-                </li>
+                {canManageScripts() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/script/")}
+                      className={`pc-link ${isLinkActive('/admin/core/script')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-code"></i>
+                      </span>
+                      <span className="pc-mtext">Scripts</span>
+                    </Link>
+                  </li>
+                )}
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/configurationtest/")}
-                    className={`pc-link ${isLinkActive('/admin/core/configurationtest')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-tool"></i>
-                    </span>
-                    <span className="pc-mtext">Configuration des tests</span>
-                  </Link>
-                </li>
+                {canManageConfigurationTests() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/configurationtest/")}
+                      className={`pc-link ${isLinkActive('/admin/core/configurationtest')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-tool"></i>
+                      </span>
+                      <span className="pc-mtext">Configuration des tests</span>
+                    </Link>
+                  </li>
+                )}
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/executiontest/")}
-                    className={`pc-link ${isLinkActive('/admin/core/executiontest')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-calendar"></i>
-                    </span>
-                    <span className="pc-mtext">Exécution des tests</span>
-                  </Link>
-                </li>
+                {canManageExecutionTests() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/executiontest/")}
+                      className={`pc-link ${isLinkActive('/admin/core/executiontest')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-calendar"></i>
+                      </span>
+                      <span className="pc-mtext">Exécution des tests</span>
+                    </Link>
+                  </li>
+                )}
 
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/executionresult/")}
-                    className={`pc-link ${isLinkActive('/admin/core/executionresult')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-chart-dots"></i>
-                    </span>
-                    <span className="pc-mtext">Résultats des tests</span>
-                  </Link>
-                </li>
-
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/vueglobale/")}
-                    className={`pc-link ${isLinkActive('/admin/core/vueglobale')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-report"></i>
-                    </span>
-                    <span className="pc-mtext">Vue globale</span>
-                  </Link>
-                </li>
+                {canManageExecutionResults() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/executionresult/")}
+                      className={`pc-link ${isLinkActive('/admin/core/executionresult')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-chart-dots"></i>
+                      </span>
+                      <span className="pc-mtext">Résultats des tests</span>
+                    </Link>
+                  </li>
+                )}
               </>
             )}
 
-            {/* Menu Configuration */}
-            {isAuthenticated && hasAdminAccess() && (
+            {/* Configuration & Personnalisation */}
+            {isAuthenticated && (
               <>
                 <li className="pc-item pc-caption">
-                  <label>Configuration</label>
-                  <i className="ti ti-settings"></i>
+                  <label>Configuration & Personnalisation</label>
+                  <i className="ti ti-user"></i>
                 </li>
 
                 <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/emailnotification/")}
-                    className={`pc-link ${isLinkActive('/admin/core/emailnotification')}`}
-                  >
+                  <Link to="/userprofile" className={`pc-link ${isLinkActive('/userprofile')}`}>
                     <span className="pc-micon">
-                      <i className="ti ti-mail"></i>
+                      <i className="ti ti-user"></i>
                     </span>
-                    <span className="pc-mtext">Notifications Email</span>
-                  </Link>
-                </li> 
-
-                <li className="pc-item">
-                  <Link
-                    to={buildUrl("/admin/core/configuration/")}
-                    className={`pc-link ${isLinkActive('/admin/core/configuration')}`}
-                  >
-                    <span className="pc-micon">
-                      <i className="ti ti-adjustments"></i>
-                    </span>
-                    <span className="pc-mtext">Paramètres</span>
+                    <span className="pc-mtext">Mon profil</span>
                   </Link>
                 </li>
               </>
-            )}
-
-            {/* Profil utilisateur (visible pour tous les utilisateurs connectés) */}
-            {isAuthenticated && (
-              <li className="pc-item">
-                <Link to="/userprofile" className={`pc-link ${isLinkActive('/userprofile')}`}>
-                  <span className="pc-micon">
-                    <i className="ti ti-user"></i>
-                  </span>
-                  <span className="pc-mtext">Mon profil</span>
-                </Link>
-              </li>
             )}
 
             {/* Déconnexion (visible pour tous les utilisateurs connectés) */}

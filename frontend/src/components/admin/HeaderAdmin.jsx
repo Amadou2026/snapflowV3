@@ -404,7 +404,7 @@ const handleSocieteClick = (societe) => {
                   <div className="dropdown-header">
                     <div className="d-flex mb-1">
                       <div className="flex-shrink-0">
-                        <img src={avatar2} alt="user-image" className="user-avtar wid-35" />
+                        {/* <img src={avatar2} alt="user-image" className="user-avtar wid-35" /> */}
                       </div>
                       <div className="flex-grow-1 ms-3">
                         <h6 className="mb-1">{user?.first_name} {user?.last_name}</h6>
