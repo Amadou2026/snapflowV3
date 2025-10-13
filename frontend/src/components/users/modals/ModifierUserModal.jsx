@@ -500,7 +500,7 @@ const ModifierUserModal = ({ show, onClose, onUserUpdated, user }) => {
                                                 onChange={handleChange}
                                             />
                                             <label className="form-check-label" htmlFor="is_staff">
-                                                Accès administrateur
+                                                Statu équipe
                                             </label>
                                         </div>
                                     </div>

@@ -36,7 +36,7 @@ const GestionUsers = ({ user, logout }) => {
         try {
             setLoading(true);
             const response = await api.get('users/');
-            console.log('Données utilisateurs reçues:', response.data);
+            //console.log('Données utilisateurs reçues:', response.data);
             setUsers(response.data);
             setFilteredUsers(response.data);
         } catch (error) {
@@ -48,7 +48,7 @@ const GestionUsers = ({ user, logout }) => {
 
     // Fonction pour obtenir le nom de la société
     const getSocieteName = (userItem) => {
-        console.log('Utilisateur:', userItem);
+        // console.log('Utilisateur:', userItem);
         
         if (userItem.societes && typeof userItem.societes === 'object') {
             return userItem.societes.nom || 'Société sans nom';

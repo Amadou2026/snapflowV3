@@ -48,7 +48,7 @@ const SidebarAdmin = () => {
     // Si l'utilisateur est authentifié mais que les permissions ne sont pas encore chargées
     // et que nous n'avons pas déjà rafraîchi
     if (isAuthenticated && !permissionsLoaded && !loading && !hasRefreshedRef.current) {
-      console.log("SidebarAdmin: Rafraîchissement initial des permissions...");
+      //console.log("SidebarAdmin: Rafraîchissement initial des permissions...");
       hasRefreshedRef.current = true;
       setRefreshing(true);
       refreshPermissions().finally(() => {
@@ -69,7 +69,7 @@ const SidebarAdmin = () => {
 
     // Ajouter une condition pour éviter les rafraîchissements multiples
     if (isCriticalRoute && isAuthenticated && !refreshing && isDifferentRoute) {
-      console.log("SidebarAdmin: Route critique détectée, rafraîchissement des permissions...");
+      //console.log("SidebarAdmin: Route critique détectée, rafraîchissement des permissions...");
       lastCriticalRouteRef.current = currentCriticalRoute;
       setRefreshing(true);
       refreshPermissions().finally(() => {
