@@ -34,6 +34,7 @@ const AppRoutes = () => {
     isAuthenticated, 
     setUser, 
     setIsAuthenticated,
+    loading, // On utilise l'état de chargement général
     // Utiliser les fonctions de permission depuis le contexte
     canViewDashboard,
     canViewVueGlobale,
@@ -62,6 +63,17 @@ const AppRoutes = () => {
     setIsAuthenticated(false);
   };
 
+  // Si le contexte est en cours de chargement, on affiche un spinner
+  if (loading) {
+    return (
+      <div className="loading-container d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Chargement...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <Routes>
@@ -80,44 +92,33 @@ const AppRoutes = () => {
             !isAuthenticated ? (
               <Login />
             ) : (
-              // Rediriger vers l'accueil si l'utilisateur n'est pas staff
-              // ou vers le dashboard s'il est staff
-              user?.is_staff ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/" replace />
-              )
+              // --- MODIFICATION 1 : Si déjà connecté, on redirige vers le dashboard ---
+              <Navigate to="/dashboard" replace />
             )
           }
         />
 
+        {/* --- MODIFICATION 2 : La route /dashboard est maintenant accessible à TOUS les utilisateurs connectés --- */}
         <Route
           path="/dashboard"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
-              canViewDashboard() ? (
-                <VueGlobale user={user} logout={logout} />
-              ) : (
-                // Rediriger vers l'accueil si pas d'accès
-                <Navigate to="/" replace />
-              )
+              <Dashboard user={user} logout={logout} />
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
 
+        {/* Les autres routes administratives restent protégées par des permissions spécifiques */}
         <Route
           path="/admin/core/customuser/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageUsers() ? (
                 <GestionUsers user={user} logout={logout} />
               ) : (
-                // Rediriger vers l'accueil si pas d'accès
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
@@ -129,11 +130,10 @@ const AppRoutes = () => {
           path="/admin/core/secteuractivite/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageSecteursActivite() ? (
                 <GestionSecteur user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
@@ -145,11 +145,10 @@ const AppRoutes = () => {
           path="/admin/core/groupepersonnalise/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageGroups() ? (
                 <GestionGroupe user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
@@ -161,26 +160,25 @@ const AppRoutes = () => {
           path="/admin/core/societe/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageSocietes() ? (
                 <GestionSocietes user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/projets/:projetId"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageProjets() ? (
                 <PageProjet user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
@@ -192,185 +190,167 @@ const AppRoutes = () => {
           path="/admin/core/projet/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageProjets() ? (
                 <GestionProjets user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/axe/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageAxes() ? (
                 <GestionAxe user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/sousaxe/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageSousAxes() ? (
                 <GestionSousAxe user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/script/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageScripts() ? (
                 <GestionScripts user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/emailnotification/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageEmailNotifications() ? (
                 <GestionMail user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/configuration/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageConfiguration() ? (
                 <GestionParametres user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/executionresult/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageExecutionResults() ? (
                 <GestionResultatTest user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
-        {/* <Route
-          path="/societe/details"
-          element={
-            isAuthenticated ? (
-              hasAdminAccess() ? (
-                <DetailsSociete user={user} logout={logout} />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        /> */}
 
         <Route
           path="/admin/core/dashboard/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canViewDashboard() ? (
                 <Dashboard user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
-
-
 
         <Route
           path="/admin/core/executiontest/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageExecutionTests() ? (
                 <GestionExecutionTest user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/configurationtest/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canManageConfigurationTests() ? (
                 <GestionConfigurationTest user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/admin/core/vueglobale/"
           element={
             isAuthenticated ? (
-              // Utiliser la fonction de permission spécifique
               canViewVueGlobale() ? (
                 <VueGlobale user={user} logout={logout} />
               ) : (
-                <Navigate to="/" replace />
+                <Navigate to="/dashboard" replace />
               )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
+
         <Route
           path="/userprofile"
           element={
@@ -382,11 +362,11 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Route de fallback pour les URLs non trouvées */}
+        {/* --- MODIFICATION 3 : Route de fallback simplifiée --- */}
         <Route
           path="*"
           element={
-            <Navigate to={isAuthenticated ? (user?.is_staff ? "/dashboard" : "/") : "/login"} replace />
+            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
           }
         />
       </Routes>

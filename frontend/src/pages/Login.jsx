@@ -2,7 +2,6 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '../context/AuthContext';
 
 const Login = () => {
@@ -32,6 +31,7 @@ const Login = () => {
       const response = await api.post('token/', formData);
       const { access: accessToken, refresh: refreshToken } = response.data;
 
+      // Stocker les tokens
       localStorage.setItem('access_token', accessToken);
       localStorage.setItem('refresh_token', refreshToken);
 
@@ -43,14 +43,9 @@ const Login = () => {
       setUser(profileData);
       setIsAuthenticated(true);
 
-      // Redirection en fonction du rôle
-      if (profileData.is_staff || profileData.is_superuser) {
-        // Rediriger les superadmins et staff vers la VueGlobale
-        navigate('/admin/core/vueglobale/');
-      } else {
-        // Rediriger les autres utilisateurs vers leur dashboard
-        navigate('/dashboard');
-      }
+      // --- MODIFICATION CLÉ ---
+      // Rediriger TOUJOURS vers le dashboard après la connexion
+      navigate('/dashboard');
 
     } catch (err) {
       console.error(err.response || err);
