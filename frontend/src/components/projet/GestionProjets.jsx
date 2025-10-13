@@ -256,12 +256,12 @@ const GestionProjets = ({ user, logout }) => {
                             </div>
 
                             {/* AJOUT DU COMPOSANT D'INTÉGRATION EXTERNE */}
-                            {isSuperAdmin && (
+                            {/* {isSuperAdmin && (
                                 <IntegrationExterne 
                                     user={user}
                                     onProjetImported={handleProjetImported}
                                 />
-                            )}
+                            )} */}
 
                             {/* Section recherche (après l'intégration externe) */}
                             <div className="row mb-3">

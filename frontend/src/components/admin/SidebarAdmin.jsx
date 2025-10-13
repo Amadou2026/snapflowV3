@@ -9,12 +9,15 @@ const SidebarAdmin = () => {
   const [openMenus, setOpenMenus] = useState({});
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // On récupère toutes les données et fonctions nécessaires depuis le contexte
   const { 
     user, 
     isAuthenticated, 
     setIsAuthenticated, 
     setUser, 
     selectedProjectId,
+    loading, // État de chargement général
     // Utiliser les fonctions de permission depuis le contexte
     canViewDashboard,
     canViewVueGlobale,
@@ -85,6 +88,41 @@ const SidebarAdmin = () => {
     setIsAuthenticated(false);
     navigate('/login');
   };
+
+  // --- AMÉLIORATION : Afficher un squelette de chargement pendant que le contexte charge ---
+  if (loading) {
+    return (
+      <nav className="pc-sidebar">
+        <div className="navbar-wrapper">
+          <div className="m-header">
+            <Link to="/" className="b-brand text-primary">
+              <img src={logo} width="160px" className="img-fluid logo-lg" alt="logo" />
+            </Link>
+          </div>
+          <div className="navbar-content">
+            <ul className="pc-navbar">
+              {/* Afficher des squelettes pour les menus pendant le chargement */}
+              <li className="pc-item pc-caption">
+                <label>Chargement...</label>
+              </li>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <li key={i} className="pc-item">
+                  <div className="pc-link">
+                    <span className="pc-micon placeholder-glow">
+                      <i className="placeholder"></i>
+                    </span>
+                    <span className="pc-mtext placeholder-glow">
+                      <span className="placeholder col-8"></span>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="pc-sidebar">
