@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [userGroups, setUserGroups] = useState([]);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false); // Nouvel état pour suivre si les permissions sont chargées
   
   // Vérifier si un token existe au chargement de l'app
   useEffect(() => {
@@ -38,37 +39,7 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           
           // Récupérer les permissions de l'utilisateur
-          console.log("AuthContext: Récupération des permissions...");
-          const permissionsResponse = await api.get('user/permissions/');
-          const userPermissions = permissionsResponse.data.permissions || [];
-          setPermissions(userPermissions);
-          console.log("AuthContext: Permissions récupérées:", userPermissions);
-          
-          // Extraire les groupes de l'utilisateur à partir des permissions
-          const groups = [];
-          if (userPermissions.includes('core.add_customuser') && 
-              userPermissions.includes('core.change_customuser') && 
-              userPermissions.includes('core.delete_customuser')) {
-            groups.push('administrateur');
-          }
-          if (userPermissions.includes('core.add_script') && 
-              userPermissions.includes('core.change_script')) {
-            groups.push('developpeur');
-          }
-          if (userPermissions.includes('core.add_executiontest') && 
-              userPermissions.includes('core.change_executiontest')) {
-            groups.push('qa');
-          }
-          if (userPermissions.includes('core.view_dashboard') && 
-              userPermissions.includes('core.view_vueglobale')) {
-            groups.push('manager');
-          }
-          if (userPermissions.includes('core.add_projet') && 
-              userPermissions.includes('core.change_projet')) {
-            groups.push('chef_projet');
-          }
-          setUserGroups(groups);
-          console.log("AuthContext: Groupes extraits:", groups);
+          await refreshPermissions(); // Utiliser la fonction refreshPermissions ici
           
           // Récupérer le projet sélectionné depuis localStorage
           const savedProjectId = localStorage.getItem('selectedProjectId');
@@ -86,6 +57,7 @@ export const AuthProvider = ({ children }) => {
           setPermissions([]);
           setUserGroups([]);
           setIsAuthenticated(false);
+          setPermissionsLoaded(false);
         } finally {
           // MARQUEUR IMPORTANT : Ne mettre loading à false qu'à la fin
           setLoading(false);
@@ -95,6 +67,7 @@ export const AuthProvider = ({ children }) => {
         // Pas de token, pas besoin de charger les permissions
         console.log("AuthContext: Aucun token trouvé");
         setLoading(false);
+        setPermissionsLoaded(false);
       }
     };
 
@@ -115,9 +88,12 @@ export const AuthProvider = ({ children }) => {
   // Fonction pour rafraîchir les permissions
   const refreshPermissions = async () => {
     try {
+      console.log("AuthContext: Récupération des permissions...");
       const permissionsResponse = await api.get('user/permissions/');
       const userPermissions = permissionsResponse.data.permissions || [];
       setPermissions(userPermissions);
+      setPermissionsLoaded(true); // Marquer les permissions comme chargées
+      console.log("AuthContext: Permissions récupérées:", userPermissions);
       
       // Mettre à jour les groupes
       const groups = [];
@@ -143,9 +119,13 @@ export const AuthProvider = ({ children }) => {
         groups.push('chef_projet');
       }
       setUserGroups(groups);
-      console.log("AuthContext: Permissions rafraîchies:", userPermissions);
+      console.log("AuthContext: Groupes extraits:", groups);
+      
+      return true; // Retourner true en cas de succès
     } catch (err) {
       console.error('AuthContext: Erreur lors du rafraîchissement des permissions', err);
+      setPermissionsLoaded(false);
+      return false; // Retourner false en cas d'erreur
     }
   };
 
@@ -289,6 +269,7 @@ export const AuthProvider = ({ children }) => {
       selectProject,
       permissions,
       userGroups,
+      permissionsLoaded, // Ajouter cet état au contexte
       refreshPermissions,
       // Fonctions de permission
       hasPermission,

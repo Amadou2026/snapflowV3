@@ -26,14 +26,17 @@ const GestionUsers = ({ user, logout }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(7);
 
+    // Correction: Retirer complètement l'utilisation de AuthContext ici
+    // car user est déjà passé en props
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, []); // Uniquement au montage initial
 
     const fetchUsers = async () => {
         try {
+            setLoading(true);
             const response = await api.get('users/');
-            console.log('Données utilisateurs reçues:', response.data); // Debug
+            console.log('Données utilisateurs reçues:', response.data);
             setUsers(response.data);
             setFilteredUsers(response.data);
         } catch (error) {
@@ -45,13 +48,11 @@ const GestionUsers = ({ user, logout }) => {
 
     // Fonction pour obtenir le nom de la société
     const getSocieteName = (userItem) => {
-        console.log('Utilisateur:', userItem); // Debug
+        console.log('Utilisateur:', userItem);
         
-        // Le serializer renvoie la société sous 'societes' (au pluriel)
         if (userItem.societes && typeof userItem.societes === 'object') {
             return userItem.societes.nom || 'Société sans nom';
         }
-        // Fallback vers societe si disponible (au cas où)
         else if (userItem.societe && typeof userItem.societe === 'object') {
             return userItem.societe.nom || 'Société sans nom';
         }
@@ -90,24 +91,20 @@ const GestionUsers = ({ user, logout }) => {
     const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-    // Fonction pour changer de page
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-    // Fonction pour aller à la page précédente
     const goToPreviousPage = () => {
         if (currentPage > 1) {
             setCurrentPage(currentPage - 1);
         }
     };
 
-    // Fonction pour aller à la page suivante
     const goToNextPage = () => {
         if (currentPage < totalPages) {
             setCurrentPage(currentPage + 1);
         }
     };
 
-    // Fonction pour générer les numéros de page à afficher
     const getPageNumbers = () => {
         const pageNumbers = [];
         const maxVisiblePages = 5;
@@ -115,7 +112,6 @@ const GestionUsers = ({ user, logout }) => {
         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
         let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
         
-        // Ajuster si on est près de la fin
         if (endPage - startPage + 1 < maxVisiblePages) {
             startPage = Math.max(1, endPage - maxVisiblePages + 1);
         }
@@ -172,16 +168,14 @@ const GestionUsers = ({ user, logout }) => {
         });
 
         if (result.isConfirmed) {
-            // Mettre à jour la liste des utilisateurs
             const updatedUsers = users.filter(user => user.id !== userId);
             setUsers(updatedUsers);
             setFilteredUsers(updatedUsers);
-            // Réinitialiser à la page 1 si nécessaire
+            
             if (currentUsers.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
 
-            // Afficher un message de succès
             MySwal.fire({
                 title: 'Supprimé !',
                 text: 'L\'utilisateur a été supprimé avec succès.',
@@ -196,11 +190,9 @@ const GestionUsers = ({ user, logout }) => {
         }
     };
 
-    // Fonction pour activer/désactiver un utilisateur
     const handleToggleUserStatus = async (userId, currentStatus) => {
         const userToUpdate = users.find(u => u.id === userId);
         const newStatus = !currentStatus;
-
         const action = newStatus ? 'activer' : 'désactiver';
 
         const result = await MySwal.fire({
@@ -250,14 +242,12 @@ const GestionUsers = ({ user, logout }) => {
         });
 
         if (result.isConfirmed) {
-            // Mettre à jour la liste des utilisateurs
             const updatedUsers = users.map(u =>
                 u.id === userId ? { ...u, is_active: newStatus } : u
             );
             setUsers(updatedUsers);
             setFilteredUsers(updatedUsers);
 
-            // Afficher un message de succès
             MySwal.fire({
                 title: `${action.charAt(0).toUpperCase() + action.slice(1)} !`,
                 text: `L'utilisateur a été ${action} avec succès.`,
@@ -287,11 +277,10 @@ const GestionUsers = ({ user, logout }) => {
         setUsers(updatedUsers);
         setFilteredUsers(updatedUsers);
         setShowAddModal(false);
-        // Aller à la dernière page pour voir le nouvel utilisateur
+        
         const newTotalPages = Math.ceil((filteredUsers.length + 1) / itemsPerPage);
         setCurrentPage(newTotalPages);
 
-        // Message de succès
         MySwal.fire({
             title: 'Succès !',
             text: 'Utilisateur créé avec succès',
@@ -311,7 +300,6 @@ const GestionUsers = ({ user, logout }) => {
         setShowEditModal(false);
         setSelectedUser(null);
 
-        // Message de succès
         MySwal.fire({
             title: 'Succès !',
             text: 'Utilisateur modifié avec succès',
@@ -326,7 +314,7 @@ const GestionUsers = ({ user, logout }) => {
 
     const handleFilterChange = (filtered) => {
         setFilteredUsers(filtered);
-        setCurrentPage(1); // Réinitialiser à la première page lors du filtrage
+        setCurrentPage(1);
     };
 
     if (loading) {
@@ -385,14 +373,12 @@ const GestionUsers = ({ user, logout }) => {
                                     </div>
                                 </div>
                             </div>
-                            {/* End Breadcrumb */}
 
                             {/* Filtre */}
                             <FiltreGestionUser
                                 users={users}
                                 onFilterChange={handleFilterChange}
                             />
-                            {/* End Filtre */}
 
                             {/* Main Content */}
                             <div className="row">
@@ -430,13 +416,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                     <td>{globalIndex + 1}</td>
                                                                     <td>
                                                                         <div className="row align-items-center">
-                                                                            {/* <div className="col-auto pe-0">
-                                                                                <img
-                                                                                    src={`/assets/img/user/avatar-${(globalIndex % 8) + 1}.jpg`}
-                                                                                    alt="avatar"
-                                                                                    className="wid-40 rounded-circle"
-                                                                                />
-                                                                            </div> */}
                                                                             <div className="col">
                                                                                 <h6 className="mb-0">{userItem.first_name} {userItem.last_name}</h6>
                                                                                 <p className="text-muted f-12 mb-0">{userItem.email}</p>
@@ -470,7 +449,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                             >
                                                                                 <i className="ti ti-edit-circle f-18"></i>
                                                                             </button>
-                                                                            {/* Bouton Activer/Désactiver */}
                                                                             <button
                                                                                 className={`btn btn-sm p-1 ${userItem.is_active ? 'btn-link-warning' : 'btn-link-success'}`}
                                                                                 onClick={() => handleToggleUserStatus(userItem.id, userItem.is_active)}
@@ -478,7 +456,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                             >
                                                                                 <i className={`ti ${userItem.is_active ? 'ti-user-off' : 'ti-user-check'} f-18`}></i>
                                                                             </button>
-                                                                            {/* Bouton supprimer - uniquement pour superadmin ET si l'utilisateur n'est pas superadmin */}
                                                                             {user.is_superuser && !userItem.is_superuser && (
                                                                                 <button
                                                                                     className="btn btn-link-danger btn-sm p-1"
@@ -516,7 +493,6 @@ const GestionUsers = ({ user, logout }) => {
                                                     </div>
                                                     <nav aria-label="Page navigation">
                                                         <ul className="pagination mb-0">
-                                                            {/* Bouton Précédent */}
                                                             <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
                                                                 <button
                                                                     className="page-link"
@@ -527,7 +503,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                 </button>
                                                             </li>
 
-                                                            {/* Première page */}
                                                             {currentPage > 3 && (
                                                                 <>
                                                                     <li className="page-item">
@@ -546,7 +521,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                 </>
                                                             )}
 
-                                                            {/* Pages numérotées */}
                                                             {getPageNumbers().map(number => (
                                                                 <li key={number} className={`page-item ${currentPage === number ? 'active' : ''}`}>
                                                                     <button
@@ -558,7 +532,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                 </li>
                                                             ))}
 
-                                                            {/* Dernière page */}
                                                             {currentPage < totalPages - 2 && (
                                                                 <>
                                                                     {currentPage < totalPages - 3 && (
@@ -577,7 +550,6 @@ const GestionUsers = ({ user, logout }) => {
                                                                 </>
                                                             )}
 
-                                                            {/* Bouton Suivant */}
                                                             <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
                                                                 <button
                                                                     className="page-link"
@@ -595,7 +567,6 @@ const GestionUsers = ({ user, logout }) => {
                                     </div>
                                 </div>
                             </div>
-                            {/* End Main Content */}
                         </div>
 
                         {/* Modals */}

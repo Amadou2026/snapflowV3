@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import HeaderAdmin from '../admin/HeaderAdmin';
 import SidebarAdmin from '../admin/SidebarAdmin';
 import FooterAdmin from '../admin/FooterAdmin';
 import FiltreVueGlobale from './FiltreVueGlobale';
+import { AuthContext } from '../../context/AuthContext'; // Ajout de l'import du contexte
 import api from '../../services/api';
 import { toast } from 'react-toastify';
 
 const VueGlobale = ({ user, logout }) => {
+    // Ajout du contexte pour accéder aux fonctions de permission
+    const { hasSuperAdminAccess } = useContext(AuthContext);
+    
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [filters, setFilters] = useState({
@@ -48,24 +52,24 @@ const VueGlobale = ({ user, logout }) => {
 
     // Fonction pour récupérer les scripts avec problèmes
     const fetchScriptsProblemes = async () => {
-    try {
-        console.log('🔍 Récupération des scripts avec problèmes...');
-        
-        // Appel à l'API pour détecter les problèmes
-        await api.get('/stats/detecter-scripts-problemes/');
-        
-        // Récupération des problèmes existants
-        const response = await api.get('/stats/scripts-problemes/');
-        console.log('📊 Scripts avec problèmes:', response.data);
-        
-        setScriptsProblemes(response.data);
-        setGlobalStats(prev => ({ ...prev, scripts_problemes: response.data }));
-        
-    } catch (error) {
-        console.error('Erreur lors du chargement des scripts avec problèmes:', error);
-        toast.error('Erreur lors du chargement des scripts avec problèmes');
-    }
-};
+        try {
+            console.log('🔍 Récupération des scripts avec problèmes...');
+            
+            // Appel à l'API pour détecter les problèmes
+            await api.get('/stats/detecter-scripts-problemes/');
+            
+            // Récupération des problèmes existants
+            const response = await api.get('/stats/scripts-problemes/');
+            console.log('📊 Scripts avec problèmes:', response.data);
+            
+            setScriptsProblemes(response.data);
+            setGlobalStats(prev => ({ ...prev, scripts_problemes: response.data }));
+            
+        } catch (error) {
+            console.error('Erreur lors du chargement des scripts avec problèmes:', error);
+            toast.error('Erreur lors du chargement des scripts avec problèmes');
+        }
+    };
 
     // Fonction principale pour récupérer toutes les données du dashboard
     const fetchDashboardData = async () => {
@@ -150,25 +154,25 @@ const VueGlobale = ({ user, logout }) => {
 
     // Fonction pour obtenir le badge de type de problème
     const getProblemeBadge = (typeProbleme) => {
-    const types = {
-        'timeout': { class: 'bg-warning text-dark', icon: 'ti ti-clock' },
-        'configuration_invalide': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
-        'element_non_trouve': { class: 'bg-info', icon: 'ti ti-search-off' },
-        'erreur_reseau': { class: 'bg-secondary', icon: 'ti ti-wifi-off' },
-        'resource_non_disponible': { class: 'bg-dark', icon: 'ti ti-server-off' },
-        'echecs_repetes': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
-        'autre': { class: 'bg-light-secondary', icon: 'ti ti-help' }
+        const types = {
+            'timeout': { class: 'bg-warning text-dark', icon: 'ti ti-clock' },
+            'configuration_invalide': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
+            'element_non_trouve': { class: 'bg-info', icon: 'ti ti-search-off' },
+            'erreur_reseau': { class: 'bg-secondary', icon: 'ti ti-wifi-off' },
+            'resource_non_disponible': { class: 'bg-dark', icon: 'ti ti-server-off' },
+            'echecs_repetes': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
+            'autre': { class: 'bg-light-secondary', icon: 'ti ti-help' }
+        };
+        
+        const config = types[typeProbleme] || { class: 'bg-light-secondary', icon: 'ti ti-help' };
+        
+        return (
+            <span className={`badge ${config.class}`}>
+                <i className={`${config.icon} me-1`}></i>
+                {typeProbleme.replace('_', ' ')}
+            </span>
+        );
     };
-    
-    const config = types[typeProbleme] || { class: 'bg-light-secondary', icon: 'ti ti-help' };
-    
-    return (
-        <span className={`badge ${config.class}`}>
-            <i className={`${config.icon} me-1`}></i>
-            {typeProbleme.replace('_', ' ')}
-        </span>
-    );
-};
 
     // Fonction pour obtenir le badge de statut
     const getStatutBadge = (statut) => {
@@ -189,27 +193,33 @@ const VueGlobale = ({ user, logout }) => {
         );
     };
 
-    // Composant pour les cartes de statistiques globales
+    // MODIFIÉ: Composant pour les cartes de statistiques globales
+    // La carte des sociétés n'est affichée que pour les super-administrateurs
     const GlobalStatsCards = () => (
         <div className="row mb-4">
-            <div className="col-xl-3 col-md-6">
-                <div className="card stats-card">
-                    <div className="card-body">
-                        <div className="d-flex align-items-center">
-                            <div className="flex-grow-1">
-                                <h4 className="mb-0">{globalStats.societes}</h4>
-                                <p className="text-muted mb-0">Sociétés</p>
-                            </div>
-                            <div className="flex-shrink-0">
-                                <div className="avatar-sm rounded-circle bg-primary bg-opacity-10">
-                                    <i className="ti ti-building text-primary font-24"></i>
+            {/* Carte des sociétés - visible uniquement pour les super-administrateurs */}
+            {hasSuperAdminAccess() && (
+                <div className="col-xl-3 col-md-6">
+                    <div className="card stats-card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-grow-1">
+                                    <h4 className="mb-0">{globalStats.societes}</h4>
+                                    <p className="text-muted mb-0">Sociétés</p>
+                                </div>
+                                <div className="flex-shrink-0">
+                                    <div className="avatar-sm rounded-circle bg-primary bg-opacity-10">
+                                        <i className="ti ti-building text-primary font-24"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div className="col-xl-3 col-md-6">
+            )}
+            
+            {/* Carte des projets - ajustement de la classe pour s'adapter à l'affichage conditionnel */}
+            <div className={hasSuperAdminAccess() ? "col-xl-3 col-md-6" : "col-xl-4 col-md-6"}>
                 <div className="card stats-card">
                     <div className="card-body">
                         <div className="d-flex align-items-center">
@@ -226,7 +236,9 @@ const VueGlobale = ({ user, logout }) => {
                     </div>
                 </div>
             </div>
-            <div className="col-xl-3 col-md-6">
+            
+            {/* Carte des batteries - ajustement de la classe pour s'adapter à l'affichage conditionnel */}
+            <div className={hasSuperAdminAccess() ? "col-xl-3 col-md-6" : "col-xl-4 col-md-6"}>
                 <div className="card stats-card">
                     <div className="card-body">
                         <div className="d-flex align-items-center">
@@ -243,7 +255,9 @@ const VueGlobale = ({ user, logout }) => {
                     </div>
                 </div>
             </div>
-            <div className="col-xl-3 col-md-6">
+            
+            {/* Carte des utilisateurs - ajustement de la classe pour s'adapter à l'affichage conditionnel */}
+            <div className={hasSuperAdminAccess() ? "col-xl-3 col-md-6" : "col-xl-4 col-md-6"}>
                 <div className="card stats-card">
                     <div className="card-body">
                         <div className="d-flex align-items-center">
@@ -303,127 +317,135 @@ const VueGlobale = ({ user, logout }) => {
         </div>
     );
 
-    // Composant pour le tableau des sociétés avec liste des employés
-    const SocietesTable = () => (
-        <div className="row mb-4">
-            <div className="col-12">
-                <div className="card">
-                    <div className="card-header d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0">
-                            <i className="ti ti-building me-2"></i>
-                            Liste des sociétés
-                        </h5>
-                        <span className="badge bg-primary">
-                            {societes.length} société(s)
-                        </span>
-                    </div>
-                    <div className="card-body">
-                        <div className="table-responsive">
-                            <table className="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Nom</th>
-                                        <th>Secteur d'activité</th>
-                                        <th>Admin</th>
-                                        <th>Nb. Projets</th>
-                                        <th>Nb. Utilisateurs</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {societes.map((societe) => (
-                                        <React.Fragment key={societe.id}>
-                                            <tr>
-                                                <td>
-                                                    <div className="d-flex align-items-center">
-                                                        <i className="ti ti-building text-primary me-2"></i>
-                                                        <strong>{societe.nom}</strong>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className="badge bg-light-info">
-                                                        {societe.secteur_activite || 'N/A'}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    {societe.admin ? (
-                                                        <div>
-                                                            <strong>{societe.admin.full_name}</strong>
-                                                            <br />
-                                                            <small className="text-muted">{societe.admin.email}</small>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-muted">Non défini</span>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <span className="badge bg-light-primary">
-                                                        {societe.projets?.length || 0}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <button
-                                                        className="btn btn-sm btn-link-primary d-flex align-items-center"
-                                                        onClick={() => toggleSocieteExpansion(societe.id)}
-                                                        title={expandedSocietes.includes(societe.id) ? "Masquer les employés" : "Voir les employés"}
-                                                    >
-                                                        <i className={`ti ti-chevron-${expandedSocietes.includes(societe.id) ? 'up' : 'down'} me-1`}></i>
-                                                        <span className="badge bg-light-success">
-                                                            {societe.employes?.length || 0}
-                                                        </span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            
-                                            {/* Ligne d'expansion pour afficher les employés */}
-                                            {expandedSocietes.includes(societe.id) && (
+    // MODIFIÉ: Composant pour le tableau des sociétés avec liste des employés
+    // Visible uniquement pour les super-administrateurs
+    const SocietesTable = () => {
+        // Si l'utilisateur n'est pas un super-admin, ne rien afficher
+        if (!hasSuperAdminAccess()) {
+            return null;
+        }
+        
+        return (
+            <div className="row mb-4">
+                <div className="col-12">
+                    <div className="card">
+                        <div className="card-header d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0">
+                                <i className="ti ti-building me-2"></i>
+                                Liste des sociétés
+                            </h5>
+                            <span className="badge bg-primary">
+                                {societes.length} société(s)
+                            </span>
+                        </div>
+                        <div className="card-body">
+                            <div className="table-responsive">
+                                <table className="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Nom</th>
+                                            <th>Secteur d'activité</th>
+                                            <th>Admin</th>
+                                            <th>Nb. Projets</th>
+                                            <th>Nb. Utilisateurs</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {societes.map((societe) => (
+                                            <React.Fragment key={societe.id}>
                                                 <tr>
-                                                    <td colSpan="5" className="p-0">
-                                                        <div className="bg-light p-3 border-start border-4 border-primary">
-                                                            <h6 className="mb-3 text-primary">
-                                                                <i className="ti ti-users me-2"></i>
-                                                                Liste des employés ({societe.employes?.length || 0})
-                                                            </h6>
-                                                            {societe.employes && societe.employes.length > 0 ? (
-                                                                <div className="row">
-                                                                    {societe.employes.map((employe) => (
-                                                                        <div key={employe.id} className="col-md-6 col-lg-4 mb-3">
-                                                                            <div className="card border-0 bg-white shadow-sm">
-                                                                                <div className="card-body p-3">
-                                                                                    <div className="d-flex align-items-center">
-                                                                                        <div className="avatar-sm rounded-circle bg-primary bg-opacity-10 me-3">
-                                                                                            <i className="ti ti-user text-primary"></i>
-                                                                                        </div>
-                                                                                        <div className="flex-grow-1">
-                                                                                            <h6 className="mb-1">{employe.full_name}</h6>
-                                                                                            <small className="text-muted d-block">{employe.email}</small>
-                                                                                            <small className="text-muted">ID: {employe.id}</small>
+                                                    <td>
+                                                        <div className="d-flex align-items-center">
+                                                            <i className="ti ti-building text-primary me-2"></i>
+                                                            <strong>{societe.nom}</strong>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className="badge bg-light-info">
+                                                            {societe.secteur_activite || 'N/A'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {societe.admin ? (
+                                                            <div>
+                                                                <strong>{societe.admin.full_name}</strong>
+                                                                <br />
+                                                                <small className="text-muted">{societe.admin.email}</small>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted">Non défini</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span className="badge bg-light-primary">
+                                                            {societe.projets?.length || 0}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            className="btn btn-sm btn-link-primary d-flex align-items-center"
+                                                            onClick={() => toggleSocieteExpansion(societe.id)}
+                                                            title={expandedSocietes.includes(societe.id) ? "Masquer les employés" : "Voir les employés"}
+                                                        >
+                                                            <i className={`ti ti-chevron-${expandedSocietes.includes(societe.id) ? 'up' : 'down'} me-1`}></i>
+                                                            <span className="badge bg-light-success">
+                                                                {societe.employes?.length || 0}
+                                                            </span>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                
+                                                {/* Ligne d'expansion pour afficher les employés */}
+                                                {expandedSocietes.includes(societe.id) && (
+                                                    <tr>
+                                                        <td colSpan="5" className="p-0">
+                                                            <div className="bg-light p-3 border-start border-4 border-primary">
+                                                                <h6 className="mb-3 text-primary">
+                                                                    <i className="ti ti-users me-2"></i>
+                                                                    Liste des employés ({societe.employes?.length || 0})
+                                                                </h6>
+                                                                {societe.employes && societe.employes.length > 0 ? (
+                                                                    <div className="row">
+                                                                        {societe.employes.map((employe) => (
+                                                                            <div key={employe.id} className="col-md-6 col-lg-4 mb-3">
+                                                                                <div className="card border-0 bg-white shadow-sm">
+                                                                                    <div className="card-body p-3">
+                                                                                        <div className="d-flex align-items-center">
+                                                                                            <div className="avatar-sm rounded-circle bg-primary bg-opacity-10 me-3">
+                                                                                                <i className="ti ti-user text-primary"></i>
+                                                                                            </div>
+                                                                                            <div className="flex-grow-1">
+                                                                                                <h6 className="mb-1">{employe.full_name}</h6>
+                                                                                                <small className="text-muted d-block">{employe.email}</small>
+                                                                                                <small className="text-muted">ID: {employe.id}</small>
+                                                                                            </div>
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="text-center text-muted py-3">
-                                                                    <i className="ti ti-user-off me-2"></i>
-                                                                    Aucun employé trouvé pour cette société
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-center text-muted py-3">
+                                                                        <i className="ti ti-user-off me-2"></i>
+                                                                        Aucun employé trouvé pour cette société
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     // Composant pour le tableau des projets
     const ProjetsTable = () => (

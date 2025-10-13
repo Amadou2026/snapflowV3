@@ -1,5 +1,5 @@
 // src/components/SidebarAdmin.jsx
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import logo from '../../assets/img/snapflow.png';
@@ -7,17 +7,24 @@ import { TiArrowUnsorted } from "react-icons/ti";
 
 const SidebarAdmin = () => {
   const [openMenus, setOpenMenus] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   
+  // Utiliser une référence pour suivre si le rafraîchissement a déjà été effectué
+  const hasRefreshedRef = useRef(false);
+  const lastCriticalRouteRef = useRef(null);
+
   // On récupère toutes les données et fonctions nécessaires depuis le contexte
-  const { 
-    user, 
-    isAuthenticated, 
-    setIsAuthenticated, 
-    setUser, 
+  const {
+    user,
+    isAuthenticated,
+    setIsAuthenticated,
+    setUser,
     selectedProjectId,
     loading, // État de chargement général
+    permissionsLoaded, // Nouvel état pour savoir si les permissions sont chargées
+    refreshPermissions, // Fonction pour rafraîchir les permissions
     // Utiliser les fonctions de permission depuis le contexte
     canViewDashboard,
     canViewVueGlobale,
@@ -35,6 +42,49 @@ const SidebarAdmin = () => {
     canManageExecutionTests,
     canManageExecutionResults
   } = useContext(AuthContext);
+
+  // Effet pour rafraîchir les permissions lors du montage du composant
+  useEffect(() => {
+    // Si l'utilisateur est authentifié mais que les permissions ne sont pas encore chargées
+    // et que nous n'avons pas déjà rafraîchi
+    if (isAuthenticated && !permissionsLoaded && !loading && !hasRefreshedRef.current) {
+      console.log("SidebarAdmin: Rafraîchissement initial des permissions...");
+      hasRefreshedRef.current = true;
+      setRefreshing(true);
+      refreshPermissions().finally(() => {
+        setRefreshing(false);
+      });
+    }
+  }, [isAuthenticated, permissionsLoaded, loading]); // Retirer refreshPermissions des dépendances
+
+  // Effet pour détecter les changements de route et rafraîchir si nécessaire
+  useEffect(() => {
+    // Rafraîchir les permissions lors de certaines routes critiques
+    const criticalRoutes = ['/admin/core/customuser/', '/admin/core/groupepersonnalise/'];
+    const isCriticalRoute = criticalRoutes.some(route => location.pathname.startsWith(route));
+    
+    // Vérifier si nous sommes sur une route critique différente de la dernière
+    const currentCriticalRoute = criticalRoutes.find(route => location.pathname.startsWith(route));
+    const isDifferentRoute = currentCriticalRoute !== lastCriticalRouteRef.current;
+
+    // Ajouter une condition pour éviter les rafraîchissements multiples
+    if (isCriticalRoute && isAuthenticated && !refreshing && isDifferentRoute) {
+      console.log("SidebarAdmin: Route critique détectée, rafraîchissement des permissions...");
+      lastCriticalRouteRef.current = currentCriticalRoute;
+      setRefreshing(true);
+      refreshPermissions().finally(() => {
+        setRefreshing(false);
+      });
+    }
+  }, [location.pathname, isAuthenticated, refreshing]); // Retirer refreshPermissions des dépendances
+
+  // Réinitialiser la référence lorsque l'utilisateur se déconnecte
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasRefreshedRef.current = false;
+      lastCriticalRouteRef.current = null;
+    }
+  }, [isAuthenticated]);
 
   // Fonction helper pour construire les URLs avec le projectId si disponible
   const buildUrl = (path) => {
@@ -61,12 +111,12 @@ const SidebarAdmin = () => {
     if (currentPath === path) {
       return 'active';
     }
-    
+
     // Vérifie si le chemin actuel est une route imbriquée (ex: /admin/core/configurationtest/5/)
     if (currentPath.startsWith(path + '/')) {
       return 'active';
     }
-    
+
     // Si on a un projectId dans l'URL, on le compare
     if (selectedProjectId && currentProjectId) {
       return currentPath === path && currentProjectId === selectedProjectId ? 'active' : '';
@@ -90,7 +140,7 @@ const SidebarAdmin = () => {
   };
 
   // --- AMÉLIORATION : Afficher un squelette de chargement pendant que le contexte charge ---
-  if (loading) {
+  if (loading || refreshing) {
     return (
       <nav className="pc-sidebar">
         <div className="navbar-wrapper">
@@ -103,7 +153,7 @@ const SidebarAdmin = () => {
             <ul className="pc-navbar">
               {/* Afficher des squelettes pour les menus pendant le chargement */}
               <li className="pc-item pc-caption">
-                <label>Chargement...</label>
+                <label>{refreshing ? "Mise à jour des permissions..." : "Chargement..."}</label>
               </li>
               {[1, 2, 3, 4, 5].map((i) => (
                 <li key={i} className="pc-item">
@@ -199,7 +249,7 @@ const SidebarAdmin = () => {
                         <i className="ti ti-building"></i>
                       </span>
                       <span className="pc-mtext">Gestion Sociétés</span>
-                    </Link> 
+                    </Link>
                   </li>
                 )}
 
@@ -456,4 +506,4 @@ const SidebarAdmin = () => {
   );
 };
 
-export default SidebarAdmin;
+export default React.memo(SidebarAdmin);
