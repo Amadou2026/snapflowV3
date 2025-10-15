@@ -18,9 +18,11 @@ const GestionSecteur = ({ user, logout }) => {
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedSecteur, setSelectedSecteur] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [userPermissions, setUserPermissions] = useState([]); // Ajout de l'état pour les permissions
 
     useEffect(() => {
         fetchSecteurs();
+        fetchUserPermissions(); // Ajout de l'appel pour récupérer les permissions
     }, []);
 
     // Charger les secteurs
@@ -37,8 +39,30 @@ const GestionSecteur = ({ user, logout }) => {
         }
     };
 
+    // Ajout de la fonction pour récupérer les permissions de l'utilisateur
+    const fetchUserPermissions = async () => {
+        try {
+            const response = await api.get('user/permissions/');
+            setUserPermissions(response.data.permissions);
+        } catch (error) {
+            console.error('Erreur lors du chargement des permissions:', error);
+            setUserPermissions([]); // Assurer que c'est un tableau en cas d'erreur
+        }
+    };
+
+    // Ajout de la fonction pour vérifier les permissions
+    const hasPermission = (permission) => {
+        return Array.isArray(userPermissions) && userPermissions.includes(permission);
+    };
+
     // Supprimer un secteur
     const handleDeleteSecteur = async (secteurId) => {
+        // Vérifier si l'utilisateur a la permission de supprimer
+        if (!hasPermission('core.delete_secteuractivite')) {
+            toast.error('Vous n\'avez pas les permissions pour supprimer un secteur');
+            return;
+        }
+
         if (window.confirm('Êtes-vous sûr de vouloir supprimer ce secteur ?')) {
             try {
                 await api.delete(`secteurs/${secteurId}/`);
@@ -59,6 +83,12 @@ const GestionSecteur = ({ user, logout }) => {
     };
 
     const handleViewSecteur = (secteur) => {
+        // Vérifier si l'utilisateur a la permission de voir
+        if (!hasPermission('core.view_secteuractivite')) {
+            toast.error('Vous n\'avez pas les permissions pour voir les détails d\'un secteur');
+            return;
+        }
+        
         setSelectedSecteur(secteur);
         setShowViewModal(true);
     };
@@ -169,12 +199,14 @@ const GestionSecteur = ({ user, logout }) => {
                                     <div className="card table-card">
                                         <div className="card-body">
                                             <div className="text-end p-4 pb-0">
-                                                <button
-                                                    className="btn btn-primary d-inline-flex align-items-center"
-                                                    onClick={() => setShowAddModal(true)}
-                                                >
-                                                    <i className="ti ti-plus f-18"></i> Ajouter un Secteur
-                                                </button>
+                                                {hasPermission('core.add_secteuractivite') && (
+                                                    <button
+                                                        className="btn btn-primary d-inline-flex align-items-center"
+                                                        onClick={() => setShowAddModal(true)}
+                                                    >
+                                                        <i className="ti ti-plus f-18"></i> Ajouter un Secteur
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <div className="table-responsive">
@@ -204,27 +236,33 @@ const GestionSecteur = ({ user, logout }) => {
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <div className="d-flex justify-content-center gap-2">
-                                                                        <button
-                                                                            className="btn btn-link-secondary btn-sm p-1"
-                                                                            onClick={() => handleViewSecteur(secteur)}
-                                                                            title="Voir"
-                                                                        >
-                                                                            <i className="ti ti-eye f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-primary btn-sm p-1"
-                                                                            onClick={() => handleEditSecteur(secteur)}
-                                                                            title="Modifier"
-                                                                        >
-                                                                            <i className="ti ti-edit-circle f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-danger btn-sm p-1"
-                                                                            onClick={() => handleDeleteSecteur(secteur.id)}
-                                                                            title="Supprimer"
-                                                                        >
-                                                                            <i className="ti ti-trash f-18"></i>
-                                                                        </button>
+                                                                        {hasPermission('core.view_secteuractivite') && (
+                                                                            <button
+                                                                                className="btn btn-link-secondary btn-sm p-1"
+                                                                                onClick={() => handleViewSecteur(secteur)}
+                                                                                title="Voir"
+                                                                            >
+                                                                                <i className="ti ti-eye f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.change_secteuractivite') && (
+                                                                            <button
+                                                                                className="btn btn-link-primary btn-sm p-1"
+                                                                                onClick={() => handleEditSecteur(secteur)}
+                                                                                title="Modifier"
+                                                                            >
+                                                                                <i className="ti ti-edit-circle f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.delete_secteuractivite') && (
+                                                                            <button
+                                                                                className="btn btn-link-danger btn-sm p-1"
+                                                                                onClick={() => handleDeleteSecteur(secteur.id)}
+                                                                                title="Supprimer"
+                                                                            >
+                                                                                <i className="ti ti-trash f-18"></i>
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -243,7 +281,7 @@ const GestionSecteur = ({ user, logout }) => {
                                                                 'Aucun secteur ne correspond aux critères de recherche.'
                                                             }
                                                         </p>
-                                                        {secteurs.length === 0 && (
+                                                        {secteurs.length === 0 && hasPermission('core.add_secteuractivite') && (
                                                             <button
                                                                 className="btn btn-primary btn-sm mt-2"
                                                                 onClick={() => setShowAddModal(true)}
@@ -263,30 +301,36 @@ const GestionSecteur = ({ user, logout }) => {
                         </div>
 
                         {/* Modals */}
-                        <AjouterSecteurModal
-                            show={showAddModal}
-                            onClose={() => setShowAddModal(false)}
-                            onSecteurAdded={handleSecteurAdded}
-                        />
+                        {hasPermission('core.add_secteuractivite') && (
+                            <AjouterSecteurModal
+                                show={showAddModal}
+                                onClose={() => setShowAddModal(false)}
+                                onSecteurAdded={handleSecteurAdded}
+                            />
+                        )}
 
-                        <ModifierSecteurModal
-                            show={showEditModal}
-                            onClose={() => {
-                                setShowEditModal(false);
-                                setSelectedSecteur(null);
-                            }}
-                            onSecteurUpdated={handleSecteurUpdated}
-                            secteur={selectedSecteur}
-                        />
+                        {hasPermission('core.change_secteuractivite') && (
+                            <ModifierSecteurModal
+                                show={showEditModal}
+                                onClose={() => {
+                                    setShowEditModal(false);
+                                    setSelectedSecteur(null);
+                                }}
+                                onSecteurUpdated={handleSecteurUpdated}
+                                secteur={selectedSecteur}
+                            />
+                        )}
 
-                        <ViewSecteurModal
-                            show={showViewModal}
-                            onClose={() => {
-                                setShowViewModal(false);
-                                setSelectedSecteur(null);
-                            }}
-                            secteur={selectedSecteur}
-                        />
+                        {hasPermission('core.view_secteuractivite') && (
+                            <ViewSecteurModal
+                                show={showViewModal}
+                                onClose={() => {
+                                    setShowViewModal(false);
+                                    setSelectedSecteur(null);
+                                }}
+                                secteur={selectedSecteur}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

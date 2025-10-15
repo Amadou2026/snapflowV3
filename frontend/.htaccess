@@ -1,0 +1,53 @@
+# build/.htaccess pour React + backend Django séparé
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Si la requête cible un fichier ou répertoire existant, le servir tel quel
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Ne pas réécrire les requêtes API : laisse passer vers le backend Django
+  RewriteCond %{REQUEST_URI} ^/api/
+  RewriteRule ^ - [L]
+
+  # Toutes les autres requêtes => index.html (React Router)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# --------- En-têtes (CORS minimal pour permettre POST depuis le front) ----------
+<IfModule mod_headers.c>
+  Header always set Access-Control-Allow-Origin "https://snapflow.medianet.space"
+  Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+  Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+  Header always set X-Content-Type-Options nosniff
+  Header always set X-Frame-Options SAMEORIGIN
+  Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Allow preflight OPTIONS to succeed without rewrites
+<IfModule mod_rewrite.c>
+  RewriteCond %{REQUEST_METHOD} OPTIONS
+  RewriteRule ^ - [R=200,L]
+</IfModule>
+
+# --------- Sécurité : empêcher l'accès direct aux fichiers sensibles ----------
+<FilesMatch "^(\.env|package\.json|webpack\.config\.js|\.git)">
+  Require all denied
+</FilesMatch>
+
+# --------- Cache (assets statiques) ----------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+</IfModule>
+
+# --------- Redirection HTTP -> HTTPS (optionnel) ----------
+# RewriteCond %{HTTPS} !=on
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

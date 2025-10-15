@@ -152,106 +152,6 @@ const handleSocieteClick = (societe) => {
 
         <div className="ms-auto">
           <ul className="list-unstyled">
-            {/* Dropdown Société */}
-            {/* <li className="dropdown pc-h-item">
-              <a
-                className="pc-head-link dropdown-toggle arrow-none me-0"
-                href="#"
-                role="button"
-                aria-haspopup="false"
-                aria-expanded={showSocieteDropdown}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleSocieteDropdown();
-                }}
-              >
-                <span className="text-primary fw-bold">Sociétés</span>
-                <span className="badge bg-primary ms-1">{userSocietes.length}</span>
-              </a>
-              {showSocieteDropdown && (
-                <div className="dropdown-menu dropdown-notification dropdown-menu-end pc-h-dropdown show">
-                  <div className="dropdown-header d-flex align-items-center justify-content-between">
-                    <h5 className="m-0">Sociétés</h5>
-                    <a
-                      href="#!"
-                      className="pc-head-link bg-transparent"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setShowSocieteDropdown(false);
-                      }}
-                    >
-                      <i className="ti ti-x text-danger"></i>
-                    </a>
-                  </div>
-                  <div className="dropdown-divider"></div>
-                  <div
-                    className="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
-                    style={{ maxHeight: 'calc(100vh - 215px)' }}
-                  >
-                    {loadingSocietes ? (
-                      <div className="text-center py-3">
-                        <div className="spinner-border spinner-border-sm" role="status">
-                          <span className="visually-hidden">Chargement...</span>
-                        </div>
-                        <p className="text-muted mt-2 mb-0">Chargement des sociétés...</p>
-                      </div>
-                    ) : userSocietes.length === 0 ? (
-                      <div className="text-center py-3">
-                        <i className="ti ti-building-off text-muted" style={{ fontSize: '2rem' }}></i>
-                        <p className="text-muted mt-2 mb-0">Aucune société trouvée</p>
-                      </div>
-                    ) : (
-                      <div className="list-group list-group-flush w-100">
-                        {userSocietes.map((societe) => (
-                          <a
-                            key={societe.id}
-                            className="list-group-item list-group-item-action cursor-pointer"
-                            onClick={() => handleSocieteClick(societe)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <div className="d-flex align-items-center">
-                              <div className="flex-shrink-0">
-                                <div className="bg-light rounded p-2">
-                                  <i className="ti ti-building text-primary"></i>
-                                </div>
-                              </div>
-                              <div className="flex-grow-1 ms-3">
-                                <h6 className="mb-1 text-dark">{societe.nom}</h6>
-                                <div className="d-flex align-items-center">
-                                  <small className="text-muted">
-                                    {societe.secteur_activite || 'N/A'}
-                                  </small>
-                                  {societe.admin && (
-                                    <small className="text-muted ms-2">
-                                      • Admin: {societe.admin.first_name} {societe.admin.last_name}
-                                    </small>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex-shrink-0">
-                                <i className="ti ti-chevron-right text-muted"></i>
-                              </div>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="dropdown-divider"></div>
-                  <div className="text-center py-2">
-                    <a href="/admin/core/societe/" className="link-primary">
-                      Voir toutes les sociétés
-                    </a>
-                  </div>
-                </div>
-              )}
-            </li> */}
-
-            {/* Espace entre les dropdowns */}
-            {/* <li className="pc-h-item d-none d-md-inline-flex">
-              <span className="text-muted mx-3">|</span>
-            </li> */}
-
             {/* Dropdown Projets */}
             <li className="dropdown pc-h-item">
               <a
@@ -286,7 +186,7 @@ const handleSocieteClick = (societe) => {
                   <div className="dropdown-divider"></div>
                   <div
                     className="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
-                    style={{ maxHeight: 'calc(100vh - 215px)' }}
+                    style={{ maxHeight: '400px', overflowY: 'auto' }}
                   >
                     {loadingProjects ? (
                       <div className="text-center py-3">

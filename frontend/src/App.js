@@ -29,10 +29,10 @@ import { useContext } from 'react';
 
 // Composant qui utilise le contexte
 const AppRoutes = () => {
-  const { 
-    user, 
-    isAuthenticated, 
-    setUser, 
+  const {
+    user,
+    isAuthenticated,
+    setUser,
     setIsAuthenticated,
     loading, // On utilise l'état de chargement général
     // Utiliser les fonctions de permission depuis le contexte
@@ -115,7 +115,7 @@ const AppRoutes = () => {
           path="/admin/core/customuser/"
           element={
             isAuthenticated ? (
-              canManageUsers() ? (
+              canManageUsers() ? (  // ✅ Retirer le paramètre (user)
                 <GestionUsers user={user} logout={logout} />
               ) : (
                 <Navigate to="/dashboard" replace />
@@ -125,6 +125,7 @@ const AppRoutes = () => {
             )
           }
         />
+
 
         <Route
           path="/admin/core/secteuractivite/"

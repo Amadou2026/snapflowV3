@@ -28,6 +28,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "copy-file-or-folder \"public/.htaccess\" \"build/.htaccess\"",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

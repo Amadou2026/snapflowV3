@@ -7,7 +7,6 @@ import ViewAxeModal from './modals/ViewAxeModal';
 import HeaderAdmin from '../admin/HeaderAdmin';
 import SidebarAdmin from '../admin/SidebarAdmin';
 import MobileSidebarOverlay from '../admin/MobileSidebarOverlay'
-
 import FooterAdmin from '../admin/FooterAdmin';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
@@ -21,9 +20,11 @@ const GestionAxe = ({ user, logout }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
+    const [userPermissions, setUserPermissions] = useState([]);
 
     useEffect(() => {
         fetchAxes();
+        fetchUserPermissions();
     }, []);
 
     const fetchAxes = async () => {
@@ -38,9 +39,32 @@ const GestionAxe = ({ user, logout }) => {
         }
     };
 
+    const fetchUserPermissions = async () => {
+        try {
+            // Utilisez le bon endpoint et extrayez le tableau de permissions
+            const response = await api.get('user/permissions/');
+            setUserPermissions(response.data.permissions);
+        } catch (error) {
+            console.error('Erreur lors du chargement des permissions:', error);
+            // En cas d'erreur, assurez-vous que userPermissions est un tableau vide pour éviter d'autres erreurs
+            setUserPermissions([]);
+        }
+    };
+
+    const hasPermission = (permission) => {
+    // Vérifie si userPermissions est bien un tableau avant d'utiliser .includes()
+    return Array.isArray(userPermissions) && userPermissions.includes(permission);
+};
+
     const handleDeleteAxe = async (axeId) => {
+        // Vérifier si l'utilisateur a la permission de supprimer
+        if (!hasPermission('core.delete_axe')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour supprimer un axe');
+            return;
+        }
+
         const axe = axes.find(a => a.id === axeId);
-        
+
         const result = await MySwal.fire({
             title: 'Êtes-vous sûr ?',
             html: `Vous êtes sur le point de supprimer l'axe <strong>"${axe?.nom}"</strong>. Cette action est irréversible !`,
@@ -60,10 +84,10 @@ const GestionAxe = ({ user, logout }) => {
         if (result.isConfirmed) {
             try {
                 await api.delete(`axes/${axeId}/`);
-                
+
                 const updatedAxes = axes.filter(axe => axe.id !== axeId);
                 setAxes(updatedAxes);
-                
+
                 await MySwal.fire({
                     title: 'Supprimé !',
                     text: 'L\'axe a été supprimé avec succès.',
@@ -84,6 +108,12 @@ const GestionAxe = ({ user, logout }) => {
     };
 
     const handleViewAxe = (axe) => {
+        // Vérifier si l'utilisateur a la permission de voir
+        if (!hasPermission('core.view_axe')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour voir les détails d\'un axe');
+            return;
+        }
+
         setSelectedAxe(axe);
         setShowViewModal(true);
     };
@@ -92,7 +122,7 @@ const GestionAxe = ({ user, logout }) => {
         const updatedAxes = [...axes, newAxe];
         setAxes(updatedAxes);
         setShowAddModal(false);
-        
+
         MySwal.fire({
             title: 'Succès !',
             text: 'L\'axe a été créé avec succès.',
@@ -109,7 +139,7 @@ const GestionAxe = ({ user, logout }) => {
         setAxes(updatedAxes);
         setShowEditModal(false);
         setSelectedAxe(null);
-        
+
         MySwal.fire({
             title: 'Succès !',
             text: 'L\'axe a été modifié avec succès.',
@@ -194,12 +224,14 @@ const GestionAxe = ({ user, logout }) => {
                                     <div className="card table-card">
                                         <div className="card-body">
                                             <div className="text-end p-4 pb-0">
-                                                <button
-                                                    className="btn btn-primary d-inline-flex align-items-center"
-                                                    onClick={() => setShowAddModal(true)}
-                                                >
-                                                    <i className="ti ti-plus f-18"></i> Ajouter un Axe
-                                                </button>
+                                                {hasPermission('core.add_axe') && (
+                                                    <button
+                                                        className="btn btn-primary d-inline-flex align-items-center"
+                                                        onClick={() => setShowAddModal(true)}
+                                                    >
+                                                        <i className="ti ti-plus f-18"></i> Ajouter un Axe
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <div className="table-responsive">
@@ -230,35 +262,41 @@ const GestionAxe = ({ user, logout }) => {
                                                                 </td>
                                                                 <td>
                                                                     <p className="mb-0 text-muted">
-                                                                        {axe.description && axe.description.length > 100 
-                                                                            ? `${axe.description.substring(0, 100)}...` 
+                                                                        {axe.description && axe.description.length > 100
+                                                                            ? `${axe.description.substring(0, 100)}...`
                                                                             : axe.description || 'Aucune description'
                                                                         }
                                                                     </p>
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <div className="d-flex justify-content-center gap-2">
-                                                                        <button
-                                                                            className="btn btn-link-secondary btn-sm p-1"
-                                                                            onClick={() => handleViewAxe(axe)}
-                                                                            title="Voir"
-                                                                        >
-                                                                            <i className="ti ti-eye f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-primary btn-sm p-1"
-                                                                            onClick={() => handleEditAxe(axe)}
-                                                                            title="Modifier"
-                                                                        >
-                                                                            <i className="ti ti-edit-circle f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-danger btn-sm p-1"
-                                                                            onClick={() => handleDeleteAxe(axe.id)}
-                                                                            title="Supprimer"
-                                                                        >
-                                                                            <i className="ti ti-trash f-18"></i>
-                                                                        </button>
+                                                                        {hasPermission('core.view_axe') && (
+                                                                            <button
+                                                                                className="btn btn-link-secondary btn-sm p-1"
+                                                                                onClick={() => handleViewAxe(axe)}
+                                                                                title="Voir"
+                                                                            >
+                                                                                <i className="ti ti-eye f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.change_axe') && (
+                                                                            <button
+                                                                                className="btn btn-link-primary btn-sm p-1"
+                                                                                onClick={() => handleEditAxe(axe)}
+                                                                                title="Modifier"
+                                                                            >
+                                                                                <i className="ti ti-edit-circle f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.delete_axe') && (
+                                                                            <button
+                                                                                className="btn btn-link-danger btn-sm p-1"
+                                                                                onClick={() => handleDeleteAxe(axe.id)}
+                                                                                title="Supprimer"
+                                                                            >
+                                                                                <i className="ti ti-trash f-18"></i>
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -274,13 +312,15 @@ const GestionAxe = ({ user, logout }) => {
                                                         <p className="text-muted">
                                                             Aucun axe trouvé.
                                                         </p>
-                                                        <button
-                                                            className="btn btn-primary btn-sm mt-2"
-                                                            onClick={() => setShowAddModal(true)}
-                                                        >
-                                                            <i className="ti ti-plus me-1"></i>
-                                                            Ajouter le premier axe
-                                                        </button>
+                                                        {hasPermission('core.add_axe') && (
+                                                            <button
+                                                                className="btn btn-primary btn-sm mt-2"
+                                                                onClick={() => setShowAddModal(true)}
+                                                            >
+                                                                <i className="ti ti-plus me-1"></i>
+                                                                Ajouter le premier axe
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -292,30 +332,36 @@ const GestionAxe = ({ user, logout }) => {
                         </div>
 
                         {/* Modals */}
-                        <AjouterAxeModal
-                            show={showAddModal}
-                            onClose={() => setShowAddModal(false)}
-                            onAxeAdded={handleAxeAdded}
-                        />
+                        {hasPermission('core.add_axe') && (
+                            <AjouterAxeModal
+                                show={showAddModal}
+                                onClose={() => setShowAddModal(false)}
+                                onAxeAdded={handleAxeAdded}
+                            />
+                        )}
 
-                        <ModifierAxeModal
-                            show={showEditModal}
-                            onClose={() => {
-                                setShowEditModal(false);
-                                setSelectedAxe(null);
-                            }}
-                            onAxeUpdated={handleAxeUpdated}
-                            axe={selectedAxe}
-                        />
+                        {hasPermission('core.change_axe') && (
+                            <ModifierAxeModal
+                                show={showEditModal}
+                                onClose={() => {
+                                    setShowEditModal(false);
+                                    setSelectedAxe(null);
+                                }}
+                                onAxeUpdated={handleAxeUpdated}
+                                axe={selectedAxe}
+                            />
+                        )}
 
-                        <ViewAxeModal
-                            show={showViewModal}
-                            onClose={() => {
-                                setShowViewModal(false);
-                                setSelectedAxe(null);
-                            }}
-                            axe={selectedAxe}
-                        />
+                        {hasPermission('core.view_axe') && (
+                            <ViewAxeModal
+                                show={showViewModal}
+                                onClose={() => {
+                                    setShowViewModal(false);
+                                    setSelectedAxe(null);
+                                }}
+                                axe={selectedAxe}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

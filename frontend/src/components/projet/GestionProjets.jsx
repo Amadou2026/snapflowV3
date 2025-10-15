@@ -22,11 +22,13 @@ const GestionProjets = ({ user, logout }) => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [userPermissions, setUserPermissions] = useState([]); // Ajout de l'état pour les permissions
 
     const isSuperAdmin = user?.is_superuser;
 
     useEffect(() => {
         fetchProjets();
+        fetchUserPermissions(); // Ajout de l'appel pour récupérer les permissions
     }, []);
 
     useEffect(() => {
@@ -45,6 +47,22 @@ const GestionProjets = ({ user, logout }) => {
         }
     };
 
+    // Ajout de la fonction pour récupérer les permissions de l'utilisateur
+    const fetchUserPermissions = async () => {
+        try {
+            const response = await api.get('user/permissions/');
+            setUserPermissions(response.data.permissions);
+        } catch (error) {
+            console.error('Erreur lors du chargement des permissions:', error);
+            setUserPermissions([]); // Assurer que c'est un tableau en cas d'erreur
+        }
+    };
+
+    // Ajout de la fonction pour vérifier les permissions
+    const hasPermission = (permission) => {
+        return Array.isArray(userPermissions) && userPermissions.includes(permission);
+    };
+
     const filterProjets = () => {
         if (!searchTerm) {
             setFilteredProjets(projets);
@@ -59,6 +77,18 @@ const GestionProjets = ({ user, logout }) => {
     };
 
     const handleDeleteProjet = async (projetId) => {
+        // Vérifier si l'utilisateur a la permission de supprimer
+        if (!hasPermission('core.delete_projet')) {
+            MySwal.fire({
+                title: 'Erreur !',
+                text: 'Vous n\'avez pas les permissions pour supprimer un projet',
+                icon: 'error',
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
         const projetToDelete = projets.find(p => p.id === projetId);
         
         const result = await MySwal.fire({
@@ -131,6 +161,18 @@ const GestionProjets = ({ user, logout }) => {
     };
 
     const handleViewProjet = (projet) => {
+        // Vérifier si l'utilisateur a la permission de voir
+        if (!hasPermission('core.view_projet')) {
+            MySwal.fire({
+                title: 'Erreur !',
+                text: 'Vous n\'avez pas les permissions pour voir les détails d\'un projet',
+                icon: 'error',
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
         setSelectedProjet(projet);
         setShowViewModal(true);
     };
@@ -299,12 +341,14 @@ const GestionProjets = ({ user, logout }) => {
                                     <div className="card table-card">
                                         <div className="card-body">
                                             <div className="text-end p-4 pb-0">
-                                                <button
-                                                    className="btn btn-primary d-inline-flex align-items-center"
-                                                    onClick={() => setShowAddModal(true)}
-                                                >
-                                                    <i className="ti ti-plus f-18"></i> Ajouter un Projet
-                                                </button>
+                                                {hasPermission('core.add_projet') && (
+                                                    <button
+                                                        className="btn btn-primary d-inline-flex align-items-center"
+                                                        onClick={() => setShowAddModal(true)}
+                                                    >
+                                                        <i className="ti ti-plus f-18"></i> Ajouter un Projet
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <div className="table-responsive">
@@ -381,27 +425,33 @@ const GestionProjets = ({ user, logout }) => {
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <div className="d-flex justify-content-center gap-2">
-                                                                        <button
-                                                                            className="btn btn-link-secondary btn-sm p-1"
-                                                                            onClick={() => handleViewProjet(projet)}
-                                                                            title="Voir"
-                                                                        >
-                                                                            <i className="ti ti-eye f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-primary btn-sm p-1"
-                                                                            onClick={() => handleEditProjet(projet)}
-                                                                            title="Modifier"
-                                                                        >
-                                                                            <i className="ti ti-edit-circle f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-danger btn-sm p-1"
-                                                                            onClick={() => handleDeleteProjet(projet.id)}
-                                                                            title="Supprimer"
-                                                                        >
-                                                                            <i className="ti ti-trash f-18"></i>
-                                                                        </button>
+                                                                        {hasPermission('core.view_projet') && (
+                                                                            <button
+                                                                                className="btn btn-link-secondary btn-sm p-1"
+                                                                                onClick={() => handleViewProjet(projet)}
+                                                                                title="Voir"
+                                                                            >
+                                                                                <i className="ti ti-eye f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.change_projet') && (
+                                                                            <button
+                                                                                className="btn btn-link-primary btn-sm p-1"
+                                                                                onClick={() => handleEditProjet(projet)}
+                                                                                title="Modifier"
+                                                                            >
+                                                                                <i className="ti ti-edit-circle f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.delete_projet') && (
+                                                                            <button
+                                                                                className="btn btn-link-danger btn-sm p-1"
+                                                                                onClick={() => handleDeleteProjet(projet.id)}
+                                                                                title="Supprimer"
+                                                                            >
+                                                                                <i className="ti ti-trash f-18"></i>
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -420,7 +470,7 @@ const GestionProjets = ({ user, logout }) => {
                                                                 'Aucun projet ne correspond aux critères de recherche.'
                                                             }
                                                         </p>
-                                                        {projets.length === 0 && (
+                                                        {projets.length === 0 && hasPermission('core.add_projet') && (
                                                             <button
                                                                 className="btn btn-primary btn-sm mt-2"
                                                                 onClick={() => setShowAddModal(true)}
@@ -438,30 +488,37 @@ const GestionProjets = ({ user, logout }) => {
                             </div>
                         </div>
 
-                        <AjouterProjetModal
-                            show={showAddModal}
-                            onClose={() => setShowAddModal(false)}
-                            onProjetAdded={handleProjetAdded}
-                        />
+                        {/* Modals */}
+                        {hasPermission('core.add_projet') && (
+                            <AjouterProjetModal
+                                show={showAddModal}
+                                onClose={() => setShowAddModal(false)}
+                                onProjetAdded={handleProjetAdded}
+                            />
+                        )}
 
-                        <ModifierProjetModal
-                            show={showEditModal}
-                            onClose={() => {
-                                setShowEditModal(false);
-                                setSelectedProjet(null);
-                            }}
-                            onProjetUpdated={handleProjetUpdated}
-                            projet={selectedProjet}
-                        />
+                        {hasPermission('core.change_projet') && (
+                            <ModifierProjetModal
+                                show={showEditModal}
+                                onClose={() => {
+                                    setShowEditModal(false);
+                                    setSelectedProjet(null);
+                                }}
+                                onProjetUpdated={handleProjetUpdated}
+                                projet={selectedProjet}
+                            />
+                        )}
 
-                        <ViewProjetModal
-                            show={showViewModal}
-                            onClose={() => {
-                                setShowViewModal(false);
-                                setSelectedProjet(null);
-                            }}
-                            projet={selectedProjet}
-                        />
+                        {hasPermission('core.view_projet') && (
+                            <ViewProjetModal
+                                show={showViewModal}
+                                onClose={() => {
+                                    setShowViewModal(false);
+                                    setSelectedProjet(null);
+                                }}
+                                projet={selectedProjet}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

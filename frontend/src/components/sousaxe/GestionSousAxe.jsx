@@ -20,9 +20,11 @@ const GestionSousAxe = ({ user, logout }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
+    const [userPermissions, setUserPermissions] = useState([]); // Ajout de l'état pour les permissions
 
     useEffect(() => {
         fetchData();
+        fetchUserPermissions(); // Ajout de l'appel pour récupérer les permissions
     }, []);
 
     const fetchData = async () => {
@@ -41,7 +43,29 @@ const GestionSousAxe = ({ user, logout }) => {
         }
     };
 
+    // Ajout de la fonction pour récupérer les permissions de l'utilisateur
+    const fetchUserPermissions = async () => {
+        try {
+            const response = await api.get('user/permissions/');
+            setUserPermissions(response.data.permissions);
+        } catch (error) {
+            console.error('Erreur lors du chargement des permissions:', error);
+            setUserPermissions([]); // Assurer que c'est un tableau en cas d'erreur
+        }
+    };
+
+    // Ajout de la fonction pour vérifier les permissions
+    const hasPermission = (permission) => {
+        return Array.isArray(userPermissions) && userPermissions.includes(permission);
+    };
+
     const handleDeleteSousAxe = async (sousAxeId) => {
+        // Vérifier si l'utilisateur a la permission de supprimer
+        if (!hasPermission('core.delete_sousaxe')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour supprimer un sous-axe');
+            return;
+        }
+
         const sousAxe = sousAxes.find(sa => sa.id === sousAxeId);
         
         const result = await MySwal.fire({
@@ -87,6 +111,12 @@ const GestionSousAxe = ({ user, logout }) => {
     };
 
     const handleViewSousAxe = (sousAxe) => {
+        // Vérifier si l'utilisateur a la permission de voir
+        if (!hasPermission('core.view_sousaxe')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour voir les détails d\'un sous-axe');
+            return;
+        }
+        
         setSelectedSousAxe(sousAxe);
         setShowViewModal(true);
     };
@@ -202,12 +232,14 @@ const GestionSousAxe = ({ user, logout }) => {
                                     <div className="card table-card">
                                         <div className="card-body">
                                             <div className="text-end p-4 pb-0">
-                                                <button
-                                                    className="btn btn-primary d-inline-flex align-items-center"
-                                                    onClick={() => setShowAddModal(true)}
-                                                >
-                                                    <i className="ti ti-plus f-18"></i> Ajouter un Sous-Axe
-                                                </button>
+                                                {hasPermission('core.add_sousaxe') && (
+                                                    <button
+                                                        className="btn btn-primary d-inline-flex align-items-center"
+                                                        onClick={() => setShowAddModal(true)}
+                                                    >
+                                                        <i className="ti ti-plus f-18"></i> Ajouter un Sous-Axe
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <div className="table-responsive">
@@ -252,27 +284,33 @@ const GestionSousAxe = ({ user, logout }) => {
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <div className="d-flex justify-content-center gap-2">
-                                                                        <button
-                                                                            className="btn btn-link-secondary btn-sm p-1"
-                                                                            onClick={() => handleViewSousAxe(sousAxe)}
-                                                                            title="Voir"
-                                                                        >
-                                                                            <i className="ti ti-eye f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-primary btn-sm p-1"
-                                                                            onClick={() => handleEditSousAxe(sousAxe)}
-                                                                            title="Modifier"
-                                                                        >
-                                                                            <i className="ti ti-edit-circle f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-danger btn-sm p-1"
-                                                                            onClick={() => handleDeleteSousAxe(sousAxe.id)}
-                                                                            title="Supprimer"
-                                                                        >
-                                                                            <i className="ti ti-trash f-18"></i>
-                                                                        </button>
+                                                                        {hasPermission('core.view_sousaxe') && (
+                                                                            <button
+                                                                                className="btn btn-link-secondary btn-sm p-1"
+                                                                                onClick={() => handleViewSousAxe(sousAxe)}
+                                                                                title="Voir"
+                                                                            >
+                                                                                <i className="ti ti-eye f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.change_sousaxe') && (
+                                                                            <button
+                                                                                className="btn btn-link-primary btn-sm p-1"
+                                                                                onClick={() => handleEditSousAxe(sousAxe)}
+                                                                                title="Modifier"
+                                                                            >
+                                                                                <i className="ti ti-edit-circle f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.delete_sousaxe') && (
+                                                                            <button
+                                                                                className="btn btn-link-danger btn-sm p-1"
+                                                                                onClick={() => handleDeleteSousAxe(sousAxe.id)}
+                                                                                title="Supprimer"
+                                                                            >
+                                                                                <i className="ti ti-trash f-18"></i>
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -288,13 +326,15 @@ const GestionSousAxe = ({ user, logout }) => {
                                                         <p className="text-muted">
                                                             Aucun sous-axe trouvé.
                                                         </p>
-                                                        <button
-                                                            className="btn btn-primary btn-sm mt-2"
-                                                            onClick={() => setShowAddModal(true)}
-                                                        >
-                                                            <i className="ti ti-plus me-1"></i>
-                                                            Ajouter le premier sous-axe
-                                                        </button>
+                                                        {hasPermission('core.add_sousaxe') && (
+                                                            <button
+                                                                className="btn btn-primary btn-sm mt-2"
+                                                                onClick={() => setShowAddModal(true)}
+                                                            >
+                                                                <i className="ti ti-plus me-1"></i>
+                                                                Ajouter le premier sous-axe
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -306,33 +346,39 @@ const GestionSousAxe = ({ user, logout }) => {
                         </div>
 
                         {/* Modals */}
-                        <AjouterSousAxeModal
-                            show={showAddModal}
-                            onClose={() => setShowAddModal(false)}
-                            onSousAxeAdded={handleSousAxeAdded}
-                            axes={axes}
-                        />
+                        {hasPermission('core.add_sousaxe') && (
+                            <AjouterSousAxeModal
+                                show={showAddModal}
+                                onClose={() => setShowAddModal(false)}
+                                onSousAxeAdded={handleSousAxeAdded}
+                                axes={axes}
+                            />
+                        )}
 
-                        <ModifierSousAxeModal
-                            show={showEditModal}
-                            onClose={() => {
-                                setShowEditModal(false);
-                                setSelectedSousAxe(null);
-                            }}
-                            onSousAxeUpdated={handleSousAxeUpdated}
-                            sousAxe={selectedSousAxe}
-                            axes={axes}
-                        />
+                        {hasPermission('core.change_sousaxe') && (
+                            <ModifierSousAxeModal
+                                show={showEditModal}
+                                onClose={() => {
+                                    setShowEditModal(false);
+                                    setSelectedSousAxe(null);
+                                }}
+                                onSousAxeUpdated={handleSousAxeUpdated}
+                                sousAxe={selectedSousAxe}
+                                axes={axes}
+                            />
+                        )}
 
-                        <ViewSousAxeModal
-                            show={showViewModal}
-                            onClose={() => {
-                                setShowViewModal(false);
-                                setSelectedSousAxe(null);
-                            }}
-                            sousAxe={selectedSousAxe}
-                            axes={axes}
-                        />
+                        {hasPermission('core.view_sousaxe') && (
+                            <ViewSousAxeModal
+                                show={showViewModal}
+                                onClose={() => {
+                                    setShowViewModal(false);
+                                    setSelectedSousAxe(null);
+                                }}
+                                sousAxe={selectedSousAxe}
+                                axes={axes}
+                            />
+                        )}
                     </div>
                 </div>
             </div>
