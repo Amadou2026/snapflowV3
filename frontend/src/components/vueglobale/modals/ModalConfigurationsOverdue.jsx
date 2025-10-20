@@ -32,7 +32,7 @@ const ModalConfigurationsOverdue = ({ show, onClose }) => {
                     <div className="modal-header bg-light">
                         <h5 className="modal-title">
                             <i className="ti ti-alert-octagon me-2 text-danger"></i>
-                            Configurations en Retard
+                            Campagnes en Retard
                         </h5>
                         <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
@@ -48,12 +48,12 @@ const ModalConfigurationsOverdue = ({ show, onClose }) => {
                                 <div className="col-12">
                                     <div className="card">
                                         <div className="card-body">
-                                            <h6 className="card-title">Configurations avec Retard d'Exécution</h6>
+                                            <h6 className="card-title">Campagnes avec Retard d'Exécution</h6>
                                             <div className="table-responsive">
                                                 <table className="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th>Configuration</th>
+                                                            <th>Campagnes</th>
                                                             <th>Projet</th>
                                                             <th>Dernière Exécution</th>
                                                             <th>Retard</th>
@@ -116,7 +116,7 @@ const ModalConfigurationsOverdue = ({ show, onClose }) => {
                                         <div className="card-body text-center">
                                             <h6 className="card-title">Alertes</h6>
                                             <div className="display-4 text-danger fw-bold">{data.length}</div>
-                                            <p className="text-muted">Configurations en retard</p>
+                                            <p className="text-muted">Campagnes en retard</p>
                                         </div>
                                     </div>
                                     <div className="card mt-3">

@@ -34,7 +34,7 @@ const VueEnsemble = ({ project }) => {
                         <div className="col-sm-6 col-md-4">
                             <div className="card bg-light">
                                 <div className="card-body text-center">
-                                    <h6>Configurations actives</h6>
+                                    <h6>Campagnes actives</h6>
                                     <h3 className="text-info">
                                         {project.statistiques?.configurations_actives || 0}
                                     </h3>

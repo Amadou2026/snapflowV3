@@ -21,6 +21,9 @@ const GestionAxe = ({ user, logout }) => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [userPermissions, setUserPermissions] = useState([]);
+    // Ajout de l'état pour la pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5; // 5 éléments par page
 
     useEffect(() => {
         fetchAxes();
@@ -159,6 +162,28 @@ const GestionAxe = ({ user, logout }) => {
         });
     };
 
+    // Fonctions pour la pagination
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = axes.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(axes.length / itemsPerPage);
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
+
     if (loading) {
         return (
             <div className="dashboard-wrapper">
@@ -204,13 +229,13 @@ const GestionAxe = ({ user, logout }) => {
                                                     <Link to="/dashboard">Dashboard</Link>
                                                 </li>
                                                 <li className="breadcrumb-item" aria-current="page">
-                                                    Gestion des axes
+                                                    Gestion des axes de test
                                                 </li>
                                             </ul>
                                         </div>
                                         <div className="col-md-12">
                                             <div className="page-header-title">
-                                                <h2 className="mb-0">Gestion des axes</h2>
+                                                <h2 className="mb-0">Gestion des axes de test</h2>
                                             </div>
                                         </div>
                                     </div>
@@ -222,7 +247,8 @@ const GestionAxe = ({ user, logout }) => {
                             <div className="row">
                                 <div className="col-sm-12">
                                     <div className="card table-card">
-                                        <div className="card-body">
+                                        {/* MODIFICATION ICI : Ajout de la classe "px-4" pour restaurer le padding horizontal */}
+                                        <div className="card-body px-4">
                                             <div className="text-end p-4 pb-0">
                                                 {hasPermission('core.add_axe') && (
                                                     <button
@@ -245,9 +271,9 @@ const GestionAxe = ({ user, logout }) => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {axes.map((axe, index) => (
+                                                        {currentItems.map((axe, index) => (
                                                             <tr key={axe.id}>
-                                                                <td>{index + 1}</td>
+                                                                <td>{indexOfFirstItem + index + 1}</td>
                                                                 <td>
                                                                     <div className="row align-items-center">
                                                                         <div className="col-auto pe-0">
@@ -324,6 +350,71 @@ const GestionAxe = ({ user, logout }) => {
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Pagination améliorée */}
+                                            {axes.length > 0 && (
+                                                <div className="row mt-4">
+                                                    <div className="col-sm-12">
+                                                        <div className="card-body border-top pt-3">
+                                                            <div className="row align-items-center">
+                                                                <div className="col-md-6">
+                                                                    <div className="text-center text-md-start mb-3 mb-md-0">
+                                                                        <span className="text-muted">
+                                                                            Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, axes.length)} sur {axes.length} éléments
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="col-md-6">
+                                                                    <nav aria-label="Page navigation">
+                                                                        <ul className="pagination justify-content-center justify-content-md-end mb-0">
+                                                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                                                <button className="page-link" onClick={handlePrevPage} tabIndex="-1">
+                                                                                    <i className="ti ti-chevron-left"></i>
+                                                                                    <span className="sr-only">Précédent</span>
+                                                                                </button>
+                                                                            </li>
+                                                                            {[...Array(totalPages)].map((_, index) => {
+                                                                                const pageNumber = index + 1;
+                                                                                // Afficher seulement quelques numéros de page si trop de pages
+                                                                                if (
+                                                                                    totalPages <= 5 ||
+                                                                                    pageNumber === 1 ||
+                                                                                    pageNumber === totalPages ||
+                                                                                    (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                                                                                ) {
+                                                                                    return (
+                                                                                        <li key={index} className={`page-item ${currentPage === pageNumber ? 'active' : ''}`}>
+                                                                                            <button className="page-link" onClick={() => handlePageChange(pageNumber)}>
+                                                                                                {pageNumber}
+                                                                                            </button>
+                                                                                        </li>
+                                                                                    );
+                                                                                } else if (
+                                                                                    (pageNumber === currentPage - 2 && currentPage > 3) ||
+                                                                                    (pageNumber === currentPage + 2 && currentPage < totalPages - 2)
+                                                                                ) {
+                                                                                    return (
+                                                                                        <li key={index} className="page-item disabled">
+                                                                                            <span className="page-link">...</span>
+                                                                                        </li>
+                                                                                    );
+                                                                                }
+                                                                                return null;
+                                                                            })}
+                                                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                                                <button className="page-link" onClick={handleNextPage}>
+                                                                                    <span className="sr-only">Suivant</span>
+                                                                                    <i className="ti ti-chevron-right"></i>
+                                                                                </button>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </nav>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

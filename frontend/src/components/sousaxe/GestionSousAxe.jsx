@@ -20,11 +20,19 @@ const GestionSousAxe = ({ user, logout }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
-    const [userPermissions, setUserPermissions] = useState([]); // Ajout de l'état pour les permissions
+    const [userPermissions, setUserPermissions] = useState([]);
+    
+    // États pour la pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // États pour le filtre et la recherche
+    const [selectedAxeFilter, setSelectedAxeFilter] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         fetchData();
-        fetchUserPermissions(); // Ajout de l'appel pour récupérer les permissions
+        fetchUserPermissions();
     }, []);
 
     const fetchData = async () => {
@@ -43,24 +51,21 @@ const GestionSousAxe = ({ user, logout }) => {
         }
     };
 
-    // Ajout de la fonction pour récupérer les permissions de l'utilisateur
     const fetchUserPermissions = async () => {
         try {
             const response = await api.get('user/permissions/');
             setUserPermissions(response.data.permissions);
         } catch (error) {
             console.error('Erreur lors du chargement des permissions:', error);
-            setUserPermissions([]); // Assurer que c'est un tableau en cas d'erreur
+            setUserPermissions([]);
         }
     };
 
-    // Ajout de la fonction pour vérifier les permissions
     const hasPermission = (permission) => {
         return Array.isArray(userPermissions) && userPermissions.includes(permission);
     };
 
     const handleDeleteSousAxe = async (sousAxeId) => {
-        // Vérifier si l'utilisateur a la permission de supprimer
         if (!hasPermission('core.delete_sousaxe')) {
             showErrorAlert('Vous n\'avez pas les permissions pour supprimer un sous-axe');
             return;
@@ -87,7 +92,6 @@ const GestionSousAxe = ({ user, logout }) => {
         if (result.isConfirmed) {
             try {
                 await api.delete(`sous-axes/${sousAxeId}/`);
-                
                 const updatedSousAxes = sousAxes.filter(sousAxe => sousAxe.id !== sousAxeId);
                 setSousAxes(updatedSousAxes);
                 
@@ -111,7 +115,6 @@ const GestionSousAxe = ({ user, logout }) => {
     };
 
     const handleViewSousAxe = (sousAxe) => {
-        // Vérifier si l'utilisateur a la permission de voir
         if (!hasPermission('core.view_sousaxe')) {
             showErrorAlert('Vous n\'avez pas les permissions pour voir les détails d\'un sous-axe');
             return;
@@ -162,10 +165,52 @@ const GestionSousAxe = ({ user, logout }) => {
         });
     };
 
-    // Fonction pour trouver le nom de l'axe par son ID
     const getAxeName = (axeId) => {
         const axe = axes.find(a => a.id === axeId);
         return axe ? axe.nom : 'Axe inconnu';
+    };
+
+    // Gestionnaires d'événements pour le filtre et la recherche
+    const handleAxeFilterChange = (e) => {
+        setSelectedAxeFilter(e.target.value);
+        setCurrentPage(1); // Réinitialiser à la première page lors du filtrage
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1); // Réinitialiser à la première page lors de la recherche
+    };
+
+    // Logique de filtrage combinée
+    const filteredSousAxes = sousAxes.filter(sousAxe => {
+        const matchesAxe = selectedAxeFilter === 'all' || sousAxe.axe === parseInt(selectedAxeFilter);
+        const matchesSearch = searchTerm === '' || 
+            sousAxe.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (sousAxe.description && sousAxe.description.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        return matchesAxe && matchesSearch;
+    });
+
+    // Logique de pagination basée sur la liste filtrée
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredSousAxes.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredSousAxes.length / itemsPerPage);
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
     };
 
     if (loading) {
@@ -212,13 +257,13 @@ const GestionSousAxe = ({ user, logout }) => {
                                                     <Link to="/dashboard">Dashboard</Link>
                                                 </li>
                                                 <li className="breadcrumb-item" aria-current="page">
-                                                    Gestion des sous-axes
+                                                    Gestion des sous-axes de test
                                                 </li>
                                             </ul>
                                         </div>
                                         <div className="col-md-12">
                                             <div className="page-header-title">
-                                                <h2 className="mb-0">Gestion des sous-axes</h2>
+                                                <h2 className="mb-0">Gestion des sous-axes de test</h2>
                                             </div>
                                         </div>
                                     </div>
@@ -230,16 +275,46 @@ const GestionSousAxe = ({ user, logout }) => {
                             <div className="row">
                                 <div className="col-sm-12">
                                     <div className="card table-card">
-                                        <div className="card-body">
-                                            <div className="text-end p-4 pb-0">
-                                                {hasPermission('core.add_sousaxe') && (
-                                                    <button
-                                                        className="btn btn-primary d-inline-flex align-items-center"
-                                                        onClick={() => setShowAddModal(true)}
+                                        <div className="card-body px-4">
+                                            {/* Filtres et recherche */}
+                                            {/* MODIFICATION : Suppression de "pb-0" pour ajouter de l'espace en bas */}
+                                            <div className="row align-items-center p-4">
+                                                <div className="col-md-4 mb-3 mb-md-0">
+                                                    <div className="input-group">
+                                                        <span className="input-group-text"><i className="ti ti-search"></i></span>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Rechercher un sous-axe..."
+                                                            value={searchTerm}
+                                                            onChange={handleSearchChange}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="col-md-4 mb-3 mb-md-0">
+                                                    <select
+                                                        className="form-select"
+                                                        value={selectedAxeFilter}
+                                                        onChange={handleAxeFilterChange}
                                                     >
-                                                        <i className="ti ti-plus f-18"></i> Ajouter un Sous-Axe
-                                                    </button>
-                                                )}
+                                                        <option value="all">Tous les axes</option>
+                                                        {axes.map(axe => (
+                                                            <option key={axe.id} value={axe.id}>
+                                                                {axe.nom}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="col-md-4 text-end">
+                                                    {hasPermission('core.add_sousaxe') && (
+                                                        <button
+                                                            className="btn btn-primary d-inline-flex align-items-center"
+                                                            onClick={() => setShowAddModal(true)}
+                                                        >
+                                                            <i className="ti ti-plus f-18"></i> Ajouter un Sous-Axe
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="table-responsive">
@@ -254,9 +329,9 @@ const GestionSousAxe = ({ user, logout }) => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {sousAxes.map((sousAxe, index) => (
+                                                        {currentItems.map((sousAxe, index) => (
                                                             <tr key={sousAxe.id}>
-                                                                <td>{index + 1}</td>
+                                                                <td>{indexOfFirstItem + index + 1}</td>
                                                                 <td>
                                                                     <div className="row align-items-center">
                                                                         <div className="col-auto pe-0">
@@ -318,15 +393,18 @@ const GestionSousAxe = ({ user, logout }) => {
                                                     </tbody>
                                                 </table>
 
-                                                {sousAxes.length === 0 && (
+                                                {filteredSousAxes.length === 0 && (
                                                     <div className="text-center p-4">
                                                         <div className="mb-3">
                                                             <i className="ti ti-category-2 f-40 text-muted"></i>
                                                         </div>
                                                         <p className="text-muted">
-                                                            Aucun sous-axe trouvé.
+                                                            {sousAxes.length === 0 
+                                                                ? "Aucun sous-axe trouvé." 
+                                                                : "Aucun sous-axe ne correspond à votre recherche."
+                                                            }
                                                         </p>
-                                                        {hasPermission('core.add_sousaxe') && (
+                                                        {hasPermission('core.add_sousaxe') && sousAxes.length === 0 && (
                                                             <button
                                                                 className="btn btn-primary btn-sm mt-2"
                                                                 onClick={() => setShowAddModal(true)}
@@ -338,6 +416,70 @@ const GestionSousAxe = ({ user, logout }) => {
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Pagination */}
+                                            {filteredSousAxes.length > 0 && (
+                                                <div className="row mt-4">
+                                                    <div className="col-sm-12">
+                                                        <div className="card-body border-top pt-3">
+                                                            <div className="row align-items-center">
+                                                                <div className="col-md-6">
+                                                                    <div className="text-center text-md-start mb-3 mb-md-0">
+                                                                        <span className="text-muted">
+                                                                            Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filteredSousAxes.length)} sur {filteredSousAxes.length} éléments
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="col-md-6">
+                                                                    <nav aria-label="Page navigation">
+                                                                        <ul className="pagination justify-content-center justify-content-md-end mb-0">
+                                                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                                                <button className="page-link" onClick={handlePrevPage} tabIndex="-1">
+                                                                                    <i className="ti ti-chevron-left"></i>
+                                                                                    <span className="sr-only">Précédent</span>
+                                                                                </button>
+                                                                            </li>
+                                                                            {[...Array(totalPages)].map((_, index) => {
+                                                                                const pageNumber = index + 1;
+                                                                                if (
+                                                                                    totalPages <= 5 ||
+                                                                                    pageNumber === 1 ||
+                                                                                    pageNumber === totalPages ||
+                                                                                    (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                                                                                ) {
+                                                                                    return (
+                                                                                        <li key={index} className={`page-item ${currentPage === pageNumber ? 'active' : ''}`}>
+                                                                                            <button className="page-link" onClick={() => handlePageChange(pageNumber)}>
+                                                                                                {pageNumber}
+                                                                                            </button>
+                                                                                        </li>
+                                                                                    );
+                                                                                } else if (
+                                                                                    (pageNumber === currentPage - 2 && currentPage > 3) ||
+                                                                                    (pageNumber === currentPage + 2 && currentPage < totalPages - 2)
+                                                                                ) {
+                                                                                    return (
+                                                                                        <li key={index} className="page-item disabled">
+                                                                                            <span className="page-link">...</span>
+                                                                                        </li>
+                                                                                    );
+                                                                                }
+                                                                                return null;
+                                                                            })}
+                                                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                                                <button className="page-link" onClick={handleNextPage}>
+                                                                                    <span className="sr-only">Suivant</span>
+                                                                                    <i className="ti ti-chevron-right"></i>
+                                                                                </button>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </nav>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

@@ -211,7 +211,7 @@ const FiltreGestionConfigurationTest = ({ configurations, onFilterChange, user }
                     <div className="col-md-3">
                         <label htmlFor="filterNom" className="form-label small fw-bold">
                             <i className="ti ti-settings me-1"></i>
-                            Nom de la configuration
+                            Nom de la campagnes
                         </label>
                         <input
                             type="text"

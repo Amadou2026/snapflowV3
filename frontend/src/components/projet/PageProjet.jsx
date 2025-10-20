@@ -336,7 +336,7 @@ const PageProjet = ({ user, logout }) => {
                                             <div className="d-flex align-items-center">
                                                 <div className="flex-grow-1">
                                                     <h4 className="mb-0">{projet?.statistiques?.total_configurations || 0}</h4>
-                                                    <p className="text-muted mb-0">Configurations de test</p>
+                                                    <p className="text-muted mb-0">Campagnes de test</p>
                                                 </div>
                                                 <div className="flex-shrink-0">
                                                     <div className="avatar-sm rounded-circle bg-primary bg-opacity-10">
@@ -353,7 +353,7 @@ const PageProjet = ({ user, logout }) => {
                                             <div className="d-flex align-items-center">
                                                 <div className="flex-grow-1">
                                                     <h4 className="mb-0">{projet?.statistiques?.configurations_actives || 0}</h4>
-                                                    <p className="text-muted mb-0">Configurations actives</p>
+                                                    <p className="text-muted mb-0">Campagnes actives</p>
                                                 </div>
                                                 <div className="flex-shrink-0">
                                                     <div className="avatar-sm rounded-circle bg-success bg-opacity-10">
@@ -407,10 +407,10 @@ const PageProjet = ({ user, logout }) => {
                                         <div className="card-header d-flex justify-content-between align-items-center">
                                             <h5 className="mb-0">
                                                 <i className="ti ti-battery me-2"></i>
-                                                Configurations de test
+                                                Campagnes de test
                                             </h5>
                                             <span className="badge bg-primary">
-                                                {projet?.configurations_test?.length || 0} configuration(s)
+                                                {projet?.configurations_test?.length || 0} campagnes(s)
                                             </span>
                                         </div>
                                         <div className="card-body">
@@ -683,7 +683,7 @@ const PageProjet = ({ user, logout }) => {
                                                         <div className="card-body">
                                                             <div className="mb-3">
                                                                 <div className="d-flex justify-content-between mb-1">
-                                                                    <span>Configurations actives</span>
+                                                                    <span>Campagnes actives</span>
                                                                     <span>{projet?.statistiques?.configurations_actives || 0}</span>
                                                                 </div>
                                                                 <div className="progress" style={{ height: '8px' }}>

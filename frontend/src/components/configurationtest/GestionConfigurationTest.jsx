@@ -486,13 +486,13 @@ const GestionConfigurationTest = ({ user, logout }) => {
                                                     <Link to="/dashboard">Dashboard</Link>
                                                 </li>
                                                 <li className="breadcrumb-item" aria-current="page">
-                                                    Configurations de test
+                                                    Gestion des campagnes de test
                                                 </li>
                                             </ul>
                                         </div>
                                         <div className="col-md-12">
                                             <div className="page-header-title">
-                                                <h2 className="mb-0">Gestion des configurations de test</h2>
+                                                <h2 className="mb-0">Gestion des campagnes de test</h2>
                                                 {isSuperAdmin && (
                                                     <p className="text-muted mb-0">
                                                         <i className="ti ti-crown me-1 text-warning"></i>
@@ -525,7 +525,7 @@ const GestionConfigurationTest = ({ user, logout }) => {
                                                     className="btn btn-primary d-inline-flex align-items-center"
                                                     onClick={() => setShowAddModal(true)}
                                                 >
-                                                    <i className="ti ti-plus f-18"></i> Nouvelle Configuration
+                                                    <i className="ti ti-plus f-18"></i> Nouvelle Campagnes
                                                 </button>
                                             </div>
 
@@ -687,7 +687,7 @@ const GestionConfigurationTest = ({ user, logout }) => {
                                                         <small>
                                                             Affichage de {Math.min((currentPage - 1) * itemsPerPage + 1, filteredConfigurations.length)}
                                                             à {Math.min(currentPage * itemsPerPage, filteredConfigurations.length)}
-                                                            sur {filteredConfigurations.length} configuration(s)
+                                                            sur {filteredConfigurations.length} campagne(s)
                                                         </small>
                                                     </div>
 

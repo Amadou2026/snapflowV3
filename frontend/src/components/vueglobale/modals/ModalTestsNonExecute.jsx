@@ -128,7 +128,7 @@ const ModalTestsNonExecute = ({ show, onClose }) => {
                                                 <i className="ti ti-alert-triangle me-2"></i>
                                                 <strong>Recommandations</strong>
                                                 <ul className="mt-2 mb-0">
-                                                    <li>Vérifier les configurations planifiées</li>
+                                                    <li>Vérifier les campagnes planifiées</li>
                                                     <li>Contrôler les ressources système</li>
                                                     <li>Examiner les logs de planification</li>
                                                 </ul>
