@@ -11,7 +11,7 @@ import { toast } from 'react-toastify';
 const VueGlobale = ({ user, logout }) => {
     // Ajout du contexte pour accéder aux fonctions de permission
     const { hasSuperAdminAccess } = useContext(AuthContext);
-    
+
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [filters, setFilters] = useState({
@@ -27,8 +27,8 @@ const VueGlobale = ({ user, logout }) => {
     const [users, setUsers] = useState([]);
     const [scriptsProblemes, setScriptsProblemes] = useState([]);
 
-    // État pour gérer l'expansion des sociétés
-    const [expandedSocietes, setExpandedSocietes] = useState([]);
+    // MODIFIÉ: État pour gérer l'expansion des sociétés (projets et utilisateurs séparément)
+    const [expandedState, setExpandedState] = useState({});
 
     // État pour les statistiques calculées
     const [globalStats, setGlobalStats] = useState({
@@ -41,30 +41,42 @@ const VueGlobale = ({ user, logout }) => {
         scripts_problemes: []
     });
 
-    // Fonction pour basculer l'expansion d'une société
-    const toggleSocieteExpansion = (societeId) => {
-        setExpandedSocietes(prev => 
-            prev.includes(societeId) 
-                ? prev.filter(id => id !== societeId)
-                : [...prev, societeId]
-        );
+    // MODIFIÉ: Fonctions pour basculer l'expansion des projets et des utilisateurs séparément
+    const toggleProjects = (societeId) => {
+        setExpandedState(prev => ({
+            ...prev,
+            [societeId]: {
+                ...prev[societeId],
+                projects: !prev[societeId]?.projects
+            }
+        }));
+    };
+
+    const toggleUsers = (societeId) => {
+        setExpandedState(prev => ({
+            ...prev,
+            [societeId]: {
+                ...prev[societeId],
+                users: !prev[societeId]?.users
+            }
+        }));
     };
 
     // Fonction pour récupérer les scripts avec problèmes
     const fetchScriptsProblemes = async () => {
         try {
             console.log('🔍 Récupération des scripts avec problèmes...');
-            
+
             // Appel à l'API pour détecter les problèmes
             await api.get('/stats/detecter-scripts-problemes/');
-            
+
             // Récupération des problèmes existants
             const response = await api.get('/stats/scripts-problemes/');
             console.log('📊 Scripts avec problèmes:', response.data);
-            
+
             setScriptsProblemes(response.data);
             setGlobalStats(prev => ({ ...prev, scripts_problemes: response.data }));
-            
+
         } catch (error) {
             console.error('Erreur lors du chargement des scripts avec problèmes:', error);
             toast.error('Erreur lors du chargement des scripts avec problèmes');
@@ -75,7 +87,7 @@ const VueGlobale = ({ user, logout }) => {
     const fetchDashboardData = async () => {
         try {
             console.log('🚀 Récupération des données du dashboard...');
-            
+
             const [societesRes, projetsRes, configsRes, usersRes] = await Promise.all([
                 api.get('societe/'),
                 api.get('projets/'),
@@ -163,9 +175,9 @@ const VueGlobale = ({ user, logout }) => {
             'echecs_repetes': { class: 'bg-danger', icon: 'ti ti-alert-triangle' },
             'autre': { class: 'bg-light-secondary', icon: 'ti ti-help' }
         };
-        
+
         const config = types[typeProbleme] || { class: 'bg-light-secondary', icon: 'ti ti-help' };
-        
+
         return (
             <span className={`badge ${config.class}`}>
                 <i className={`${config.icon} me-1`}></i>
@@ -182,9 +194,9 @@ const VueGlobale = ({ user, logout }) => {
             'surveillé': { class: 'bg-info', icon: 'ti ti-eye' },
             'résolu': { class: 'bg-success', icon: 'ti ti-check' }
         };
-        
+
         const config = statuts[statut] || { class: 'bg-secondary', icon: 'ti ti-help' };
-        
+
         return (
             <span className={`badge ${config.class}`}>
                 <i className={`${config.icon} me-1`}></i>
@@ -217,7 +229,7 @@ const VueGlobale = ({ user, logout }) => {
                     </div>
                 </div>
             )}
-            
+
             {/* Carte des projets - ajustement de la classe pour s'adapter à l'affichage conditionnel */}
             <div className={hasSuperAdminAccess() ? "col-xl-3 col-md-6" : "col-xl-4 col-md-6"}>
                 <div className="card stats-card">
@@ -236,7 +248,7 @@ const VueGlobale = ({ user, logout }) => {
                     </div>
                 </div>
             </div>
-            
+
             {/* Carte des batteries - ajustement de la classe pour s'adapter à l'affichage conditionnel */}
             <div className={hasSuperAdminAccess() ? "col-xl-3 col-md-6" : "col-xl-4 col-md-6"}>
                 <div className="card stats-card">
@@ -255,7 +267,7 @@ const VueGlobale = ({ user, logout }) => {
                     </div>
                 </div>
             </div>
-            
+
             {/* Carte des utilisateurs - ajustement de la classe pour s'adapter à l'affichage conditionnel */}
             <div className={hasSuperAdminAccess() ? "col-xl-3 col-md-6" : "col-xl-4 col-md-6"}>
                 <div className="card stats-card">
@@ -324,7 +336,7 @@ const VueGlobale = ({ user, logout }) => {
         if (!hasSuperAdminAccess()) {
             return null;
         }
-        
+
         return (
             <div className="row mb-4">
                 <div className="col-12">
@@ -338,107 +350,167 @@ const VueGlobale = ({ user, logout }) => {
                                 {societes.length} société(s)
                             </span>
                         </div>
-                        <div className="card-body">
-                            <div className="table-responsive">
-                                <table className="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Nom</th>
-                                            <th>Secteur d'activité</th>
-                                            <th>Admin</th>
-                                            <th>Nb. Projets</th>
-                                            <th>Nb. Utilisateurs</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {societes.map((societe) => (
-                                            <React.Fragment key={societe.id}>
-                                                <tr>
-                                                    <td>
-                                                        <div className="d-flex align-items-center">
-                                                            <i className="ti ti-building text-primary me-2"></i>
-                                                            <strong>{societe.nom}</strong>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <span className="badge bg-light-info">
-                                                            {societe.secteur_activite || 'N/A'}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {societe.admin ? (
-                                                            <div>
-                                                                <strong>{societe.admin.full_name}</strong>
-                                                                <br />
-                                                                <small className="text-muted">{societe.admin.email}</small>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted">Non défini</span>
-                                                        )}
-                                                    </td>
-                                                    <td>
-                                                        <span className="badge bg-light-primary">
-                                                            {societe.projets?.length || 0}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <button
-                                                            className="btn btn-sm btn-link-primary d-flex align-items-center"
-                                                            onClick={() => toggleSocieteExpansion(societe.id)}
-                                                            title={expandedSocietes.includes(societe.id) ? "Masquer les utilisateurs" : "Voir les utilisateurs"}
-                                                        >
-                                                            <i className={`ti ti-chevron-${expandedSocietes.includes(societe.id) ? 'up' : 'down'} me-1`}></i>
-                                                            <span className="badge bg-light-success">
-                                                                {societe.employes?.length || 0}
-                                                            </span>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                                
-                                                {/* Ligne d'expansion pour afficher les employés */}
-                                                {expandedSocietes.includes(societe.id) && (
+                        <div className="card-body p-0">
+                            {/* Conteneur avec hauteur fixe et défilement pour le tableau */}
+                            <div className="table-container" style={{ height: '500px', overflowY: 'auto' }}>
+                                <div className="table-responsive sticky-header">
+                                    <table className="table table-hover">
+                                        <thead className="table-light sticky-top">
+                                            <tr>
+                                                <th>Nom</th>
+                                                <th>Secteur d'activité</th>
+                                                <th>Admin</th>
+                                                <th>Nb. Projets</th>
+                                                <th>Nb. Utilisateurs</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {societes.map((societe) => (
+                                                <React.Fragment key={societe.id}>
                                                     <tr>
-                                                        <td colSpan="5" className="p-0">
-                                                            <div className="bg-light p-3 border-start border-4 border-primary">
-                                                                <h6 className="mb-3 text-primary">
-                                                                    <i className="ti ti-users me-2"></i>
-                                                                    Liste des utilisateurs ({societe.employes?.length || 0})
-                                                                </h6>
-                                                                {societe.employes && societe.employes.length > 0 ? (
-                                                                    <div className="row">
-                                                                        {societe.employes.map((employe) => (
-                                                                            <div key={employe.id} className="col-md-6 col-lg-4 mb-3">
-                                                                                <div className="card border-0 bg-white shadow-sm">
-                                                                                    <div className="card-body p-3">
-                                                                                        <div className="d-flex align-items-center">
-                                                                                            <div className="avatar-sm rounded-circle bg-primary bg-opacity-10 me-3">
-                                                                                                <i className="ti ti-user text-primary"></i>
-                                                                                            </div>
-                                                                                            <div className="flex-grow-1">
-                                                                                                <h6 className="mb-1">{employe.full_name}</h6>
-                                                                                                <small className="text-muted d-block">{employe.email}</small>
-                                                                                                <small className="text-muted">ID: {employe.id}</small>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="text-center text-muted py-3">
-                                                                        <i className="ti ti-user-off me-2"></i>
-                                                                        Aucun employé trouvé pour cette société
-                                                                    </div>
-                                                                )}
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <i className="ti ti-building text-primary me-2"></i>
+                                                                <strong>{societe.nom}</strong>
                                                             </div>
                                                         </td>
+                                                        <td>
+                                                            <span className="badge bg-light-info">
+                                                                {societe.secteur_activite || 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {societe.admin ? (
+                                                                <div>
+                                                                    <strong>{societe.admin.full_name}</strong>
+                                                                    <br />
+                                                                    <small className="text-muted">{societe.admin.email}</small>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-muted">Non défini</span>
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <button
+                                                                className="btn btn-sm btn-link-primary d-flex align-items-center"
+                                                                onClick={() => toggleProjects(societe.id)}
+                                                                title={expandedState[societe.id]?.projects ? "Masquer les projets" : "Voir les projets"}
+                                                            >
+                                                                <i className={`ti ti-chevron-${expandedState[societe.id]?.projects ? 'up' : 'down'} me-1`}></i>
+                                                                <span className="badge bg-light-primary">
+                                                                    {societe.projets?.length || 0}
+                                                                </span>
+                                                            </button>
+                                                        </td>
+                                                        <td>
+                                                            <button
+                                                                className="btn btn-sm btn-link-primary d-flex align-items-center"
+                                                                onClick={() => toggleUsers(societe.id)}
+                                                                title={expandedState[societe.id]?.users ? "Masquer les utilisateurs" : "Voir les utilisateurs"}
+                                                            >
+                                                                <i className={`ti ti-chevron-${expandedState[societe.id]?.users ? 'up' : 'down'} me-1`}></i>
+                                                                <span className="badge bg-light-success">
+                                                                    {societe.employes?.length || 0}
+                                                                </span>
+                                                            </button>
+                                                        </td>
                                                     </tr>
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-                                    </tbody>
-                                </table>
+
+                                                    {/* Ligne d'expansion pour afficher les projets et/ou les utilisateurs */}
+                                                    {(expandedState[societe.id]?.projects || expandedState[societe.id]?.users) && (
+                                                        <tr>
+                                                            <td colSpan="5" className="p-0">
+                                                                <div className="bg-light p-3 border-start border-4 border-primary">
+                                                                    {/* Section Projets */}
+                                                                    {expandedState[societe.id]?.projects && (
+                                                                        <div className="row">
+                                                                            <div className="col-12">
+                                                                                <h6 className="mb-3 text-primary">
+                                                                                    <i className="ti ti-folder me-2"></i>
+                                                                                    Liste des projets ({societe.projets?.length || 0})
+                                                                                </h6>
+                                                                                {societe.projets && societe.projets.length > 0 ? (
+                                                                                    <div className="row">
+                                                                                        {societe.projets.map((projet) => (
+                                                                                            <div key={projet.id} className="col-md-6 col-lg-4 mb-3">
+                                                                                                <div className="card border-0 bg-white shadow-sm">
+                                                                                                    <div className="card-body p-3">
+                                                                                                        <div className="d-flex align-items-center">
+                                                                                                            {/* {projet.logo && (
+                                                                                                                <img 
+                                                                                                                    src={projet.logo} 
+                                                                                                                    alt={projet.nom}
+                                                                                                                    style={{ width: '30px', height: '30px', marginRight: '10px', borderRadius: '100px' }}
+                                                                                                                />
+                                                                                                            )} */}
+                                                                                                            <div className="flex-grow-1">
+                                                                                                                <h6 className="mb-1">{projet.nom}</h6>
+                                                                                                                <small className="text-muted d-block">{projet.url}</small>
+                                                                                                                <small className="text-muted">ID: {projet.id}</small>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-center text-muted py-3">
+                                                                                        <i className="ti ti-folder-off me-2"></i>
+                                                                                        Aucun projet trouvé pour cette société
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Section Utilisateurs */}
+                                                                    {expandedState[societe.id]?.users && (
+                                                                        <div className={`row ${expandedState[societe.id]?.projects ? 'mt-3' : ''}`}>
+                                                                            <div className="col-12">
+                                                                                <h6 className="mb-3 text-primary">
+                                                                                    <i className="ti ti-users me-2"></i>
+                                                                                    Liste des utilisateurs ({societe.employes?.length || 0})
+                                                                                </h6>
+                                                                                {societe.employes && societe.employes.length > 0 ? (
+                                                                                    <div className="row">
+                                                                                        {societe.employes.map((employe) => (
+                                                                                            <div key={employe.id} className="col-md-6 col-lg-4 mb-3">
+                                                                                                <div className="card border-0 bg-white shadow-sm">
+                                                                                                    <div className="card-body p-3">
+                                                                                                        <div className="d-flex align-items-center">
+                                                                                                            <div className="avatar-sm rounded-circle bg-primary bg-opacity-10 me-3">
+                                                                                                                <i className="ti ti-user text-primary"></i>
+                                                                                                            </div>
+                                                                                                            <div className="flex-grow-1">
+                                                                                                                <h6 className="mb-1">{employe.full_name}</h6>
+                                                                                                                <small className="text-muted d-block">{employe.email}</small>
+                                                                                                                <small className="text-muted">ID: {employe.id}</small>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-center text-muted py-3">
+                                                                                        <i className="ti ti-user-off me-2"></i>
+                                                                                        Aucun employé trouvé pour cette société
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -461,62 +533,65 @@ const VueGlobale = ({ user, logout }) => {
                             {projets.length} projet(s)
                         </span>
                     </div>
-                    <div className="card-body">
-                        <div className="table-responsive">
-                            <table className="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Nom</th>
-                                        <th>Charge de compte</th>
-                                        <th>Sociétés</th>
-                                        <th>URL</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {projets.map((projet) => (
-                                        <tr key={projet.id}>
-                                            <td>
-                                                <div className="d-flex align-items-center">
-                                                    {projet.logo && (
-                                                        <img 
-                                                            src={projet.logo} 
-                                                            alt={projet.nom}
-                                                            style={{ width: '30px', height: '30px', marginRight: '10px', borderRadius: '100px',  }}
-                                                        />
-                                                    )}
-                                                    <strong>{projet.nom}</strong>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                {projet.charge_de_compte_nom ? (
-                                                    <div>
-                                                        <strong>{projet.charge_de_compte_nom}</strong>
-                                                        <br />
-                                                        <small className="text-muted">{projet.charge_de_compte_email}</small>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted">Non défini</span>
-                                                )}
-                                            </td>
-                                            <td>
-                                                <div>
-                                                    {projet.societes?.map((societe) => (
-                                                        <span key={societe.id} className="badge bg-light-primary me-1">
-                                                            {societe.nom}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <a href={projet.url} target="_blank" rel="noopener noreferrer" className="text-primary">
-                                                    <i className="ti ti-external-link me-1"></i>
-                                                    Voir le site
-                                                </a>
-                                            </td>
+                    {/* MODIFICATION : Ajout de p-0 et du conteneur scrollable */}
+                    <div className="card-body p-0">
+                        <div className="table-container" style={{ height: '500px', overflowY: 'auto' }}>
+                            <div className="table-responsive sticky-header">
+                                <table className="table table-hover">
+                                    <thead className="table-light sticky-top">
+                                        <tr>
+                                            <th>Nom</th>
+                                            <th>Charge de compte</th>
+                                            <th>Sociétés</th>
+                                            <th>URL</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {projets.map((projet) => (
+                                            <tr key={projet.id}>
+                                                <td>
+                                                    <div className="d-flex align-items-center">
+                                                        {projet.logo && (
+                                                            <img
+                                                                src={projet.logo}
+                                                                alt={projet.nom}
+                                                                style={{ width: '30px', height: '30px', marginRight: '10px', borderRadius: '100px', }}
+                                                            />
+                                                        )}
+                                                        <strong>{projet.nom}</strong>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    {projet.charge_de_compte_nom ? (
+                                                        <div>
+                                                            <strong>{projet.charge_de_compte_nom}</strong>
+                                                            <br />
+                                                            <small className="text-muted">{projet.charge_de_compte_email}</small>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted">Non défini</span>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        {projet.societes?.map((societe) => (
+                                                            <span key={societe.id} className="badge bg-light-primary me-1">
+                                                                {societe.nom}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <a href={projet.url} target="_blank" rel="noopener noreferrer" className="text-primary">
+                                                        <i className="ti ti-external-link me-1"></i>
+                                                        Voir le site
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -747,13 +822,13 @@ const VueGlobale = ({ user, logout }) => {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* Filtres */}
                             {/* <FiltreVueGlobale
                                 onFilterChange={handleFilterChange}
                                 user={user}
                             /> */}
-                            
+
                             {/* Cartes de statistiques globales */}
                             <GlobalStatsCards />
 
