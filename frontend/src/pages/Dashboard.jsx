@@ -441,33 +441,8 @@ const Dashboard = ({ user, logout }) => {
               </div>
 
               {/* Détails taux de réussite */}
-              {/* <div className="col-md-12">
-                <div className="card">
-                  <div className="card-header">
-                    <h5>Détails du taux de réussite</h5>
-                  </div>
-                  <div className="card-body">
-                    <div className="row text-center">
-                      <div className="col-md-3">
-                        <h3 className="text-primary">{dashboardData.tauxReussite.total}</h3>
-                        <p className="text-muted">Total tests</p>
-                      </div>
-                      <div className="col-md-3">
-                        <h3 className="text-success">{dashboardData.tauxReussite.succès}</h3>
-                        <p className="text-muted">Succès</p>
-                      </div>
-                      <div className="col-md-3">
-                        <h3 className="text-danger">{dashboardData.tauxReussite.échec}</h3>
-                        <p className="text-muted">Échecs</p>
-                      </div>
-                      <div className="col-md-3">
-                        <h3 className="text-info">{dashboardData.tauxReussite.taux_reussite}%</h3>
-                        <p className="text-muted">Taux de réussite</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div> */}
+              
+              
             </div>
           </div>
         </div>

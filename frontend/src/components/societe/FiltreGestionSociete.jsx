@@ -494,7 +494,7 @@ const FiltreGestionSociete = ({ societes, onFilterChange, user }) => {
                                 </small>
                                 <small className="text-muted">
                                     <i className="ti ti-users text-warning me-1"></i>
-                                    {currentFiltered.reduce((total, s) => total + (s.employes ? s.employes.length : 0), 0)} employés
+                                    {currentFiltered.reduce((total, s) => total + (s.employes ? s.employes.length : 0), 0)} utilisateurs
                                 </small>
                                 <small className="text-muted">
                                     <i className="ti ti-user-cog text-primary me-1"></i>

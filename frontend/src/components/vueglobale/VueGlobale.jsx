@@ -385,7 +385,7 @@ const VueGlobale = ({ user, logout }) => {
                                                         <button
                                                             className="btn btn-sm btn-link-primary d-flex align-items-center"
                                                             onClick={() => toggleSocieteExpansion(societe.id)}
-                                                            title={expandedSocietes.includes(societe.id) ? "Masquer les employés" : "Voir les employés"}
+                                                            title={expandedSocietes.includes(societe.id) ? "Masquer les utilisateurs" : "Voir les utilisateurs"}
                                                         >
                                                             <i className={`ti ti-chevron-${expandedSocietes.includes(societe.id) ? 'up' : 'down'} me-1`}></i>
                                                             <span className="badge bg-light-success">

@@ -88,7 +88,7 @@ const ViewSocieteModal = ({ show, onClose, societe }) => {
                                                     <h5 className="fw-bold text-success mb-1">
                                                         {societe.nombre_employes || (societe.employes ? societe.employes.length : 0)}
                                                     </h5>
-                                                    <small className="text-muted">Employés</small>
+                                                    <small className="text-muted">Utilisateurs</small>
                                                 </div>
                                             </div>
                                         </div>
@@ -154,7 +154,7 @@ const ViewSocieteModal = ({ show, onClose, societe }) => {
                                     <div className="card-header bg-transparent">
                                         <h6 className="mb-0">
                                             <i className="ti ti-users me-2"></i>
-                                            Employés ({societe.nombre_employes || (societe.employes ? societe.employes.length : 0)})
+                                            Utilisateurs ({societe.nombre_employes || (societe.employes ? societe.employes.length : 0)})
                                         </h6>
                                     </div>
                                     <div className="card-body">
