@@ -34,9 +34,10 @@ const FilterDashboard = ({ onFilterChange, selectedProject, setSelectedProject, 
     });
   }, [currentFilters]);
 
+  // CORRECTION: Utiliser l'endpoint 'projets/' au lieu de 'stats/tests-par-projet/'
   const fetchProjects = async () => {
     try {
-      const response = await api.get('/stats/tests-par-projet/');
+      const response = await api.get('projets/');
       setProjects(response.data);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -150,7 +151,7 @@ const FilterDashboard = ({ onFilterChange, selectedProject, setSelectedProject, 
       <div className="card-body">
         <div className="row g-3">
           {/* Filtre par période */}
-          <div className="col-md-3">
+          <div className={filters.periode === 'personnalise' ? "col-md-3" : "col-md-4"}>
             <label className="form-label">Période</label>
             <select 
               className="form-select"
@@ -167,7 +168,7 @@ const FilterDashboard = ({ onFilterChange, selectedProject, setSelectedProject, 
 
           {/* Date de début - visible seulement pour période personnalisée */}
           {filters.periode === 'personnalise' && (
-            <div className="col-md-2">
+            <div className="col-md-3">
               <label className="form-label">Date de début</label>
               <input
                 type="date"
@@ -182,7 +183,7 @@ const FilterDashboard = ({ onFilterChange, selectedProject, setSelectedProject, 
 
           {/* Date de fin - visible seulement pour période personnalisée */}
           {filters.periode === 'personnalise' && (
-            <div className="col-md-2">
+            <div className="col-md-3">
               <label className="form-label">Date de fin</label>
               <input
                 type="date"
@@ -196,7 +197,7 @@ const FilterDashboard = ({ onFilterChange, selectedProject, setSelectedProject, 
           )}
 
           {/* Filtre par projet */}
-          <div className="col-md-3">
+          <div className={filters.periode === 'personnalise' ? "col-md-3" : "col-md-5"}>
             <label className="form-label">Projet</label>
             <select 
               className="form-select"
@@ -204,49 +205,62 @@ const FilterDashboard = ({ onFilterChange, selectedProject, setSelectedProject, 
               onChange={(e) => handleFilterChange('projet_id', e.target.value)}
             >
               <option value="">Tous les projets</option>
+              {/* CORRECTION: Utiliser projet.nom au lieu de projet.projet */}
               {projects.map((projet, index) => (
                 <option key={projet.id || index} value={projet.id || index}>
-                  {projet.projet} ({projet.total} tests)
+                  {projet.nom}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Actions */}
-          <div className="col-md-2 d-flex align-items-end">
-            <div className="d-flex gap-2 w-100">
+          {/* Bouton Reset pour périodes prédéfinies */}
+          {filters.periode !== 'personnalise' && (
+            <div className="col-md-3 d-flex align-items-end">
               <button
-                className="btn btn-outline-secondary w-50"
+                className="btn btn-outline-secondary w-100"
                 onClick={handleResetFilters}
                 disabled={loading}
               >
                 <i className="ti ti-refresh me-1"></i>
                 Reset
               </button>
-              
-              {/* Bouton Appliquer seulement pour période personnalisée */}
-              {filters.periode === 'personnalise' && (
-                <button
-                  className="btn btn-primary w-50"
-                  onClick={handleApplyClick}
-                  disabled={loading || !filters.startDate || !filters.endDate}
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-1" />
-                      ...
-                    </>
-                  ) : (
-                    <>
-                      <i className="ti ti-check me-1"></i>
-                      Appliquer
-                    </>
-                  )}
-                </button>
-              )}
+            </div>
+          )}
+        </div>
+
+        {/* Boutons pour période personnalisée - rangée séparée */}
+        {filters.periode === 'personnalise' && (
+          <div className="row mt-3">
+            <div className="col-12 d-flex justify-content-end gap-2">
+              <button
+                className="btn btn-outline-secondary px-4"
+                onClick={handleResetFilters}
+                disabled={loading}
+              >
+                <i className="ti ti-refresh me-1"></i>
+                Réinitialiser
+              </button>
+              <button
+                className="btn btn-primary px-4"
+                onClick={handleApplyClick}
+                disabled={loading || !filters.startDate || !filters.endDate}
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" />
+                    Application...
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-check me-1"></i>
+                    Appliquer les filtres
+                  </>
+                )}
+              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
