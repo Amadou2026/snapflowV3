@@ -402,7 +402,7 @@ const VueGlobale = ({ user, logout }) => {
                                                             <div className="bg-light p-3 border-start border-4 border-primary">
                                                                 <h6 className="mb-3 text-primary">
                                                                     <i className="ti ti-users me-2"></i>
-                                                                    Liste des employés ({societe.employes?.length || 0})
+                                                                    Liste des utilisateurs ({societe.employes?.length || 0})
                                                                 </h6>
                                                                 {societe.employes && societe.employes.length > 0 ? (
                                                                     <div className="row">

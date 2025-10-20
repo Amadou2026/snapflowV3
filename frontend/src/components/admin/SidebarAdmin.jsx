@@ -318,6 +318,21 @@ const SidebarAdmin = () => {
                   <label>Gestion des Ressources Humaines</label>
                   <i className="ti ti-users"></i>
                 </li>
+                
+
+                {canManageGroups() && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/core/groupepersonnalise/")}
+                      className={`pc-link ${isLinkActive('/admin/core/groupepersonnalise')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-layout-grid"></i>
+                      </span>
+                      <span className="pc-mtext">Gestion des Groupes</span>
+                    </Link>
+                  </li>
+                )}
 
                 {canManageUsers() && (
                   <li className="pc-item">
@@ -333,19 +348,7 @@ const SidebarAdmin = () => {
                   </li>
                 )}
 
-                {canManageGroups() && (
-                  <li className="pc-item">
-                    <Link
-                      to={buildUrl("/admin/core/groupepersonnalise/")}
-                      className={`pc-link ${isLinkActive('/admin/core/groupepersonnalise')}`}
-                    >
-                      <span className="pc-micon">
-                        <i className="ti ti-layout-grid"></i>
-                      </span>
-                      <span className="pc-mtext">Gestion des Groupes</span>
-                    </Link>
-                  </li>
-                )}
+
               </>
             )}
 

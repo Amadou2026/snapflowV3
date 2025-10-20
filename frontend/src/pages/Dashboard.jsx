@@ -441,7 +441,7 @@ const Dashboard = ({ user, logout }) => {
               </div>
 
               {/* Détails taux de réussite */}
-              <div className="col-md-12">
+              {/* <div className="col-md-12">
                 <div className="card">
                   <div className="card-header">
                     <h5>Détails du taux de réussite</h5>
@@ -467,7 +467,7 @@ const Dashboard = ({ user, logout }) => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
