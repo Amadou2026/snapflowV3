@@ -11,26 +11,30 @@ import api from '../../services/api';
 
 const GestionSecteur = ({ user, logout }) => {
     const [secteurs, setSecteurs] = useState([]);
-    const [filteredSecteurs, setFilteredSecteurs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedSecteur, setSelectedSecteur] = useState(null);
+    const [userPermissions, setUserPermissions] = useState([]);
+    
+    // États pour la pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // États pour le filtre et la recherche
     const [searchTerm, setSearchTerm] = useState('');
-    const [userPermissions, setUserPermissions] = useState([]); // Ajout de l'état pour les permissions
+    const [selectedFilter, setSelectedFilter] = useState('all');
 
     useEffect(() => {
         fetchSecteurs();
-        fetchUserPermissions(); // Ajout de l'appel pour récupérer les permissions
+        fetchUserPermissions();
     }, []);
 
-    // Charger les secteurs
     const fetchSecteurs = async () => {
         try {
             const response = await api.get('secteurs/');
             setSecteurs(response.data);
-            setFilteredSecteurs(response.data);
         } catch (error) {
             console.error('Erreur lors du chargement:', error);
             toast.error('Erreur lors du chargement des secteurs');
@@ -39,25 +43,21 @@ const GestionSecteur = ({ user, logout }) => {
         }
     };
 
-    // Ajout de la fonction pour récupérer les permissions de l'utilisateur
     const fetchUserPermissions = async () => {
         try {
             const response = await api.get('user/permissions/');
             setUserPermissions(response.data.permissions);
         } catch (error) {
             console.error('Erreur lors du chargement des permissions:', error);
-            setUserPermissions([]); // Assurer que c'est un tableau en cas d'erreur
+            setUserPermissions([]);
         }
     };
 
-    // Ajout de la fonction pour vérifier les permissions
     const hasPermission = (permission) => {
         return Array.isArray(userPermissions) && userPermissions.includes(permission);
     };
 
-    // Supprimer un secteur
     const handleDeleteSecteur = async (secteurId) => {
-        // Vérifier si l'utilisateur a la permission de supprimer
         if (!hasPermission('core.delete_secteuractivite')) {
             toast.error('Vous n\'avez pas les permissions pour supprimer un secteur');
             return;
@@ -67,9 +67,7 @@ const GestionSecteur = ({ user, logout }) => {
             try {
                 await api.delete(`secteurs/${secteurId}/`);
                 toast.success('Secteur supprimé avec succès');
-                const updatedSecteurs = secteurs.filter(secteur => secteur.id !== secteurId);
-                setSecteurs(updatedSecteurs);
-                setFilteredSecteurs(updatedSecteurs);
+                fetchSecteurs(); // Recharger les données après suppression
             } catch (error) {
                 console.error('Erreur lors de la suppression:', error);
                 toast.error('Erreur lors de la suppression du secteur');
@@ -83,7 +81,6 @@ const GestionSecteur = ({ user, logout }) => {
     };
 
     const handleViewSecteur = (secteur) => {
-        // Vérifier si l'utilisateur a la permission de voir
         if (!hasPermission('core.view_secteuractivite')) {
             toast.error('Vous n\'avez pas les permissions pour voir les détails d\'un secteur');
             return;
@@ -104,13 +101,55 @@ const GestionSecteur = ({ user, logout }) => {
         setSelectedSecteur(null);
     };
 
-    // Filtrer les secteurs
-    useEffect(() => {
-        const filtered = secteurs.filter(secteur =>
-            secteur.nom.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        setFilteredSecteurs(filtered);
-    }, [searchTerm, secteurs]);
+    // Gestionnaires d'événements pour le filtre et la recherche
+    const handleFilterChange = (e) => {
+        setSelectedFilter(e.target.value);
+        setCurrentPage(1); // Réinitialiser à la première page lors du filtrage
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1); // Réinitialiser à la première page lors de la recherche
+    };
+
+    // Fonction pour réinitialiser les filtres
+    const handleResetFilters = () => {
+        setSearchTerm('');
+        setSelectedFilter('all');
+        setCurrentPage(1);
+    };
+
+    // Logique de filtrage combinée
+    const filteredSecteurs = secteurs.filter(secteur => {
+        const matchesFilter = selectedFilter === 'all' || 
+            (selectedFilter === 'withName' && secteur.nom && secteur.nom.trim() !== '');
+        const matchesSearch = searchTerm === '' || 
+            (secteur.nom && secteur.nom.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        return matchesFilter && matchesSearch;
+    });
+
+    // Logique de pagination basée sur la liste filtrée
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredSecteurs.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredSecteurs.length / itemsPerPage);
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
 
     if (loading) {
         return (
@@ -170,43 +209,45 @@ const GestionSecteur = ({ user, logout }) => {
                             </div>
                             {/* End Breadcrumb */}
 
-                            {/* Barre de recherche */}
-                            <div className="row mb-3">
-                                <div className="col-md-6">
-                                    <div className="card">
-                                        <div className="card-body">
-                                            <div className="input-group">
-                                                <span className="input-group-text">
-                                                    <i className="ti ti-search"></i>
-                                                </span>
-                                                <input
-                                                    type="text"
-                                                    className="form-control"
-                                                    placeholder="Rechercher un secteur..."
-                                                    value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* End Barre de recherche */}
-
                             {/* Main Content */}
                             <div className="row">
                                 <div className="col-sm-12">
                                     <div className="card table-card">
-                                        <div className="card-body">
-                                            <div className="text-end p-4 pb-0">
-                                                {hasPermission('core.add_secteuractivite') && (
+                                        <div className="card-body px-4">
+                                            {/* Filtres et recherche */}
+                                            <div className="row align-items-center p-4">
+                                                <div className="col-md-6 mb-3 mb-md-0">
+                                                    <div className="input-group">
+                                                        <span className="input-group-text"><i className="ti ti-search"></i></span>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control"
+                                                            placeholder="Rechercher un secteur..."
+                                                            value={searchTerm}
+                                                            onChange={handleSearchChange}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="col-md-2 mb-3 mb-md-0">
                                                     <button
-                                                        className="btn btn-primary d-inline-flex align-items-center"
-                                                        onClick={() => setShowAddModal(true)}
+                                                        type="button"
+                                                        className="btn btn-outline-secondary w-100"
+                                                        onClick={handleResetFilters}
                                                     >
-                                                        <i className="ti ti-plus f-18"></i> Ajouter un Secteur
+                                                        <i className="ti ti-filter-off me-1"></i>Réinitialiser
                                                     </button>
-                                                )}
+                                                </div>
+                                                <div className="col-md-4 text-end">
+                                                    {hasPermission('core.add_secteuractivite') && (
+                                                        <button
+                                                            className="btn btn-primary d-inline-flex align-items-center"
+                                                            onClick={() => setShowAddModal(true)}
+                                                        >
+                                                            <i className="ti ti-plus f-18"></i> Ajouter
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="table-responsive">
@@ -219,9 +260,9 @@ const GestionSecteur = ({ user, logout }) => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {filteredSecteurs.map((secteur, index) => (
+                                                        {currentItems.map((secteur, index) => (
                                                             <tr key={secteur.id}>
-                                                                <td>{index + 1}</td>
+                                                                <td>{indexOfFirstItem + index + 1}</td>
                                                                 <td>
                                                                     <div className="row align-items-center">
                                                                         <div className="col-auto pe-0">
@@ -293,6 +334,70 @@ const GestionSecteur = ({ user, logout }) => {
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Pagination */}
+                                            {filteredSecteurs.length > 0 && (
+                                                <div className="row mt-4">
+                                                    <div className="col-sm-12">
+                                                        <div className="card-body border-top pt-3">
+                                                            <div className="row align-items-center">
+                                                                <div className="col-md-6">
+                                                                    <div className="text-center text-md-start mb-3 mb-md-0">
+                                                                        <span className="text-muted">
+                                                                            Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filteredSecteurs.length)} sur {filteredSecteurs.length} éléments
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="col-md-6">
+                                                                    <nav aria-label="Page navigation">
+                                                                        <ul className="pagination justify-content-center justify-content-md-end mb-0">
+                                                                            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                                                <button className="page-link" onClick={handlePrevPage} tabIndex="-1">
+                                                                                    <i className="ti ti-chevron-left"></i>
+                                                                                    <span className="sr-only">Précédent</span>
+                                                                                </button>
+                                                                            </li>
+                                                                            {[...Array(totalPages)].map((_, index) => {
+                                                                                const pageNumber = index + 1;
+                                                                                if (
+                                                                                    totalPages <= 5 ||
+                                                                                    pageNumber === 1 ||
+                                                                                    pageNumber === totalPages ||
+                                                                                    (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                                                                                ) {
+                                                                                    return (
+                                                                                        <li key={index} className={`page-item ${currentPage === pageNumber ? 'active' : ''}`}>
+                                                                                            <button className="page-link" onClick={() => handlePageChange(pageNumber)}>
+                                                                                                {pageNumber}
+                                                                                            </button>
+                                                                                        </li>
+                                                                                    );
+                                                                                } else if (
+                                                                                    (pageNumber === currentPage - 2 && currentPage > 3) ||
+                                                                                    (pageNumber === currentPage + 2 && currentPage < totalPages - 2)
+                                                                                ) {
+                                                                                    return (
+                                                                                        <li key={index} className="page-item disabled">
+                                                                                            <span className="page-link">...</span>
+                                                                                        </li>
+                                                                                    );
+                                                                                }
+                                                                                return null;
+                                                                            })}
+                                                                            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                                                <button className="page-link" onClick={handleNextPage}>
+                                                                                    <span className="sr-only">Suivant</span>
+                                                                                    <i className="ti ti-chevron-right"></i>
+                                                                                </button>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </nav>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
