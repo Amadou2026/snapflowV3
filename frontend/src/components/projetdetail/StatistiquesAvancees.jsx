@@ -61,7 +61,7 @@ const StatistiquesAvancees = ({ statistiquesAvancees }) => {
                             <div className="card-body text-center">
                                 <i className="ti ti-alert-triangle text-warning mb-2" style={{ fontSize: '1.5rem' }}></i>
                                 <h4 className="text-warning">{configurations_avec_erreurs || 0}</h4>
-                                <small className="text-muted">Configs avec erreurs</small>
+                                <small className="text-muted">Campagnes avec erreurs</small>
                             </div>
                         </div>
                     </div>

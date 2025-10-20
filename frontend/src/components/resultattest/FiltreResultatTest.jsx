@@ -379,7 +379,7 @@ const FiltreResultatTest = ({ resultats, onFilterChange, user }) => {
                                                     <div class="col-6">
                                                         <p><strong>Avec logs:</strong> ${stats.withLogs}</p>
                                                         <p><strong>Scripts uniques:</strong> ${stats.uniqueScripts}</p>
-                                                        <p><strong>Configurations uniques:</strong> ${stats.uniqueConfigurations}</p>
+                                                        <p><strong>Campagnes uniques:</strong> ${stats.uniqueConfigurations}</p>
                                                         <p><strong>Projets uniques:</strong> ${stats.uniqueProjets}</p>
                                                         <p><strong>Taux de réussite:</strong> ${tauxReussite}%</p>
                                                         <p><strong>Taux d'échec:</strong> ${tauxEchec}%</p>

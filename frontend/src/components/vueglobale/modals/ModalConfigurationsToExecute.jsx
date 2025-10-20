@@ -32,7 +32,7 @@ const ModalConfigurationsToExecute = ({ show, onClose }) => {
                     <div className="modal-header bg-light">
                         <h5 className="modal-title">
                             <i className="ti ti-player-play me-2 text-warning"></i>
-                            Configurations à Exécuter
+                            Campagnes à Exécuter
                         </h5>
                         <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
@@ -48,12 +48,12 @@ const ModalConfigurationsToExecute = ({ show, onClose }) => {
                                 <div className="col-12">
                                     <div className="card">
                                         <div className="card-body">
-                                            <h6 className="card-title">Configurations en Attente d'Exécution</h6>
+                                            <h6 className="card-title">Campagnes en Attente d'Exécution</h6>
                                             <div className="table-responsive">
                                                 <table className="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th>Configuration</th>
+                                                            <th>Campagnes</th>
                                                             <th>Projet</th>
                                                             <th>Dernière Exécution</th>
                                                             <th>Prochaine Planifiée</th>
@@ -153,7 +153,7 @@ const ModalConfigurationsToExecute = ({ show, onClose }) => {
                                             <div className="d-grid gap-2">
                                                 <button className="btn btn-success">
                                                     <i className="ti ti-player-play me-2"></i>
-                                                    Exécuter Toutes les Configurations Prêtes
+                                                    Exécuter toutes les campagnes prêtes
                                                 </button>
                                                 <button className="btn btn-warning">
                                                     <i className="ti ti-refresh me-2"></i>

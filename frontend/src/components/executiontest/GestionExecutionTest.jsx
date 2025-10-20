@@ -301,7 +301,7 @@ const GestionExecutionTest = ({ user, logout }) => {
                                         <div className="col-md-12">
                                             <div className="page-header-title">
                                                 <h2 className="mb-0">
-                                                    Les battéries de test exécutées
+                                                    Les campagnes de test exécutées
                                                     {projectIdFromUrl && (
                                                         <span className="badge bg-primary ms-2">
                                                             {getProjectNameFromUrl()}
