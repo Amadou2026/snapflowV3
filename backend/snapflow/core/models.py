@@ -52,11 +52,11 @@ class GroupePersonnalise(models.Model):
     ]
 
     ROLE_PREDEFINIS = [
-        ("administrateur", "Administrateur"),
-        ("qa", "Quality Assurance"),
-        ("developpeur", "Développeur"),
+        ("super-admin", "Super-admin"),
+        ("admin-societe", "admin-societe"),
         ("manager", "Manager"),
-        ("chef_projet", "Chef de Projet"),
+        ("chef_projet", "Chef de projet"),
+        ("qa", "QA"),
     ]
 
     nom = models.CharField(max_length=100, unique=True)

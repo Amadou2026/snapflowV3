@@ -13,7 +13,7 @@ from django import forms
 import openpyxl
 from django.http import HttpResponse, HttpResponseForbidden
 import logging
-from core.utils.redmine import get_last_redmine_tickets
+# from core.utils.redmine import get_last_redmine_tickets
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.timezone import make_aware, now, localtime
 from django.contrib.auth.models import Group as AuthGroup

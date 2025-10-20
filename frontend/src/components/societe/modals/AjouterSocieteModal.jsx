@@ -510,7 +510,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                 <div className="col-12">
                                     <div className="mb-3">
                                         <label className="form-label">
-                                            Gestion des Employés
+                                            Gestion des Utilisateurs
                                         </label>
                                         
                                         <div className="row">
@@ -518,7 +518,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                             <div className="col-md-5">
                                                 <div className="card">
                                                     <div className="card-header d-flex justify-content-between align-items-center">
-                                                        <span>Employés disponibles ({employesDisponibles.length})</span>
+                                                        <span>Utilisateurs disponibles ({employesDisponibles.length})</span>
                                                         <button
                                                             type="button"
                                                             className="btn btn-sm btn-outline-primary"
@@ -573,7 +573,7 @@ const AjouterSocieteModal = ({ show, onClose, onSocieteAdded }) => {
                                             <div className="col-md-5">
                                                 <div className="card">
                                                     <div className="card-header d-flex justify-content-between align-items-center">
-                                                        <span>Employés sélectionnés ({employesSelectionnes.length})</span>
+                                                        <span>Utilisateurs sélectionnés ({employesSelectionnes.length})</span>
                                                         <button
                                                             type="button"
                                                             className="btn btn-sm btn-outline-danger"

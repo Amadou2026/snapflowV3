@@ -359,7 +359,7 @@ const GestionSocietes = ({ user, logout }) => {
                                                             <th>Société</th>
                                                             <th>Secteur d'activité</th>
                                                             <th>Projets</th>
-                                                            <th>Employés</th>
+                                                            <th>Utilisateurs</th>
                                                             <th className="text-center">Actions</th>
                                                         </tr>
                                                     </thead>

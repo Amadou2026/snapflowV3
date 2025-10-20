@@ -13,33 +13,29 @@ export const AuthProvider = ({ children }) => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [userGroups, setUserGroups] = useState([]);
-  const [permissionsLoaded, setPermissionsLoaded] = useState(false); // Nouvel état pour suivre si les permissions sont chargées
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   
   // Vérifier si un token existe au chargement de l'app
   useEffect(() => {
     const checkAuthStatus = async () => {
-      console.log("AuthContext: Début de la vérification de l'authentification");
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
           const decoded = jwtDecode(token);
-          console.log("AuthContext: Token trouvé, expiration:", new Date(decoded.exp * 1000));
 
           if (decoded.exp * 1000 < Date.now()) {
             throw new Error('Token expiré');
           }
 
           // Récupérer le profil utilisateur
-          console.log("AuthContext: Récupération du profil utilisateur...");
           const profileResponse = await api.get('user/profile/');
           setUser(profileResponse.data);
-          console.log("AuthContext: Profil utilisateur récupéré:", profileResponse.data);
           
           // Mettre à jour l'état d'authentification
           setIsAuthenticated(true);
           
           // Récupérer les permissions de l'utilisateur
-          await refreshPermissions(); // Utiliser la fonction refreshPermissions ici
+          await refreshPermissions();
           
           // Récupérer le projet sélectionné depuis localStorage
           const savedProjectId = localStorage.getItem('selectedProjectId');
@@ -47,7 +43,6 @@ export const AuthProvider = ({ children }) => {
             setSelectedProjectId(parseInt(savedProjectId));
           }
           
-          console.log("AuthContext: Utilisateur authentifié et permissions chargées avec succès");
         } catch (err) {
           console.error('AuthContext: Erreur d\'authentification', err);
           localStorage.removeItem('access_token');
@@ -59,13 +54,9 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(false);
           setPermissionsLoaded(false);
         } finally {
-          // MARQUEUR IMPORTANT : Ne mettre loading à false qu'à la fin
           setLoading(false);
-          console.log("AuthContext: Chargement terminé");
         }
       } else {
-        // Pas de token, pas besoin de charger les permissions
-        console.log("AuthContext: Aucun token trouvé");
         setLoading(false);
         setPermissionsLoaded(false);
       }
@@ -88,12 +79,10 @@ export const AuthProvider = ({ children }) => {
   // Fonction pour rafraîchir les permissions
   const refreshPermissions = async () => {
     try {
-      console.log("AuthContext: Récupération des permissions...");
       const permissionsResponse = await api.get('user/permissions/');
       const userPermissions = permissionsResponse.data.permissions || [];
       setPermissions(userPermissions);
-      setPermissionsLoaded(true); // Marquer les permissions comme chargées
-      console.log("AuthContext: Permissions récupérées:", userPermissions);
+      setPermissionsLoaded(true);
       
       // Mettre à jour les groupes
       const groups = [];
@@ -119,13 +108,12 @@ export const AuthProvider = ({ children }) => {
         groups.push('chef_projet');
       }
       setUserGroups(groups);
-      console.log("AuthContext: Groupes extraits:", groups);
       
-      return true; // Retourner true en cas de succès
+      return true;
     } catch (err) {
       console.error('AuthContext: Erreur lors du rafraîchissement des permissions', err);
       setPermissionsLoaded(false);
-      return false; // Retourner false en cas d'erreur
+      return false;
     }
   };
 
@@ -147,93 +135,63 @@ export const AuthProvider = ({ children }) => {
 
   // Vérifications spécifiques selon les rôles prédéfinis
   const canViewDashboard = () => {
-    const hasAccess = hasPermission('core.view_dashboard') || hasRole('administrateur') || hasRole('qa') || hasRole('manager') || hasRole('chef_projet');
-    console.log(`AuthContext: canViewDashboard() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_dashboard') || hasRole('administrateur') || hasRole('qa') || hasRole('manager') || hasRole('chef_projet');
   };
 
   const canViewVueGlobale = () => {
-    const hasAccess = hasPermission('core.view_vueglobale') || hasRole('administrateur') || hasRole('manager');
-    console.log(`AuthContext: canViewVueGlobale() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_vueglobale') || hasRole('administrateur') || hasRole('manager');
   };
 
   const canManageSocietes = () => {
-    const hasAccess = hasPermission('core.view_societe') || hasRole('administrateur');
-    console.log(`AuthContext: canManageSocietes() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_societe') || hasRole('administrateur');
   };
 
   const canManageSecteursActivite = () => {
-    const hasAccess = hasPermission('core.view_secteuractivite') || hasRole('administrateur');
-    console.log(`AuthContext: canManageSecteursActivite() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_secteuractivite') || hasRole('administrateur');
   };
 
   const canManageProjets = () => {
-    const hasAccess = hasAnyPermission(['core.view_projet', 'core.add_projet', 'core.change_projet']) || hasRole('administrateur') || hasRole('chef_projet') || hasRole('manager');
-    console.log(`AuthContext: canManageProjets() = ${hasAccess}`);
-    return hasAccess;
+    return hasAnyPermission(['core.view_projet', 'core.add_projet', 'core.change_projet']) || hasRole('administrateur') || hasRole('chef_projet') || hasRole('manager');
   };
 
   const canManageConfiguration = () => {
-    const hasAccess = hasPermission('core.view_configuration') || hasRole('administrateur');
-    console.log(`AuthContext: canManageConfiguration() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_configuration') || hasRole('administrateur');
   };
 
   const canManageEmailNotifications = () => {
-    const hasAccess = hasPermission('core.view_emailnotification') || hasRole('administrateur');
-    console.log(`AuthContext: canManageEmailNotifications() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_emailnotification') || hasRole('administrateur');
   };
 
   const canManageUsers = () => {
-    const hasAccess = hasPermission('core.view_customuser') || hasRole('administrateur');
-    console.log(`AuthContext: canManageUsers() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_customuser') || hasRole('administrateur');
   };
 
   const canManageGroups = () => {
-    const hasAccess = hasPermission('core.view_groupepersonnalise') || hasRole('administrateur');
-    console.log(`AuthContext: canManageGroups() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_groupepersonnalise') || hasRole('administrateur');
   };
 
   const canManageAxes = () => {
-    const hasAccess = hasPermission('core.view_axe') || hasRole('administrateur');
-    console.log(`AuthContext: canManageAxes() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_axe') || hasRole('administrateur');
   };
 
   const canManageSousAxes = () => {
-    const hasAccess = hasPermission('core.view_sousaxe') || hasRole('administrateur');
-    console.log(`AuthContext: canManageSousAxes() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_sousaxe') || hasRole('administrateur');
   };
 
   const canManageScripts = () => {
-    const hasAccess = hasAnyPermission(['core.view_script', 'core.add_script', 'core.change_script']) || hasRole('administrateur') || hasRole('qa') || hasRole('developpeur') || hasRole('chef_projet');
-    console.log(`AuthContext: canManageScripts() = ${hasAccess}`);
-    return hasAccess;
+    return hasAnyPermission(['core.view_script', 'core.add_script', 'core.change_script']) || hasRole('administrateur') || hasRole('qa') || hasRole('developpeur') || hasRole('chef_projet');
   };
 
   const canManageConfigurationTests = () => {
-    const hasAccess = hasAnyPermission(['core.view_configurationtest', 'core.add_configurationtest', 'core.change_configurationtest']) || hasRole('administrateur') || hasRole('qa');
-    console.log(`AuthContext: canManageConfigurationTests() = ${hasAccess}`);
-    return hasAccess;
+    return hasAnyPermission(['core.view_configurationtest', 'core.add_configurationtest', 'core.change_configurationtest']) || hasRole('administrateur') || hasRole('qa');
   };
 
   const canManageExecutionTests = () => {
-    const hasAccess = hasAnyPermission(['core.view_executiontest', 'core.add_executiontest', 'core.change_executiontest']) || hasRole('administrateur') || hasRole('qa');
-    console.log(`AuthContext: canManageExecutionTests() = ${hasAccess}`);
-    return hasAccess;
+    return hasAnyPermission(['core.view_executiontest', 'core.add_executiontest', 'core.change_executiontest']) || hasRole('administrateur') || hasRole('qa');
   };
 
   const canManageExecutionResults = () => {
-    const hasAccess = hasPermission('core.view_executionresult') || hasRole('administrateur') || hasRole('qa') || hasRole('developpeur') || hasRole('manager') || hasRole('chef_projet');
-    console.log(`AuthContext: canManageExecutionResults() = ${hasAccess}`);
-    return hasAccess;
+    return hasPermission('core.view_executionresult') || hasRole('administrateur') || hasRole('qa') || hasRole('developpeur') || hasRole('manager') || hasRole('chef_projet');
   };
 
   // Fonctions pour vérifier l'accès admin (pour la compatibilité)
@@ -245,18 +203,7 @@ export const AuthProvider = ({ children }) => {
     return user?.is_superuser;
   };
 
-  // MODIFIÉ : Loading spinner pendant la vérification
-  // On affiche le spinner tant que l'authentification est en cours de chargement
-  if (loading) {
-    return (
-      <div className="loading-container d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Chargement...</span>
-        </div>
-      </div>
-    );
-  }
-
+  // ✅ CORRECTION : Toujours retourner le Provider, le spinner est géré dans App.js
   return (
     <AuthContext.Provider value={{
       user,
@@ -269,7 +216,7 @@ export const AuthProvider = ({ children }) => {
       selectProject,
       permissions,
       userGroups,
-      permissionsLoaded, // Ajouter cet état au contexte
+      permissionsLoaded,
       refreshPermissions,
       // Fonctions de permission
       hasPermission,

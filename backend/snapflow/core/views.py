@@ -1303,6 +1303,15 @@ def change_password(request):
 class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
     queryset = GroupePersonnalise.objects.all()
     serializer_class = GroupePersonnaliseSerializer
+    permission_classes = [IsAuthenticated]  # Ajout de permissions de base
+
+    def get_permissions(self):
+        # Seuls les super-admin peuvent créer/modifier/supprimer des groupes
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsSuperAdmin]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
     def list(self, request, *args, **kwargs):
         groupes_data = []
@@ -1328,6 +1337,7 @@ class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
                 'nom': groupe_perso.nom,
                 'type_groupe': groupe_perso.type_groupe,
                 'role_predefini': groupe_perso.role_predefini,
+                'role_display': groupe_perso.get_role_predefini_display() if groupe_perso.role_predefini else None,
                 'description': groupe_perso.description,
                 'permissions': permissions,
                 'est_protege': groupe_perso.est_protege
@@ -1363,6 +1373,32 @@ class GroupePersonnaliseViewSet(viewsets.ModelViewSet):
         groupe_perso.permissions.set(permission_objs)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Vérifier si le groupe est protégé
+        if instance.est_protege:
+            return Response(
+                {"detail": "Ce groupe est protégé et ne peut pas être modifié."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        return super().update(request, *args, **kwargs)
+    
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Vérifier si le groupe est protégé
+        if instance.est_protege:
+            return Response(
+                {"detail": "Ce groupe est protégé et ne peut pas être supprimé."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        return super().destroy(request, *args, **kwargs)
 
 
 @api_view(['GET'])

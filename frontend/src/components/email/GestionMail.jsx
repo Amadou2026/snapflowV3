@@ -22,6 +22,7 @@ const GestionMail = ({ user, logout }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
+    const [userPermissions, setUserPermissions] = useState([]); // Ajout de l'état pour les permissions
     
     // États pour la pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -29,6 +30,7 @@ const GestionMail = ({ user, logout }) => {
 
     useEffect(() => {
         fetchEmails();
+        fetchUserPermissions(); // Ajout de l'appel pour récupérer les permissions
     }, []);
 
     useEffect(() => {
@@ -47,6 +49,22 @@ const GestionMail = ({ user, logout }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Ajout de la fonction pour récupérer les permissions de l'utilisateur
+    const fetchUserPermissions = async () => {
+        try {
+            const response = await api.get('user/permissions/');
+            setUserPermissions(response.data.permissions);
+        } catch (error) {
+            console.error('Erreur lors du chargement des permissions:', error);
+            setUserPermissions([]); // Assurer que c'est un tableau en cas d'erreur
+        }
+    };
+
+    // Ajout de la fonction pour vérifier les permissions
+    const hasPermission = (permission) => {
+        return Array.isArray(userPermissions) && userPermissions.includes(permission);
     };
 
     const handleFilterChange = (filteredData) => {
@@ -77,6 +95,12 @@ const GestionMail = ({ user, logout }) => {
     };
 
     const handleDeleteEmail = async (emailId) => {
+        // Vérifier si l'utilisateur a la permission de supprimer
+        if (!hasPermission('core.delete_emailnotification')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour supprimer un email');
+            return;
+        }
+
         const email = emails.find(e => e.id === emailId);
         
         const result = await MySwal.fire({
@@ -118,6 +142,12 @@ const GestionMail = ({ user, logout }) => {
     };
 
     const handleToggleStatus = async (emailId) => {
+        // Vérifier si l'utilisateur a la permission de modifier
+        if (!hasPermission('core.change_emailnotification')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour modifier le statut d\'un email');
+            return;
+        }
+
         const email = emails.find(e => e.id === emailId);
         const newStatus = !email.est_actif;
         
@@ -151,6 +181,12 @@ const GestionMail = ({ user, logout }) => {
     };
 
     const handleViewEmail = (email) => {
+        // Vérifier si l'utilisateur a la permission de voir
+        if (!hasPermission('core.view_emailnotification')) {
+            showErrorAlert('Vous n\'avez pas les permissions pour voir les détails d\'un email');
+            return;
+        }
+        
         setSelectedEmail(email);
         setShowViewModal(true);
     };
@@ -283,12 +319,14 @@ const GestionMail = ({ user, logout }) => {
                                                     </h5>
                                                 </div>
                                                 <div>
-                                                    <button
-                                                        className="btn btn-primary d-inline-flex align-items-center"
-                                                        onClick={() => setShowAddModal(true)}
-                                                    >
-                                                        <i className="ti ti-plus f-18"></i> Ajouter un email
-                                                    </button>
+                                                    {hasPermission('core.add_emailnotification') && (
+                                                        <button
+                                                            className="btn btn-primary d-inline-flex align-items-center"
+                                                            onClick={() => setShowAddModal(true)}
+                                                        >
+                                                            <i className="ti ti-plus f-18"></i> Ajouter un email
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -367,34 +405,42 @@ const GestionMail = ({ user, logout }) => {
                                                                 </td>
                                                                 <td className="text-center">
                                                                     <div className="d-flex justify-content-center gap-2">
-                                                                        <button
-                                                                            className="btn btn-link-secondary btn-sm p-1"
-                                                                            onClick={() => handleViewEmail(email)}
-                                                                            title="Voir"
-                                                                        >
-                                                                            <i className="ti ti-eye f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-primary btn-sm p-1"
-                                                                            onClick={() => handleEditEmail(email)}
-                                                                            title="Modifier"
-                                                                        >
-                                                                            <i className="ti ti-edit-circle f-18"></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className={`btn btn-sm p-1 ${email.est_actif ? 'btn-link-warning' : 'btn-link-success'}`}
-                                                                            onClick={() => handleToggleStatus(email.id)}
-                                                                            title={email.est_actif ? 'Désactiver' : 'Activer'}
-                                                                        >
-                                                                            <i className={`ti ti-${email.est_actif ? 'toggle-left' : 'toggle-right'} f-18`}></i>
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-link-danger btn-sm p-1"
-                                                                            onClick={() => handleDeleteEmail(email.id)}
-                                                                            title="Supprimer"
-                                                                        >
-                                                                            <i className="ti ti-trash f-18"></i>
-                                                                        </button>
+                                                                        {hasPermission('core.view_emailnotification') && (
+                                                                            <button
+                                                                                className="btn btn-link-secondary btn-sm p-1"
+                                                                                onClick={() => handleViewEmail(email)}
+                                                                                title="Voir"
+                                                                            >
+                                                                                <i className="ti ti-eye f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.change_emailnotification') && (
+                                                                            <button
+                                                                                className="btn btn-link-primary btn-sm p-1"
+                                                                                onClick={() => handleEditEmail(email)}
+                                                                                title="Modifier"
+                                                                            >
+                                                                                <i className="ti ti-edit-circle f-18"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.change_emailnotification') && (
+                                                                            <button
+                                                                                className={`btn btn-sm p-1 ${email.est_actif ? 'btn-link-warning' : 'btn-link-success'}`}
+                                                                                onClick={() => handleToggleStatus(email.id)}
+                                                                                title={email.est_actif ? 'Désactiver' : 'Activer'}
+                                                                            >
+                                                                                <i className={`ti ti-${email.est_actif ? 'toggle-left' : 'toggle-right'} f-18`}></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {hasPermission('core.delete_emailnotification') && (
+                                                                            <button
+                                                                                className="btn btn-link-danger btn-sm p-1"
+                                                                                onClick={() => handleDeleteEmail(email.id)}
+                                                                                title="Supprimer"
+                                                                            >
+                                                                                <i className="ti ti-trash f-18"></i>
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -410,13 +456,15 @@ const GestionMail = ({ user, logout }) => {
                                                         <p className="text-muted">
                                                             Aucun email de notification trouvé.
                                                         </p>
-                                                        <button
-                                                            className="btn btn-primary btn-sm mt-2"
-                                                            onClick={() => setShowAddModal(true)}
-                                                        >
-                                                            <i className="ti ti-plus me-1"></i>
-                                                            Ajouter le premier email
-                                                        </button>
+                                                        {hasPermission('core.add_emailnotification') && (
+                                                            <button
+                                                                className="btn btn-primary btn-sm mt-2"
+                                                                onClick={() => setShowAddModal(true)}
+                                                            >
+                                                                <i className="ti ti-plus me-1"></i>
+                                                                Ajouter le premier email
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -473,30 +521,36 @@ const GestionMail = ({ user, logout }) => {
                         </div>
 
                         {/* Modals */}
-                        <AjouterMailModal
-                            show={showAddModal}
-                            onClose={() => setShowAddModal(false)}
-                            onEmailAdded={handleEmailAdded}
-                        />
+                        {hasPermission('core.add_emailnotification') && (
+                            <AjouterMailModal
+                                show={showAddModal}
+                                onClose={() => setShowAddModal(false)}
+                                onEmailAdded={handleEmailAdded}
+                            />
+                        )}
 
-                        <ModifierMailModal
-                            show={showEditModal}
-                            onClose={() => {
-                                setShowEditModal(false);
-                                setSelectedEmail(null);
-                            }}
-                            onEmailUpdated={handleEmailUpdated}
-                            email={selectedEmail}
-                        />
+                        {hasPermission('core.change_emailnotification') && (
+                            <ModifierMailModal
+                                show={showEditModal}
+                                onClose={() => {
+                                    setShowEditModal(false);
+                                    setSelectedEmail(null);
+                                }}
+                                onEmailUpdated={handleEmailUpdated}
+                                email={selectedEmail}
+                            />
+                        )}
 
-                        <ViewMailModal
-                            show={showViewModal}
-                            onClose={() => {
-                                setShowViewModal(false);
-                                setSelectedEmail(null);
-                            }}
-                            email={selectedEmail}
-                        />
+                        {hasPermission('core.view_emailnotification') && (
+                            <ViewMailModal
+                                show={showViewModal}
+                                onClose={() => {
+                                    setShowViewModal(false);
+                                    setSelectedEmail(null);
+                                }}
+                                email={selectedEmail}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

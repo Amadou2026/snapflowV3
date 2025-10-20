@@ -694,6 +694,9 @@ class GroupePersonnaliseSerializer(serializers.ModelSerializer):
         allow_blank=True,
         allow_null=True
     )
+    
+    # Ajout d'un champ pour afficher le nom complet du rôle
+    role_display = serializers.CharField(source='get_role_predefini_display', read_only=True)
 
     class Meta:
         model = GroupePersonnalise
@@ -702,6 +705,7 @@ class GroupePersonnaliseSerializer(serializers.ModelSerializer):
             'nom',
             'type_groupe',
             'role_predefini',
+            'role_display',
             'description',
             'permissions',
             'est_protege'
@@ -715,6 +719,12 @@ class GroupePersonnaliseSerializer(serializers.ModelSerializer):
             for perm in instance.permissions.all()
         ]
         return representation
+    
+    def validate_role_predefini(self, value):
+        # Validation pour s'assurer que le rôle prédéfini est valide
+        if value and value not in dict(self.Meta.model.ROLE_PREDEFINIS):
+            raise serializers.ValidationError("Rôle prédéfini invalide")
+        return value
 
     # Paramètres
 class ConfigurationSerializer(serializers.ModelSerializer):

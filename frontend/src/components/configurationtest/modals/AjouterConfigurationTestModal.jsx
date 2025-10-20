@@ -47,14 +47,15 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const loadReferenceData = async () => {
         setLoadingReferences(true);
         try {
-            // Charger TOUTES les sociétés (même pour les administrateurs normaux)
+            // Charger TOUTES les sociétés
             const societesResponse = await api.get('societe/');
             setSocietes(societesResponse.data);
 
+            // MODIFICATION SUPPRIMÉE: Ne plus pré-sélectionner la société par défaut pour les non-admins
             // Si l'utilisateur n'est pas super admin, pré-sélectionner sa société par défaut
-            if (!isSuperAdmin && user?.societe) {
-                setFormData(prev => ({ ...prev, societe: user.societe.id }));
-            }
+            // if (!isSuperAdmin && user?.societe) {
+            //     setFormData(prev => ({ ...prev, societe: user.societe.id }));
+            // }
 
             // Charger tous les projets
             await loadProjets();
@@ -379,7 +380,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const resetForm = () => {
         setFormData({
             nom: '',
-            societe: !isSuperAdmin && user?.societe ? user.societe.id : '',
+            societe: '', // MODIFICATION: Toujours initialiser à vide, même pour les non-admins
             projet: '',
             periodicite: '2h',
             is_active: true,
@@ -515,11 +516,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                         </option>
                                                     ))}
                                                 </select>
-                                                {!isSuperAdmin && user?.societe && (
-                                                    <small className="form-text text-muted">
-                                                        Votre société est sélectionnée par défaut
-                                                    </small>
-                                                )}
+                                                {/* MODIFICATION SUPPRIMÉE: Message indiquant que la société est pré-sélectionnée */}
                                                 {errors.societe && (
                                                     <div className="invalid-feedback">
                                                         {errors.societe}
