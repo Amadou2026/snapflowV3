@@ -38,8 +38,8 @@ SECRET_KEY = 'django-insecure-#t9@ulr9si=fxi2b)o2-ah5f&ra7)5aot*3x0-yo-5x#*ap=cv
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# ALLOWED_HOSTS = []
-ALLOWED_HOSTS = ["snapflow-api.medianet.space"]
+ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = ["snapflow-api.medianet.space"]
 
 AUTH_USER_MODEL = 'core.CustomUser'
 MEDIA_URL = '/media/'

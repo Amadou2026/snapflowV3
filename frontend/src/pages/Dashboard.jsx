@@ -74,12 +74,6 @@ const Dashboard = ({ user, logout }) => {
         tauxErreurScript: tauxErreurScriptResponse.data
       });
 
-      // console.log('✅ Tests par jour:', testsParJourResponse.data);
-      // console.log('✅ Success vs Failed:', successVsFailedResponse.data);
-      // console.log('✅ Tests par projet:', testsParProjetResponse.data);
-      // console.log('✅ Taux réussite:', tauxReussiteResponse.data);
-      // console.log('✅ Taux erreur script:', tauxErreurScriptResponse.data);
-
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -102,12 +96,45 @@ const Dashboard = ({ user, logout }) => {
     }));
   };
 
-  // Fonction pour formater les dates
+  // AMÉLIORÉ: Fonction pour formater les dates correctement
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
+      let date;
+      
+      // Vérifier si la date est déjà un objet Date
+      if (dateString instanceof Date) {
+        date = dateString;
+      } 
+      // Vérifier si la date est au format "DD-MM-YYYY"
+      else if (typeof dateString === 'string' && dateString.includes('-') && dateString.split('-').length === 3) {
+        const parts = dateString.split('-');
+        // On reconstruit la date au format "YYYY-MM-DD" pour un parsing fiable
+        const isoDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        date = new Date(isoDateString);
+      } 
+      // Vérifier si la date est au format ISO "YYYY-MM-DD"
+      else if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+        date = new Date(dateString);
+      }
+      // Autres formats
+      else {
+        date = new Date(dateString);
+      }
+      
+      // On vérifie si la date est valide
+      if (isNaN(date.getTime())) {
+        return dateString; // En cas d'erreur, on retourne la chaîne originale
+      }
+      
+      // Format jj/mm/aaaa
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
       return dateString;
     }
   };
@@ -438,11 +465,7 @@ const Dashboard = ({ user, logout }) => {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Détails taux de réussite */}
-              
-              
+              </div> 
             </div>
           </div>
         </div>
