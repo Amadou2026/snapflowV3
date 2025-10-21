@@ -99,52 +99,52 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const updateScriptsDisponibles = () => {
         if (formData.projet) {
             // Filtrer les scripts par projet
-            const scriptsFiltres = allScripts.filter(script => 
+            const scriptsFiltres = allScripts.filter(script =>
                 script.projet === parseInt(formData.projet)
             );
-            
+
             // Vérifier si des scripts sélectionnés n'appartiennent pas au nouveau projet
             const scriptsSelectionnesHorsProjet = formData.scripts.filter(scriptId => {
                 const script = allScripts.find(s => s.id === scriptId);
                 return script && script.projet !== parseInt(formData.projet);
             });
-            
+
             // Si des scripts sélectionnés n'appartiennent pas au nouveau projet, les retirer de la sélection
             if (scriptsSelectionnesHorsProjet.length > 0) {
-                const nouveauxScriptsSelectionnes = formData.scripts.filter(scriptId => 
+                const nouveauxScriptsSelectionnes = formData.scripts.filter(scriptId =>
                     !scriptsSelectionnesHorsProjet.includes(scriptId)
                 );
-                
+
                 setFormData(prev => ({
                     ...prev,
                     scripts: nouveauxScriptsSelectionnes
                 }));
             }
-            
+
             // Exclure les scripts déjà sélectionnés qui appartiennent au projet
-            const scriptsDisponiblesFiltres = scriptsFiltres.filter(script => 
+            const scriptsDisponiblesFiltres = scriptsFiltres.filter(script =>
                 !formData.scripts.includes(script.id)
             );
-            
+
             setScriptsDisponibles(scriptsDisponiblesFiltres);
-            
+
             // Mettre à jour les scripts sélectionnés pour correspondre aux IDs dans formData.scripts
-            const scriptsSelectionnesFiltres = allScripts.filter(script => 
-                formData.scripts.includes(script.id) && 
+            const scriptsSelectionnesFiltres = allScripts.filter(script =>
+                formData.scripts.includes(script.id) &&
                 script.projet === parseInt(formData.projet)
             );
-            
+
             setScriptsSelectionnes(scriptsSelectionnesFiltres);
-            
+
         } else {
             // Si aucun projet n'est sélectionné, montrer tous les scripts non sélectionnés
-            const scriptsNonSelectionnes = allScripts.filter(script => 
+            const scriptsNonSelectionnes = allScripts.filter(script =>
                 !formData.scripts.includes(script.id)
             );
             setScriptsDisponibles(scriptsNonSelectionnes);
-            
+
             // Mettre à jour les scripts sélectionnés
-            const scriptsSelectionnesFiltres = allScripts.filter(script => 
+            const scriptsSelectionnesFiltres = allScripts.filter(script =>
                 formData.scripts.includes(script.id)
             );
             setScriptsSelectionnes(scriptsSelectionnesFiltres);
@@ -156,15 +156,15 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
 
         if (name === 'societe') {
             // Quand la société change, on met à jour la société et on réinitialise le projet
-            setFormData(prev => ({ 
-                ...prev, 
+            setFormData(prev => ({
+                ...prev,
                 societe: value,
                 projet: '' // Réinitialiser le projet sélectionné
             }));
         } else if (name === 'projet') {
             // Quand le projet change, on met à jour le projet
-            setFormData(prev => ({ 
-                ...prev, 
+            setFormData(prev => ({
+                ...prev,
                 projet: value
             }));
         } else {
@@ -196,7 +196,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const ajouterScript = (scriptId) => {
         const scriptIdInt = parseInt(scriptId);
         const script = allScripts.find(s => s.id === scriptIdInt);
-        
+
         if (script && !formData.scripts.includes(scriptIdInt)) {
             const nouveauxScripts = [...formData.scripts, scriptIdInt];
             setFormData(prev => ({
@@ -235,14 +235,14 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const ajouterEmail = (emailId) => {
         const emailIdInt = parseInt(emailId);
         const email = emails.find(e => e.id === emailIdInt);
-        
+
         if (email && !formData.emails_notification.includes(emailIdInt)) {
             const nouveauxEmails = [...formData.emails_notification, emailIdInt];
             setFormData(prev => ({
                 ...prev,
                 emails_notification: nouveauxEmails
             }));
-            
+
             setEmailsSelectionnes(prev => [...prev, email]);
             setEmailsDisponibles(prev => prev.filter(e => e.id !== emailIdInt));
         }
@@ -251,13 +251,13 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     const retirerEmail = (emailId) => {
         const emailIdInt = parseInt(emailId);
         const email = emails.find(e => e.id === emailIdInt);
-        
+
         const nouveauxEmails = formData.emails_notification.filter(id => id !== emailIdInt);
         setFormData(prev => ({
             ...prev,
             emails_notification: nouveauxEmails
         }));
-        
+
         setEmailsSelectionnes(prev => prev.filter(e => e.id !== emailIdInt));
         if (email) {
             setEmailsDisponibles(prev => [...prev, email]);
@@ -271,7 +271,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             ...prev,
             emails_notification: nouveauxEmails
         }));
-        
+
         setEmailsSelectionnes(prev => [...prev, ...emailsDisponibles]);
         setEmailsDisponibles([]);
     };
@@ -281,7 +281,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             ...prev,
             emails_notification: []
         }));
-        
+
         setEmailsDisponibles(prev => [...prev, ...emailsSelectionnes]);
         setEmailsSelectionnes([]);
     };
@@ -313,7 +313,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
         if (formData.date_activation && formData.date_desactivation) {
             const dateActivation = new Date(formData.date_activation);
             const dateDesactivation = new Date(formData.date_desactivation);
-            
+
             if (dateDesactivation <= dateActivation) {
                 newErrors.date_desactivation = 'La date de désactivation doit être après la date d\'activation';
             }
@@ -322,7 +322,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
-
+    const formatDateTime = (dt) => dt ? new Date(dt).toISOString() : null;
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -335,15 +335,14 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             // Préparer les données pour l'API
             const dataToSend = {
                 nom: formData.nom.trim(),
-                societe_id: parseInt(formData.societe),
+                societe_id: formData.societe ? parseInt(formData.societe) : null,
                 projet_id: parseInt(formData.projet),
                 periodicite: formData.periodicite,
                 is_active: formData.is_active,
-                scripts: formData.scripts,
-                emails_notification: formData.emails_notification,
-                // Gestion des dates
-                date_activation: formData.date_activation || null,
-                date_desactivation: formData.date_desactivation || null
+                scripts: formData.scripts.map(id => parseInt(id)),
+                emails_notification: formData.emails_notification.map(id => parseInt(id)),
+                date_activation: formatDateTime(formData.date_activation),
+                date_desactivation: formatDateTime(formData.date_desactivation),
             };
 
             console.log('Données envoyées pour création:', dataToSend);
@@ -359,7 +358,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
             if (error.response?.data) {
                 console.log('Détails erreur backend:', error.response.data);
                 setErrors(error.response.data);
-                
+
                 // Afficher le premier message d'erreur
                 const firstError = Object.values(error.response.data)[0];
                 if (Array.isArray(firstError)) {
@@ -402,7 +401,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
     };
 
     // Filtrer les projets par société sélectionnée
-    const projetsFiltres = formData.societe 
+    const projetsFiltres = formData.societe
         ? projets.filter(projet => {
             return projet.societes && projet.societes.some(s => s.id === parseInt(formData.societe));
         })
@@ -628,7 +627,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                     </label>
                                                 </div>
                                                 <small className="form-text text-muted">
-                                                    {formData.is_active 
+                                                    {formData.is_active
                                                         ? "La configuration sera exécutée selon sa périodicité"
                                                         : "La configuration sera créée mais ne sera pas exécutée automatiquement"
                                                     }
@@ -644,7 +643,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                 <label className="form-label">
                                                     Scripts à exécuter *
                                                 </label>
-                                                
+
                                                 <div className="row">
                                                     {/* Scripts disponibles */}
                                                     <div className="col-md-5">
@@ -661,12 +660,12 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                 </button>
                                                             </div>
                                                             <div className="card-body p-0">
-                                                                <div 
+                                                                <div
                                                                     className="list-group list-group-flush"
                                                                     style={{ maxHeight: '200px', overflowY: 'auto' }}
                                                                 >
                                                                     {scriptsDisponibles.map(script => (
-                                                                        <div 
+                                                                        <div
                                                                             key={script.id}
                                                                             className="list-group-item d-flex justify-content-between align-items-center"
                                                                         >
@@ -693,8 +692,8 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                     ))}
                                                                     {scriptsDisponibles.length === 0 && (
                                                                         <div className="list-group-item text-center text-muted">
-                                                                            {formData.projet 
-                                                                                ? 'Aucun script disponible pour ce projet' 
+                                                                            {formData.projet
+                                                                                ? 'Aucun script disponible pour ce projet'
                                                                                 : 'Sélectionnez d\'abord un projet pour voir les scripts disponibles'
                                                                             }
                                                                         </div>
@@ -726,12 +725,12 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                 </button>
                                                             </div>
                                                             <div className="card-body p-0">
-                                                                <div 
+                                                                <div
                                                                     className="list-group list-group-flush"
                                                                     style={{ maxHeight: '200px', overflowY: 'auto' }}
                                                                 >
                                                                     {scriptsSelectionnes.map(script => (
-                                                                        <div 
+                                                                        <div
                                                                             key={script.id}
                                                                             className="list-group-item d-flex justify-content-between align-items-center"
                                                                         >
@@ -766,7 +765,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <small className="form-text text-muted">
                                                     {scriptsSelectionnes.length} script(s) sélectionné(s) pour cette configuration
                                                 </small>
@@ -786,7 +785,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                 <label className="form-label">
                                                     Emails de notification
                                                 </label>
-                                                
+
                                                 <div className="row">
                                                     {/* Emails disponibles */}
                                                     <div className="col-md-5">
@@ -803,12 +802,12 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                 </button>
                                                             </div>
                                                             <div className="card-body p-0">
-                                                                <div 
+                                                                <div
                                                                     className="list-group list-group-flush"
                                                                     style={{ maxHeight: '200px', overflowY: 'auto' }}
                                                                 >
                                                                     {emailsDisponibles.map(email => (
-                                                                        <div 
+                                                                        <div
                                                                             key={email.id}
                                                                             className="list-group-item d-flex justify-content-between align-items-center"
                                                                         >
@@ -865,12 +864,12 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                                 </button>
                                                             </div>
                                                             <div className="card-body p-0">
-                                                                <div 
+                                                                <div
                                                                     className="list-group list-group-flush"
                                                                     style={{ maxHeight: '200px', overflowY: 'auto' }}
                                                                 >
                                                                     {emailsSelectionnes.map(email => (
-                                                                        <div 
+                                                                        <div
                                                                             key={email.id}
                                                                             className="list-group-item d-flex justify-content-between align-items-center"
                                                                         >
@@ -906,7 +905,7 @@ const AjouterConfigurationTestModal = ({ show, onClose, onConfigurationAdded, us
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <small className="form-text text-muted">
                                                     {emailsSelectionnes.length} email(s) sélectionné(s) pour les notifications
                                                 </small>

@@ -453,7 +453,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                     <div className="modal-header">
                         <h5 className="modal-title">
                             <i className="ti ti-edit me-2"></i>
-                            Modifier la configuration - {configuration.nom}
+                            Modifier la campagne - {configuration.nom}
                         </h5>
                         <button
                             type="button"
@@ -477,7 +477,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                         <div className="col-md-6">
                                             <div className="mb-3">
                                                 <label htmlFor="nom" className="form-label">
-                                                    Nom de la configuration *
+                                                    Nom de la campagne *
                                                 </label>
                                                 <input
                                                     type="text"
@@ -605,7 +605,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                     disabled={loading}
                                                 />
                                                 <small className="form-text text-muted">
-                                                    Si vide, la configuration sera activée immédiatement
+                                                    Si vide, la campagne sera activée immédiatement
                                                 </small>
                                                 {errors.date_activation && (
                                                     <div className="invalid-feedback">
@@ -629,7 +629,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                     disabled={loading}
                                                 />
                                                 <small className="form-text text-muted">
-                                                    Si vide, la configuration restera active indéfiniment
+                                                    Si vide, la campagne restera active indéfiniment
                                                 </small>
                                                 {errors.date_desactivation && (
                                                     <div className="invalid-feedback">
@@ -655,11 +655,11 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                         disabled={loading}
                                                     />
                                                     <label className="form-check-label" htmlFor="is_active">
-                                                        Configuration active
+                                                        Campagne active
                                                     </label>
                                                 </div>
                                                 <small className="form-text text-muted">
-                                                    Une configuration active sera exécutée automatiquement selon sa périodicité
+                                                    Une campagne active sera exécutée automatiquement selon sa périodicité
                                                 </small>
                                             </div>
                                         </div>
@@ -738,7 +738,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                     <div className="col-md-5">
                                                         <div className="card">
                                                             <div className="card-header d-flex justify-content-between align-items-center">
-                                                                <span>Scripts de la configuration ({scriptsActuels.length})</span>
+                                                                <span>Scripts de la campagne ({scriptsActuels.length})</span>
                                                                 <button
                                                                     type="button"
                                                                     className="btn btn-sm btn-outline-danger"
@@ -789,7 +789,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                 </div>
 
                                                 <small className="form-text text-muted">
-                                                    {scriptsActuels.length} script(s) assigné(s) à cette configuration
+                                                    {scriptsActuels.length} script(s) assigné(s) à cette campagne
                                                 </small>
                                                 {errors.scripts && (
                                                     <div className="invalid-feedback d-block">
@@ -898,7 +898,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                     <div className="col-md-5">
                                                         <div className="card">
                                                             <div className="card-header d-flex justify-content-between align-items-center">
-                                                                <span>Emails de la configuration ({emailsActuels.length})</span>
+                                                                <span>Emails de la campagne ({emailsActuels.length})</span>
                                                                 <button
                                                                     type="button"
                                                                     className="btn btn-sm btn-outline-danger"
@@ -948,7 +948,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                                 </div>
 
                                                 <small className="form-text text-muted">
-                                                    Ces emails recevront les notifications d'exécution de la configuration
+                                                    Ces emails recevront les notifications d'exécution de la campagne
                                                 </small>
                                                 {errors.emails_notification && (
                                                     <div className="invalid-feedback d-block">
@@ -983,7 +983,7 @@ const ModifierConfigurationTestModal = ({ show, onClose, onConfigurationUpdated,
                                 ) : (
                                     <>
                                         <i className="ti ti-check me-1"></i>
-                                        Modifier la configuration
+                                        Modifier la campagne
                                     </>
                                 )}
                             </button>

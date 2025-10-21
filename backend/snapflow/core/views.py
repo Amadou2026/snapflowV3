@@ -37,6 +37,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import os
 
+from core.permissions import IsSuperAdmin
+
 # Import des modèles
 from .models import (
     Configuration, CustomUser, Societe, SecteurActivite, GroupePersonnalise,
@@ -1869,3 +1871,102 @@ class FetchRedmineProjectView(APIView):
                 {"error": f"Une erreur inattendue est survenue : {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+# core/views.py
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import Group, Permission
+from django.contrib.auth import get_user_model
+from django.db import transaction
+
+# Utilisez votre modèle utilisateur personnalisé
+User = get_user_model()
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_groups(request, user_id):
+    """
+    Récupère la liste des IDs des groupes pour un utilisateur spécifique.
+    """
+    # Vérifiez si l'utilisateur a les permissions nécessaires
+    if not request.user.is_superuser:
+        return Response({"detail": "Vous n'avez pas la permission d'effectuer cette action."}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, id=user_id)
+    group_ids = list(user.groups.values_list('id', flat=True))
+    return Response(group_ids)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def set_user_groups(request, user_id):
+    """
+    Met à jour (remplace) la liste des groupes d'un utilisateur spécifique.
+    """
+    if not request.user.is_superuser:
+        return Response({"detail": "Vous n'avez pas la permission d'effectuer cette action."}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, id=user_id)
+    group_ids = request.data.get('groups', [])
+
+    if not isinstance(group_ids, list):
+        return Response({"detail": "Le format des données est invalide. Une liste d'IDs est attendue."}, 
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    groups_to_set = Group.objects.filter(id__in=group_ids)
+    user.groups.set(groups_to_set)
+    
+    return Response({"detail": "Groupes de l'utilisateur mis à jour avec succès."}, 
+                    status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_permissions(request, user_id):
+    """
+    Récupère la liste de TOUTES les permissions d'un utilisateur (groupes + permissions directes).
+    """
+    if not request.user.is_superuser:
+        return Response({"detail": "Vous n'avez pas la permission d'effectuer cette action."}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, id=user_id)
+    permissions = list(user.get_all_permissions())
+    return Response(permissions)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def set_user_permissions(request, user_id):
+    """
+    Met à jour (remplace) les permissions DIRECTES d'un utilisateur.
+    """
+    if not request.user.is_superuser:
+        return Response({"detail": "Vous n'avez pas la permission d'effectuer cette action."}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
+    user = get_object_or_404(User, id=user_id)
+    permission_codenames = request.data.get('permissions', [])
+
+    if not isinstance(permission_codenames, list):
+        return Response({"detail": "Le format des données est invalide. Une liste de permissions est attendue."}, 
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    permission_objects = []
+    for perm_string in permission_codenames:
+        try:
+            app_label, codename = perm_string.split('.', 1)
+            perm = Permission.objects.get(content_type__app_label=app_label, codename=codename)
+            permission_objects.append(perm)
+        except (ValueError, Permission.DoesNotExist):
+            print(f"Attention: La permission '{perm_string}' est invalide ou n'existe pas et sera ignorée.")
+            continue
+    
+    user.user_permissions.set(permission_objects)
+    return Response({"detail": "Permissions directes de l'utilisateur mises à jour avec succès."}, 
+                    status=status.HTTP_200_OK)

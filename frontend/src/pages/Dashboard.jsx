@@ -8,10 +8,7 @@ import api from '../services/api';
 const Dashboard = ({ user, logout }) => {
   const [dashboardData, setDashboardData] = useState({
     stats: {},
-    testsParJour: [],
-    successVsFailed: [],
-    testsParProjet: [],
-    tauxReussite: {},
+    executionResultats: [],
     tauxErreurScript: []
   });
   const [loading, setLoading] = useState(true);
@@ -30,30 +27,22 @@ const Dashboard = ({ user, logout }) => {
     try {
       setLoading(true);
 
-      // Nettoyer les paramètres vides
       const params = Object.fromEntries(
         Object.entries(activeFilters).filter(([_, value]) => value !== '')
       );
 
       console.log('Fetching dashboard data with params:', params);
 
-      // Récupérer toutes les données statistiques en parallèle
       const [
-        testsParJourResponse,
-        successVsFailedResponse,
-        testsParProjetResponse,
-        tauxReussiteResponse,
-        tauxErreurScriptResponse
+        executionResultatsResponse,
+        tauxErreurScriptResponse,
+        tauxReussiteResponse
       ] = await Promise.all([
-        api.get('/stats/tests-par-jour/', { params }),
-        api.get('/stats/success-vs-failed-par-jour/', { params }),
-        api.get('/stats/tests-par-projet/', { params }),
-        api.get('/stats/taux-reussite/', { params }),
-        api.get('/stats/taux-erreur-par-script/', { params })
+        api.get('/stats/execution-results/', { params }),
+        api.get('/stats/taux-erreur-par-script/', { params }),
+        api.get('/stats/taux-reussite/', { params })
       ]);
 
-      // Calculer les totaux pour les cartes de stats
-      const totalTests = testsParProjetResponse.data.reduce((sum, projet) => sum + projet.total, 0);
       const totalSuccess = tauxReussiteResponse.data.succès || 0;
       const totalEchec = tauxReussiteResponse.data.échec || 0;
       const tauxReussite = tauxReussiteResponse.data.taux_reussite || 0;
@@ -61,16 +50,13 @@ const Dashboard = ({ user, logout }) => {
 
       setDashboardData({
         stats: {
-          totalTests: totalTests,
+          totalTests: totalSuccess + totalEchec,
           totalSuccess: totalSuccess,
           totalEchec: totalEchec,
           tauxReussite: tauxReussite,
           tauxEchec: tauxEchec
         },
-        testsParJour: testsParJourResponse.data,
-        successVsFailed: successVsFailedResponse.data,
-        testsParProjet: testsParProjetResponse.data,
-        tauxReussite: tauxReussiteResponse.data,
+        executionResultats: executionResultatsResponse.data || [],
         tauxErreurScript: tauxErreurScriptResponse.data
       });
 
@@ -96,52 +82,46 @@ const Dashboard = ({ user, logout }) => {
     }));
   };
 
-  // AMÉLIORÉ: Fonction pour formater les dates correctement
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      let date;
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
       
-      // Vérifier si la date est déjà un objet Date
-      if (dateString instanceof Date) {
-        date = dateString;
-      } 
-      // Vérifier si la date est au format "DD-MM-YYYY"
-      else if (typeof dateString === 'string' && dateString.includes('-') && dateString.split('-').length === 3) {
-        const parts = dateString.split('-');
-        // On reconstruit la date au format "YYYY-MM-DD" pour un parsing fiable
-        const isoDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        date = new Date(isoDateString);
-      } 
-      // Vérifier si la date est au format ISO "YYYY-MM-DD"
-      else if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
-        date = new Date(dateString);
-      }
-      // Autres formats
-      else {
-        date = new Date(dateString);
-      }
-      
-      // On vérifie si la date est valide
-      if (isNaN(date.getTime())) {
-        return dateString; // En cas d'erreur, on retourne la chaîne originale
-      }
-      
-      // Format jj/mm/aaaa
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const year = date.getFullYear();
       
       return `${day}/${month}/${year}`;
     } catch (error) {
-      console.error('Error formatting date:', dateString, error);
       return dateString;
     }
   };
 
-  // Obtenir les 7 derniers jours de données
-  const getLast7DaysData = () => {
-    return dashboardData.successVsFailed.slice(-7);
+  const formatTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const seconds = date.getSeconds().toString().padStart(2, '0');
+      
+      return `${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  const getStatusBadge = (statut) => {
+    if (statut === 'réussi' || statut === 'success' || statut === 'Réussi') {
+      return <span className="badge bg-success">Réussi</span>;
+    } else if (statut === 'échec' || statut === 'failed' || statut === 'Échec') {
+      return <span className="badge bg-danger">Échec</span>;
+    } else {
+      return <span className="badge bg-warning">En attente</span>;
+    }
   };
 
   if (loading) {
@@ -172,7 +152,6 @@ const Dashboard = ({ user, logout }) => {
 
         <div className="pc-container">
           <div className="pc-content">
-            {/* Breadcrumb */}
             <div className="page-header">
               <div className="page-block">
                 <div className="row align-items-center">
@@ -188,7 +167,6 @@ const Dashboard = ({ user, logout }) => {
               </div>
             </div>
 
-            {/* Filtres */}
             <div className="row mb-4">
               <div className="col-12">
                 <FilterDashboard
@@ -200,7 +178,6 @@ const Dashboard = ({ user, logout }) => {
               </div>
             </div>
 
-            {/* Indicateur de filtres actifs */}
             {(activeFilters.projet_id || activeFilters.periode !== 'mois') && (
               <div className="row mb-3">
                 <div className="col-12">
@@ -208,7 +185,7 @@ const Dashboard = ({ user, logout }) => {
                     <small>
                       <i className="ti ti-filter me-1"></i>
                       Filtres actifs:
-                      {activeFilters.projet_id && ` Projet: ${dashboardData.testsParProjet.find(p => (p.id || p.projet) === activeFilters.projet_id)?.projet}`}
+                      {activeFilters.projet_id && ` Projet: ${activeFilters.projet_id}`}
                       {activeFilters.periode && ` | Période: ${activeFilters.periode}`}
                       {activeFilters.date_debut && activeFilters.date_fin &&
                         ` (${formatDate(activeFilters.date_debut)} - ${formatDate(activeFilters.date_fin)})`
@@ -219,9 +196,7 @@ const Dashboard = ({ user, logout }) => {
               </div>
             )}
 
-            {/* Main Content */}
             <div className="row">
-              {/* Stats Cards */}
               <div className="col-md-6 col-xl-3">
                 <div className="card">
                   <div className="card-body">
@@ -292,80 +267,65 @@ const Dashboard = ({ user, logout }) => {
                 </div>
               </div>
 
-              {/* Tests par jour */}
-              <div className="col-md-12 col-xl-6">
+              <div className="col-md-12">
                 <div className="card">
-                  <div className="card-header">
-                    <h5>Tests par jour</h5>
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <h5>Historique d'exécution des scripts</h5>
+                    <span className="badge bg-primary">{dashboardData.executionResultats.length} exécutions</span>
                   </div>
                   <div className="card-body">
                     <div className="table-responsive">
                       <table className="table table-hover">
                         <thead>
                           <tr>
-                            <th>Projet</th>
-                            <th>Date</th>
-                            <th className="text-end">Total</th>
+                            <th>Script</th>
+                            <th>Date d'exécution</th>
+                            <th>Horaire</th>
+                            <th>Statut</th>
+                            <th className="text-center">Nbre d'exécutions</th>
+                            <th>Campagnes</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.entries(dashboardData.testsParJour).slice(0, 5).map(([projet, data], index) => (
-                            data.slice(0, 2).map((item, itemIndex) => (
-                              <tr key={`${index}-${itemIndex}`}>
-                                {itemIndex === 0 && (
-                                  <td rowSpan={Math.min(data.length, 2)} className="fw-bold">
-                                    {projet}
-                                  </td>
-                                )}
-                                <td>{item.date ? formatDate(item.date) : 'N/A'}</td>
-                                <td className="text-end">{item.total}</td>
-                              </tr>
-                            ))
-                          ))}
-                          {Object.keys(dashboardData.testsParJour).length === 0 && (
-                            <tr>
-                              <td colSpan="3" className="text-center text-muted">
-                                Aucune donnée disponible
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Succès vs Échec par jour */}
-              <div className="col-md-12 col-xl-6">
-                <div className="card">
-                  <div className="card-header">
-                    <h5>Succès vs Échec</h5>
-                  </div>
-                  <div className="card-body">
-                    <div className="table-responsive">
-                      <table className="table table-hover">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th className="text-success">Succès</th>
-                            <th className="text-danger">Échec</th>
-                            <th className="text-info">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {getLast7DaysData().map((item, index) => (
+                          {dashboardData.executionResultats.map((execution, index) => (
                             <tr key={index}>
-                              <td>{formatDate(item.date)}</td>
-                              <td className="text-success fw-bold">{item.succès}</td>
-                              <td className="text-danger fw-bold">{item.échec}</td>
-                              <td className="text-info fw-bold">{item.succès + item.échec}</td>
+                              <td className="text-truncate" style={{ maxWidth: '200px' }} title={execution.script_nom || execution.script}>
+                                <i className="ti ti-file-code me-2"></i>
+                                {execution.script_nom || execution.script || 'N/A'}
+                              </td>
+                              <td>{formatDate(execution.date_execution || execution.date)}</td>
+                              <td className="text-muted">
+                                <i className="ti ti-clock me-1"></i>
+                                {formatTime(execution.date_execution || execution.date)}
+                              </td>
+                              <td>{getStatusBadge(execution.statut || execution.resultat)}</td>
+                              <td className="text-center">
+                                <span className="badge bg-light-secondary border">
+                                  {execution.nombre_executions || execution.total || 1}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="d-flex flex-wrap gap-1">
+                                  {execution.campagnes && execution.campagnes.length > 0 ? (
+                                    execution.campagnes.map((campagne, idx) => (
+                                      <span key={idx} className="badge bg-light-info" title={campagne}>
+                                        {campagne.length > 20 ? campagne.substring(0, 20) + '...' : campagne}
+                                      </span>
+                                    ))
+                                  ) : execution.projet ? (
+                                    <span className="badge bg-light-info">{execution.projet}</span>
+                                  ) : (
+                                    <span className="text-muted">-</span>
+                                  )}
+                                </div>
+                              </td>
                             </tr>
                           ))}
-                          {dashboardData.successVsFailed.length === 0 && (
+                          {dashboardData.executionResultats.length === 0 && (
                             <tr>
-                              <td colSpan="4" className="text-center text-muted">
-                                Aucune donnée disponible
+                              <td colSpan="6" className="text-center text-muted py-4">
+                                <i className="ti ti-inbox-off" style={{ fontSize: '2rem' }}></i>
+                                <p className="mb-0 mt-2">Aucune exécution disponible</p>
                               </td>
                             </tr>
                           )}
@@ -376,7 +336,6 @@ const Dashboard = ({ user, logout }) => {
                 </div>
               </div>
 
-              {/* Top scripts avec erreurs */}
               <div className="col-md-12 col-xl-6">
                 <div className="card">
                   <div className="card-header">
@@ -421,51 +380,6 @@ const Dashboard = ({ user, logout }) => {
                   </div>
                 </div>
               </div>
-
-              {/* Répartition par projet */}
-              <div className="col-md-12 col-xl-6">
-                <div className="card">
-                  <div className="card-header">
-                    <h5>Répartition par projet</h5>
-                  </div>
-                  <div className="card-body">
-                    <div className="table-responsive">
-                      <table className="table table-hover">
-                        <thead>
-                          <tr>
-                            <th>Projet</th>
-                            <th className="text-end">Total tests</th>
-                            <th className="text-end">Pourcentage</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dashboardData.testsParProjet.slice(0, 8).map((projet, index) => {
-                            const percentage = dashboardData.stats.totalTests > 0
-                              ? ((projet.total / dashboardData.stats.totalTests) * 100).toFixed(1)
-                              : 0;
-                            return (
-                              <tr key={index}>
-                                <td>{projet.projet}</td>
-                                <td className="text-end fw-bold">{projet.total}</td>
-                                <td className="text-end">
-                                  <span className="badge bg-light-primary">{percentage}%</span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {dashboardData.testsParProjet.length === 0 && (
-                            <tr>
-                              <td colSpan="3" className="text-center text-muted">
-                                Aucune donnée disponible
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div> 
             </div>
           </div>
         </div>

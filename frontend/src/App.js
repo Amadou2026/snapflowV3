@@ -22,6 +22,8 @@ import GestionResultatTest from './components/resultattest/GestionResultatTest'
 import GestionExecutionTest from './components/executiontest/GestionExecutionTest';
 import VueGlobale from './components/vueglobale/VueGlobale';
 import PageProjet from './components/projet/PageProjet';
+import GestionRolesPermissions from './components/rolepermissions/GestionRolesPermissions';
+import GestionAdminSuperadmin from './components/rolepermissions/GestionAdminSuperadmin';
 import TemplateSociete from './components/societe/TemplateSociete';
 import DetailsSociete from './components/societe/DetailsSociete';
 import 'font-awesome/css/font-awesome.min.css';
@@ -357,6 +359,36 @@ const AppRoutes = () => {
           element={
             isAuthenticated ? (
               <ProfilUtilisateur user={user} logout={logout} setUser={setUser} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* AJOUT DE LA ROUTE POUR LA GESTION DES RÔLES ET PERMISSIONS */}
+        <Route
+          path="/admin/roles-permissions"
+          element={
+            isAuthenticated ? (
+              user?.is_superuser ? (
+                <GestionRolesPermissions user={user} logout={logout} setUser={setUser} />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/gestionadmin"
+          element={
+            isAuthenticated ? (
+              user?.is_superuser ? (
+                <GestionAdminSuperadmin user={user} logout={logout} setUser={setUser} />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )

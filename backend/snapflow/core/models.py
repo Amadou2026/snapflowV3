@@ -135,14 +135,6 @@ class SecteurActivite(models.Model):
 
 class Societe(models.Model):
     nom = models.CharField(max_length=255)
-    
-    # --- CHAMPS SUPPRIMÉS ---
-    # num_siret = models.CharField(max_length=14, blank=True, null=True)
-    # url = models.URLField(
-    #     blank=True, null=True, help_text="URL du site web de la société"
-    # )
-    # --- FIN DES CHAMPS SUPPRIMÉS ---
-
     secteur_activite = models.ForeignKey(
         "SecteurActivite", on_delete=models.SET_NULL, null=True, blank=True
     )
