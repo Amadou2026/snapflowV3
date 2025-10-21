@@ -312,7 +312,7 @@ const SidebarAdmin = () => {
             )}
 
             {/* Gestion des Ressources Humaines */}
-            {isAuthenticated && (canManageUsers() || canManageGroups()) && (
+            {isAuthenticated && (canManageUsers() || canManageGroups() || user?.is_superuser) && (
               <>
                 <li className="pc-item pc-caption">
                   <label>Gestion des Ressources Humaines</label>
@@ -348,7 +348,20 @@ const SidebarAdmin = () => {
                   </li>
                 )}
 
-
+                {/* Gestion des rôles et permissions - visible uniquement pour les superadmin */}
+                {user?.is_superuser && (
+                  <li className="pc-item">
+                    <Link
+                      to={buildUrl("/admin/roles-permissions")}
+                      className={`pc-link ${isLinkActive('/admin/roles-permissions')}`}
+                    >
+                      <span className="pc-micon">
+                        <i className="ti ti-shield-lock"></i>
+                      </span>
+                      <span className="pc-mtext">Gestion des rôles et permissions</span>
+                    </Link>
+                  </li>
+                )}
               </>
             )}
 

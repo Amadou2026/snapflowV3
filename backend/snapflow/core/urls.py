@@ -128,10 +128,21 @@ urlpatterns = [
     path(
         "scripts-par-projet/", views.scripts_par_projet, name="scripts-par-projet"
     ),  # retourne les scripts par projet
+    
+    # Gestion de permission
+    
+    # URLs pour la gestion des rôles et permissions par utilisateur
+    path('user/<int:user_id>/groups/', views.get_user_groups, name='api_get_user_groups'),
+    path('user/<int:user_id>/groups/set/', views.set_user_groups, name='api_set_user_groups'),
+    path('user/<int:user_id>/permissions/', views.get_user_permissions, name='api_get_user_permissions'),
+    path('user/<int:user_id>/permissions/set/', views.set_user_permissions, name='api_set_user_permissions'),
+    
     path(
         "user/permissions/", api_user_permissions, name="api_user_permissions"
-    ),  # Gestion de permission
+    ),  
     path("permissions/", list_all_permissions, name="all-permissions"),
+    
+    
     # Société - URLs CRUD
     path("societe/", views.list_societes, name="list_societes"),
     path("societe/create/", views.create_societe, name="create_societe"),
